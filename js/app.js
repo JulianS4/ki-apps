@@ -5,6 +5,7 @@ import { runMigrations } from './core/migrate.js';
 import * as heute from './areas/heute.js';
 import * as settings from './areas/settings.js';
 import * as training from './areas/training/index.js';
+import * as recovery from './areas/recovery/index.js';
 
 const $ = s => document.querySelector(s);
 
@@ -12,8 +13,8 @@ const $ = s => document.querySelector(s);
 // the app runs on memory and says so, because nothing survives a restart.
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
-const AREAS = { heute, training, settings };
-const TITLES = { training: 'Training', settings: 'Einstellungen' };
+const AREAS = { heute, training, recovery, settings };
+const TITLES = { training: 'Training', recovery: 'Recovery', settings: 'Einstellungen' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
 
@@ -85,6 +86,7 @@ setInterval(() => { if (!document.hidden && current && current.route.area === 'h
 
 runMigrations(ctx.store);
 if (training.init) training.init(ctx);
+if (recovery.init) recovery.init(ctx);
 render();
 ctx.setStatus(!persistent ? 'Speichern nicht möglich – privater Modus? Einträge gehen beim Schließen verloren.'
   : ctx.store.keys().length ? 'Gespeichert auf diesem Gerät' : 'Bereit · Daten bleiben auf diesem Gerät');

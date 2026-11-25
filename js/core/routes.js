@@ -7,9 +7,20 @@ function trainingRoute(sub) {
   return { area: 'training', view: 'day', day: DAYS.includes(sub) ? sub : null };
 }
 
+const REC_VIEWS = { woche: 'week', zyklus: 'cycle', mobility: 'mobility' };
+function recoveryRoute(sub) {
+  const [p, q] = sub.split('?');
+  if (p === 'atmung') {
+    const n = parseInt(q, 10);
+    return { area: 'recovery', view: 'breath', min: n >= 1 && n <= 30 ? n : 2 };
+  }
+  return { area: 'recovery', view: REC_VIEWS[p] || 'today' };
+}
+
 export function parseRoute(hash) {
   const h = String(hash || '').replace(/^#/, '');
   if (h === 'einstellungen') return { area: 'settings' };
+  if (h === 'recovery' || h.startsWith('recovery/')) return recoveryRoute(h.slice('recovery/'.length));
   if (h === 'training' || h.startsWith('training/')) return trainingRoute(h.slice('training/'.length));
   if (DAYS.includes(h) || h === 'verlauf' || (h.startsWith('x-') && h.length > 2)) return trainingRoute(h);
   return { area: 'heute' };
