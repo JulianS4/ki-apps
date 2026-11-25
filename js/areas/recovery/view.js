@@ -1,8 +1,8 @@
 // Recovery views as HTML strings. Pure: everything comes in through `v`.
 import { esc } from '../../core/html.js';
-import { dfmt } from '../../core/dates.js';
-import { SIGH, MOBILITY } from './data.js';
-import { hoursInBed, boxPhase } from './logic.js';
+import { dfmt, dshort, addDays } from '../../core/dates.js';
+import { SIGH, MOBILITY, DELOAD_RULES } from './data.js';
+import { hoursInBed, boxPhase, daysBetween } from './logic.js';
 
 const SCALES = [['schlaf', 'Schlaf'], ['energie', 'Energie'], ['muskeln', 'Muskeln & Gelenke']];
 export const dec = n => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -105,4 +105,53 @@ export function breathView(v) {
   <div class="orb-wrap"><i class="orb${f.orb ? ' big' : ''}" id="rtOrb" aria-hidden="true"></i><div class="orb-t"><b id="rtPhase">${x.rtPhase}</b><span id="rtLeft">${x.rtLeft}</span></div></div>
   <p class="note"><span id="rtTotal">${x.rtTotal}</span> übrig · 4 s ein, 4 halten, 4 aus, 4 halten</p>
   <div class="tools">${btns(v.status)}</div></div>`;
+}
+
+const WQ = [['schlaf', 'Schlaf'], ['energie', 'Energie'], ['gelenke', 'Gelenke'], ['ziel', 'Fortschritt zum Ziel']];
+const bedLine = m => (m.bed && m.wake ? `${esc(m.bed)}–${esc(m.wake)} · ${dec(hoursInBed(m.bed, m.wake))} h` : 'Bettzeit fehlt') + (m.puls ? ' · Puls ' + m.puls : '');
+
+export function weekView(v) {
+  const w = v.w || {};
+  const rows = v.morning.map(m => `<li><i class="dot ${m.amp ? m.amp.key : ''}" aria-hidden="true"></i><span class="nm"><b>${dfmt(m.day)}</b><small>${bedLine(m)}</small></span><span class="val">${m.sum == null ? 'unvollständig' : `${m.sum} von 15 · ${m.amp.label}`}</span></li>`).join('');
+  const past = v.past.map(p => `<details class="ses"><summary><b>${dfmt(p.sunday)}</b><span>${WQ.map(([k]) => p.w[k] ?? '–').join(' · ')}</span></summary><ul>${WQ.map(([k, l]) => `<li>${l}<span>${p.w[k] ?? '–'}/5</span></li>`).join('')}${p.w.gut ? `<li>Lief gut<span>${esc(p.w.gut)}</span></li>` : ''}${p.w.next ? `<li>Ziel<span>${esc(p.w.next)}</span></li>` : ''}</ul></details>`).join('');
+  return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Wochen-Check für ${dfmt(v.sunday)}</p><h1>Woche</h1></div></div>
+  <section class="blk"><div class="bh"><h2>Wochen-Check</h2><p>1 = schlecht, 5 = top</p></div>
+  ${WQ.map(([k, l]) => `<div class="ex"><h3 class="sq">${l}</h3>${scale('wk', k, w[k], l)}</div>`).join('')}
+  <label class="note fl" for="wkGut">Was lief gut?</label><textarea id="wkGut" data-a="wkt" data-k="gut">${esc(w.gut || '')}</textarea>
+  <label class="note fl" for="wkNext">Ziel nächste Woche</label><textarea id="wkNext" data-a="wkt" data-k="next">${esc(w.next || '')}</textarea></section>
+  <section class="blk"><div class="bh"><h2>Morgen-Checks</h2><p>letzte 14 Tage</p></div>${rows ? `<ul class="rows">${rows}</ul>` : '<p class="empty">Noch keine Morgen-Checks. Trag ihn morgens unter „Tag“ ein.</p>'}</section>
+  ${past ? `<section class="blk"><div class="bh"><h2>Frühere Wochen</h2></div><p class="note">Werte: Schlaf · Energie · Gelenke · Ziel</p>${past}</section>` : ''}`;
+}
+
+const since = n => (n <= 0 ? 'seit heute' : n === 1 ? 'seit 1 Tag' : `seit ${n} Tagen`);
+
+function triggers(t) {
+  const items = t.items.map(i => i.auto
+    ? `<li><div class="li"><span class="ck${i.on ? ' on' : ''}" aria-hidden="true">${i.on ? '✓' : ''}</span><span class="t">${esc(i.label)}</span><span class="s">${i.on ? 'trifft zu' : 'nein'}</span></div></li>`
+    : `<li><label><input type="checkbox" data-a="flag" data-k="${i.key}" ${i.on ? 'checked' : ''}>${esc(i.label)}<span class="s">diese Woche</span></label></li>`).join('');
+  return `<section class="blk"><div class="bh"><h2>Deload vorziehen?</h2><p>${t.count} von 6${t.suggest ? ' · empfohlen' : ''}</p></div><ul class="list">${items}</ul>
+  <p class="note">${t.suggest ? 'Zwei oder mehr Anzeichen treffen zu: Zieh den Deload vor.' : 'Ab zwei Anzeichen empfiehlt die App, den Deload vorzuziehen. Vier davon erkennt sie selbst.'}</p></section>`;
+}
+
+function complaints(v) {
+  const d = v.draft;
+  const open = v.open.map(c => `<li><span class="nm"><b>${esc(c.place)}</b><small>Stärke ${c.level} · ${since(daysBetween(c.start, v.today))}${c.note ? ' · ' + esc(c.note) : ''}</small></span><button class="btn" data-a="cres" data-id="${esc(c.id)}" type="button">Erledigt</button></li>`).join('');
+  const done = v.done.length ? `<details class="ses"><summary><b>Erledigt</b><span>${v.done.length}</span></summary><ul>${v.done.map(c => `<li>${esc(c.place)}<span>${dshort(c.start)}–${dshort(c.resolved)}</span></li>`).join('')}</ul></details>` : '';
+  return `<section class="blk"><div class="bh"><h2>Beschwerden</h2><p>${v.open.length} offen</p></div>
+  <div class="ex"><label class="note fl" for="cPlace">Körperstelle</label><input id="cPlace" class="tx" data-a="cf" data-k="place" value="${esc(d.place)}" placeholder="z. B. Knie links" autocomplete="off">
+  <p class="note fl">Stärke · 1 = leicht, 5 = stark</p>${scale('clv', 'level', d.level, 'Stärke')}
+  <label class="note fl" for="cNote">Notiz</label><input id="cNote" class="tx" data-a="cf" data-k="note" value="${esc(d.note)}" placeholder="optional" autocomplete="off">
+  ${v.cerr ? `<p class="note err" role="alert">${esc(v.cerr)}</p>` : ''}<div class="tools"><button class="btn pri" data-a="cadd" type="button">Hinzufügen</button></div></div>
+  ${open ? `<ul class="rows">${open}</ul>` : ''}${done}</section>`;
+}
+
+export function cycleView(v) {
+  const c = v.c;
+  const rows = v.rows.map(r => `<tr${r.week === c.week ? ' class="on"' : ''}><td>${r.week}</td><td>${dshort(r.start)}</td><td>${r.main}</td><td>${r.iso}</td><td>${esc(r.goal)}</td></tr>`).join('');
+  return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Deload-Zyklus · 6 Wochen Aufbau + 1 Deload</p><h1>Woche ${c.week}</h1><p class="m">${c.deload ? 'Deload' : esc(c.goal)} · RIR ${c.main} Haupt / ${c.iso} Iso</p></div></div>
+  ${c.deload ? `<section class="blk"><div class="bh"><h2>Deload-Regeln</h2><p>diese Woche</p></div><ul class="list rules">${DELOAD_RULES.map(r => `<li>${esc(r)}</li>`).join('')}</ul></section>` : ''}
+  <section class="blk"><div class="bh"><h2>Zyklus</h2><p>${c.deload ? 'Nächster Deload ab ' + dfmt(c.nextDeload) : 'Deload ' + dfmt(c.nextDeload) + ' – ' + dfmt(addDays(c.nextDeload, 6))}</p></div>
+  <table class="tbl"><thead><tr><th>Woche</th><th>ab</th><th>RIR Haupt</th><th>RIR Iso</th><th>Ziel</th></tr></thead><tbody>${rows}</tbody></table>
+  ${c.deload ? '' : `<div class="tools"><button class="btn${v.confirm ? ' red' : ''}" data-a="deload" type="button">${v.confirm ? 'Sicher? Nochmal tippen' : 'Deload jetzt starten'}</button></div><p class="note">${v.confirm ? 'Diese Woche wird zur Deload-Woche, ab nächstem Montag beginnt ein neuer Aufbau.' : 'Macht diese Woche zur Deload-Woche. Ab nächstem Montag beginnt ein neuer Aufbau.'}</p>`}</section>
+  ${triggers(v.trig)}${complaints(v)}`;
 }

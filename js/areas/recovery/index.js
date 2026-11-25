@@ -1,12 +1,12 @@
 // Recovery area: morning check, mobility, breathing, recovery blocks,
 // week check and deload cycle. All state lives in the store (rec.*).
-import { ds, DAYS, dayIdx } from '../../core/dates.js';
-import { BLOCKS, CYCLE_ANCHOR, MOBILITY } from './data.js';
+import { ds, DAYS, dayIdx, addDays } from '../../core/dates.js';
+import { BLOCKS, CYCLE_ANCHOR, MOBILITY, RIR } from './data.js';
 import {
   checkSum, ampel, plannedBed, cycleInfo, mobilityFor, deloadTriggers, sundayOf,
   timerState, clockStart, clockElapsed, clockPause, clockResume,
 } from './logic.js';
-import { todayView, mobilityView, breathView, mobilityFields, breathFields } from './view.js';
+import { todayView, mobilityView, breathView, mobilityFields, breathFields, weekView, cycleView } from './view.js';
 
 const SCORES = ['schlaf', 'energie', 'muskeln'];
 const WEEKLY = ['schlaf', 'energie', 'gelenke', 'ziel'];
@@ -32,6 +32,38 @@ function setDone(ctx, key, d, on) {
   const m = map(ctx, key);
   if (on) m[d] = { done: true }; else delete m[d];
   put(ctx, key, m);
+}
+
+// The week check always belongs to the Sunday that ends the current week.
+function setWeekly(ctx, patch) {
+  const sun = sundayOf(day(ctx)), m = map(ctx, 'rec.weekly');
+  m[sun] = { gut: '', next: '', ...m[sun], ...patch };
+  put(ctx, 'rec.weekly', m);
+}
+
+// Screen-only state: deload confirmation and the complaint being typed.
+let confirmDeload = false, cerr = '';
+let draft = { place: '', level: null, note: '' };
+
+function weekVM(ctx) {
+  const d = day(ctx), sunday = sundayOf(d), weekly = map(ctx, 'rec.weekly'), morning = map(ctx, 'rec.morning');
+  const list = [];
+  for (let i = 0; i < 14; i++) {
+    const k = addDays(d, -i), e = morning[k];
+    if (e) { const sum = checkSum(e); list.push({ day: k, sum, amp: ampel(sum), bed: e.bed, wake: e.wake, puls: e.puls }); }
+  }
+  const past = Object.keys(weekly).filter(k => k < sunday).sort().reverse().map(k => ({ sunday: k, w: weekly[k] || {} }));
+  return { sunday, w: weekly[sunday], morning: list, past };
+}
+
+function cycleVM(ctx) {
+  const d = day(ctx), c = cycleInfo(d, anchor(ctx)), first = addDays(c.start, -(c.week - 1) * 7);
+  const all = (ctx.store.get('rec.complaints', []) || []).filter(x => x && x.id);
+  return {
+    c, rows: RIR.map(r => ({ ...r, start: addDays(first, (r.week - 1) * 7) })), confirm: confirmDeload,
+    trig: deloadTriggers(inputs(ctx), d), open: all.filter(x => !x.resolved), done: all.filter(x => x.resolved),
+    draft, cerr, today: d,
+  };
 }
 
 export const weeklyDone = (ctx, d) => {
@@ -147,6 +179,8 @@ export function header(route) {
 export function render(route, ctx) {
   if (route.view === 'mobility') return mobilityView(mobilityVM(ctx));
   if (route.view === 'breath') return breathView(breathVM(route));
+  if (route.view === 'week') return weekView(weekVM(ctx));
+  if (route.view === 'cycle') return cycleView(cycleVM(ctx));
   const d = day(ctx), s = summary(ctx), entry = entryFor(ctx, d), wd = DAYS[dayIdx(new Date(d + 'T12:00:00'))];
   return todayView({
     day: d, entry, planned: plannedBed(d), sum: s.sum, amp: s.ampel,
@@ -167,6 +201,8 @@ export function mount(root, route, ctx) {
 
 // A timer belongs to its view: leaving the view ends it without marking it done.
 export function onNavigate(next) {
+  confirmDeload = false;
+  cerr = '';
   if (run && !(next.area === 'recovery' && next.view === run.kind && (run.kind !== 'breath' || next.min === run.min))) stopRun();
 }
 
@@ -194,6 +230,38 @@ export function onClick(e, route, ctx) {
     ctx.rerender();
   }
   if (a === 'tstop') { stopRun(); ctx.go('#recovery'); }
+  if (a === 'wk' && WEEKLY.includes(t.dataset.k) && n >= 1 && n <= 5) { setWeekly(ctx, { [t.dataset.k]: n }); ctx.rerender(); }
+  if (a === 'deload') {
+    // Two taps, like "Plan zurücksetzen": the first only asks.
+    if (!confirmDeload) { confirmDeload = true; ctx.rerender(); return; }
+    confirmDeload = false;
+    put(ctx, 'rec.cycle', { anchor: addDays(cycleInfo(day(ctx), anchor(ctx)).start, 7) });
+    ctx.rerender();
+  }
+  if (a === 'clv' && n >= 1 && n <= 5) { draft.level = n; cerr = ''; ctx.rerender(); }
+  if (a === 'cadd') {
+    const place = draft.place.trim();
+    cerr = !place ? 'Bitte eine Körperstelle eintragen.' : !draft.level ? 'Bitte die Stärke wählen.' : '';
+    if (!cerr) {
+      const list = ctx.store.get('rec.complaints', []) || [];
+      list.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), place, level: draft.level, start: day(ctx), note: draft.note.trim(), resolved: null });
+      put(ctx, 'rec.complaints', list);
+      draft = { place: '', level: null, note: '' };
+    }
+    ctx.rerender();
+  }
+  if (a === 'cres' && t.dataset.id) {
+    const list = (ctx.store.get('rec.complaints', []) || []).map(c => (c && c.id === t.dataset.id ? { ...c, resolved: day(ctx) } : c));
+    put(ctx, 'rec.complaints', list);
+    ctx.rerender();
+  }
+}
+
+// Typing: saved as you go, without redrawing (keeps the keyboard open).
+export function onInput(e, route, ctx) {
+  const t = e.target, a = t.dataset && t.dataset.a, k = t.dataset && t.dataset.k;
+  if (a === 'wkt' && (k === 'gut' || k === 'next')) setWeekly(ctx, { [k]: t.value });
+  if (a === 'cf' && (k === 'place' || k === 'note')) draft[k] = t.value;
 }
 
 export function onChange(e, route, ctx) {
@@ -208,6 +276,13 @@ export function onChange(e, route, ctx) {
     ctx.rerender();
   }
   if (a === 'mobdone') { setDone(ctx, 'rec.mobility', day(ctx), t.checked); ctx.rerender(); }
+  if (a === 'flag' && ['leistung', 'stimmung'].includes(t.dataset.k)) {
+    const w = cycleInfo(day(ctx)).start, m = map(ctx, 'rec.flags'), f = { ...m[w] };
+    if (t.checked) f[t.dataset.k] = true; else delete f[t.dataset.k];
+    if (Object.keys(f).length) m[w] = f; else delete m[w];
+    put(ctx, 'rec.flags', m);
+    ctx.rerender();
+  }
   if (a === 'blk') {
     const d = day(ctx), m = map(ctx, 'rec.blocks'), b = { ...m[d] };
     if (t.checked) b[t.dataset.i] = true; else delete b[t.dataset.i];

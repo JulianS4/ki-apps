@@ -140,3 +140,74 @@ test('leaving a running timer stops it without marking the day', t => {
   assert.equal(ctx.store.get('rec.mobility'), null);
   assert.match(recovery.render(MOB, ctx), /data-a="tstart"/);
 });
+
+const WEEK = { area: 'recovery', view: 'week' };
+const CYCLE = { area: 'recovery', view: 'cycle' };
+const input = (dataset, value) => ({ target: { dataset, value } });
+
+test("weekly check belongs to this week's sunday", () => {
+  const ctx = mk(WED);
+  recovery.onClick(click({ a: 'wk', k: 'ziel', n: '4' }), WEEK, ctx);
+  recovery.onInput(input({ a: 'wkt', k: 'gut' }, 'Alle Einheiten geschafft'), WEEK, ctx);
+  assert.equal(ctx.store.get('rec.weekly')['2026-11-29'].ziel, 4);
+  assert.equal(ctx.store.get('rec.weekly')['2026-11-29'].gut, 'Alle Einheiten geschafft');
+  ctx.now = () => new Date(2026, 10, 30, 8, 0);
+  recovery.onClick(click({ a: 'wk', k: 'ziel', n: '2' }), WEEK, ctx);
+  assert.equal(ctx.store.get('rec.weekly')['2026-12-06'].ziel, 2);
+  assert.equal(ctx.store.get('rec.weekly')['2026-11-29'].ziel, 4);
+  assert.match(recovery.render(WEEK, ctx), /Alle Einheiten geschafft/);
+});
+
+test('week view lists recent morning checks', () => {
+  const ctx = mk(WED);
+  ctx.store.set('rec.morning', { '2026-11-24': { schlaf: 2, energie: 2, muskeln: 3, bed: '23:15', wake: '06:00', puls: null } });
+  const html = recovery.render(WEEK, ctx);
+  assert.match(html, /Di 24\.11\./);
+  assert.match(html, /7 von 15/);
+  assert.match(html, /6,75 h/);
+});
+
+test('cycle view marks week 6 and the next deload', () => {
+  const html = recovery.render(CYCLE, mk(WED));
+  assert.match(html, /Woche 6/);
+  assert.match(html, /30\.11\./);
+  assert.match(html, /data-a="deload"/);
+});
+
+test('starting a deload now makes this week the deload week', () => {
+  const ctx = mk(WED);
+  recovery.onClick(click({ a: 'deload' }), CYCLE, ctx);
+  assert.equal(ctx.store.get('rec.cycle'), null);
+  recovery.onClick(click({ a: 'deload' }), CYCLE, ctx);
+  assert.equal(ctx.store.get('rec.cycle').anchor, '2026-11-30');
+  assert.equal(recovery.summary(ctx).cycle.deload, true);
+  assert.match(recovery.render(CYCLE, ctx), /Sätze halbieren/);
+});
+
+test('manual deload signs are stored for this week', () => {
+  const ctx = mk(WED);
+  recovery.onChange(change({ a: 'flag', k: 'leistung' }, { checked: true }), CYCLE, ctx);
+  assert.deepEqual(ctx.store.get('rec.flags'), { '2026-11-23': { leistung: true } });
+});
+
+test('adding and resolving a complaint', () => {
+  const ctx = mk(WED);
+  recovery.onInput(input({ a: 'cf', k: 'place' }, 'Knie links'), CYCLE, ctx);
+  recovery.onClick(click({ a: 'clv', n: '3' }), CYCLE, ctx);
+  recovery.onClick(click({ a: 'cadd' }), CYCLE, ctx);
+  const list = ctx.store.get('rec.complaints');
+  assert.equal(list.length, 1);
+  assert.equal(list[0].place, 'Knie links');
+  assert.equal(list[0].level, 3);
+  assert.equal(list[0].start, '2026-11-25');
+  assert.equal(list[0].resolved, null);
+  assert.match(recovery.render(CYCLE, ctx), /Knie links/);
+  recovery.onClick(click({ a: 'cres', id: list[0].id }), CYCLE, ctx);
+  assert.equal(ctx.store.get('rec.complaints')[0].resolved, '2026-11-25');
+});
+
+test('a complaint needs a body part', () => {
+  const ctx = mk(WED);
+  recovery.onClick(click({ a: 'cadd' }), CYCLE, ctx);
+  assert.equal(ctx.store.get('rec.complaints'), null);
+});

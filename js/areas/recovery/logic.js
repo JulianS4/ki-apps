@@ -6,7 +6,7 @@ import { AMPEL, RIR, CYCLE_ANCHOR } from './data.js';
 
 const noon = day => new Date(day + 'T12:00:00');
 const mon = day => ds(monday(noon(day)));
-const daysBetween = (a, b) => Math.round((noon(b) - noon(a)) / 86400000);
+export const daysBetween = (a, b) => Math.round((noon(b) - noon(a)) / 86400000);
 const mins = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 
