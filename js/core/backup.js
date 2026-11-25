@@ -10,12 +10,20 @@ export function buildBackup(store, exportedIso) {
   return { app: 'ki-apps', v: 1, exported: exportedIso, data };
 }
 
-// Sessions merge per key (backup wins), the plan only replaces when it is
-// a full week, everything else is replaced as a whole.
+// Date-keyed maps merge per key (backup wins), so loading an older backup
+// never wipes entries made since. Complaints merge by id. The plan only
+// replaces when it is a full week, everything else is replaced as a whole.
+const PER_KEY = ['train.sess', 'rec.morning', 'rec.mobility', 'rec.weekly', 'rec.blocks', 'rec.flags'];
 function put(store, key, value) {
   let ok = true;
-  if (key === 'train.sess') {
+  if (PER_KEY.includes(key)) {
     if (isObj(value)) ok = store.set(key, { ...store.get(key, {}), ...value });
+  } else if (key === 'rec.complaints') {
+    if (Array.isArray(value)) {
+      const byId = new Map((store.get(key, []) || []).map(c => [c.id, c]));
+      for (const c of value) if (isObj(c)) byId.set(c.id, c);
+      ok = store.set(key, [...byId.values()]);
+    }
   } else if (key === 'train.plan') {
     if (validPlan(value)) ok = store.set(key, value);
   } else if (key !== 'meta.lastBackup') {

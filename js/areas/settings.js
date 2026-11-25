@@ -1,6 +1,7 @@
 // Settings: backup, Apple Health shortcut guide, install hint.
 import { buildBackup, importBackup, STORAGE_FAILED } from '../core/backup.js';
 import { today, dfmt } from '../core/dates.js';
+import { runMigrations } from '../core/migrate.js';
 
 const SC_NAME = 'Training loggen';
 const INVALID = 'Keine gültige Backup-Datei';
@@ -52,6 +53,7 @@ export function onChange(e, route, ctx) {
   t.files[0].text()
     .then(txt => {
       const r = importBackup(JSON.parse(txt), ctx.store);
+      runMigrations(ctx.store);
       ctx.reloadAll();
       ctx.rerender();
       document.getElementById('impMsg').textContent = `Backup geladen ✓ (${r.sessions} Einheiten)`;

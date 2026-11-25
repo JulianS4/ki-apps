@@ -1,6 +1,7 @@
 // KI-Apps shell: routing, shared context, delegated events, offline cache.
 import { createStore, pickBackend } from './core/store.js';
 import { parseRoute } from './core/routes.js';
+import { runMigrations } from './core/migrate.js';
 import * as heute from './areas/heute.js';
 import * as settings from './areas/settings.js';
 import * as training from './areas/training/index.js';
@@ -82,6 +83,7 @@ addEventListener('resize', () => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
 setInterval(() => { if (!document.hidden && current && current.route.area === 'heute') render(); }, 60000);
 
+runMigrations(ctx.store);
 if (training.init) training.init(ctx);
 render();
 ctx.setStatus(!persistent ? 'Speichern nicht möglich – privater Modus? Einträge gehen beim Schließen verloren.'
