@@ -66,7 +66,9 @@ addEventListener('hashchange', e => {
   const o = new URL(e.oldURL).hash, n = location.hash;
   pos[o] = scrollY;
   ctx.prevHash = o;
-  const next = parseRoute(n), area = AREAS[next.area];
+  const next = parseRoute(n), area = AREAS[next.area], left = AREAS[parseRoute(o).area];
+  // The area being left hears about it too, so it can stop a running timer.
+  if (left !== area && left.onNavigate) left.onNavigate(next, ctx);
   if (area.onNavigate) area.onNavigate(next, ctx);
   render();
   // Coming back from an exercise's progress page keeps your place.

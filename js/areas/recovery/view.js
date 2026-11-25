@@ -2,7 +2,7 @@
 import { esc } from '../../core/html.js';
 import { dfmt } from '../../core/dates.js';
 import { SIGH, MOBILITY } from './data.js';
-import { hoursInBed } from './logic.js';
+import { hoursInBed, boxPhase } from './logic.js';
 
 const SCALES = [['schlaf', 'Schlaf'], ['energie', 'Energie'], ['muskeln', 'Muskeln & Gelenke']];
 export const dec = n => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -60,4 +60,49 @@ export function todayView(v) {
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">${dfmt(v.day)}</p><h1>Recovery</h1></div></div>
   ${morning(v)}${mobility(v.mob)}${breath(v.sat)}${v.blocks ? blocks(v) : ''}
   <section class="blk"><div class="bh"><h2>Zyklus</h2></div><div class="cards">${v.trig.suggest ? suggestCard(v.trig) : ''}${cycleCard(v.cycle)}</div></section>`;
+}
+
+// Guided timers. The *Fields helpers feed both the first render and the
+// in-place updates of the running timer, so both always show the same.
+export const mss = sec => { const s = Math.max(0, Math.ceil(sec)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+export function mobilityFields(steps, s, end) {
+  const next = steps[s.index + 1];
+  return {
+    text: {
+      rtStep: `Übung ${s.index + 1} von ${steps.length}`, rtTitle: s.step.title, rtHint: s.step.hint || ' ',
+      rtLeft: mss(s.left), rtNext: next ? 'Als Nächstes: ' + next.title : 'Letzte Übung', rtTotal: mss(s.total),
+    },
+    bar: Math.min(100, (1 - s.total / end) * 100),
+  };
+}
+
+export function breathFields(t, dur, idle) {
+  const p = boxPhase(t);
+  return { text: { rtPhase: idle ? 'Bereit' : p.phase, rtLeft: idle ? '4 · 4 · 4 · 4' : String(p.left), rtTotal: mss(dur - t) }, orb: !idle && p.n < 2 };
+}
+
+const btns = status => status === 'idle'
+  ? '<button class="btn pri" data-a="tstart" type="button">Start</button>'
+  : `<button class="btn pri" data-a="tpause" type="button">${status === 'paused' ? 'Weiter' : 'Pause'}</button><button class="btn" data-a="tstop" type="button">Beenden</button>`;
+const doneBox = msg => `<div class="timer"><p class="k">Recovery</p><h1>${msg}</h1><div class="tools"><a class="btn pri" href="#recovery">‹ Recovery</a></div></div>`;
+
+export function mobilityView(v) {
+  if (v.status === 'done') return doneBox('Geschafft ✓') + '<p class="note" style="text-align:center">Mobility ist für heute abgehakt.</p>';
+  const f = mobilityFields(v.steps, v.state, v.end), x = f.text;
+  return `<div class="timer"><p class="k">Routine ${v.routine} · ${v.name} · <span id="rtStep">${x.rtStep}</span></p>
+  <h1 id="rtTitle">${esc(x.rtTitle)}</h1><p class="hint" id="rtHint">${esc(x.rtHint)}</p>
+  <div class="big" id="rtLeft" aria-live="off">${x.rtLeft}</div><p class="note" id="rtNext">${esc(x.rtNext)}</p>
+  <div class="prog" aria-hidden="true"><i id="rtBar" style="width:${f.bar}%"></i></div>
+  <p class="note"><span id="rtTotal">${x.rtTotal}</span> übrig von ${mss(v.end)}${v.doneToday && v.status === 'idle' ? ' · heute schon erledigt ✓' : ''}</p>
+  <div class="tools">${btns(v.status)}</div></div>`;
+}
+
+export function breathView(v) {
+  if (v.status === 'done') return doneBox('Fertig ✓');
+  const f = breathFields(v.t, v.dur, v.status === 'idle'), x = f.text;
+  return `<div class="timer"><p class="k">Box-Breathing · ${v.min} min</p>
+  <div class="orb-wrap"><i class="orb${f.orb ? ' big' : ''}" id="rtOrb" aria-hidden="true"></i><div class="orb-t"><b id="rtPhase">${x.rtPhase}</b><span id="rtLeft">${x.rtLeft}</span></div></div>
+  <p class="note"><span id="rtTotal">${x.rtTotal}</span> übrig · 4 s ein, 4 halten, 4 aus, 4 halten</p>
+  <div class="tools">${btns(v.status)}</div></div>`;
 }

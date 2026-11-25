@@ -193,3 +193,19 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .sigh{margin:0;padding:0 14px 14px;font-size:15px}
 .cards .card.warn{margin-top:0}
 @media (max-width:420px){header.top:has(.tabs a:nth-child(3)) .lead .brand{display:none}}
+.timer{text-align:center;padding:18px 0 8px}
+.timer .k{margin:0;color:var(--mut);font-size:14px}
+.timer h1{font-size:clamp(30px,8vw,44px);line-height:1.1;letter-spacing:-.02em;font-weight:800;font-stretch:112%;margin:8px 0 2px;text-wrap:balance}
+.timer .hint{margin:0;color:var(--mut);font-size:17px}
+.timer .big{font:800 clamp(64px,22vw,112px)/1 Archivo,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.03em;margin:22px 0 8px}
+.timer .tools{justify-content:center;margin-top:20px}
+.timer .tools .btn{min-width:120px}
+.prog{height:8px;background:var(--card);border-radius:4px;overflow:hidden;margin:16px 0 6px}
+.prog i{display:block;height:100%;background:var(--acc);border-radius:4px}
+.orb-wrap{position:relative;display:grid;place-items:center;width:min(72vw,300px);aspect-ratio:1;margin:22px auto 14px}
+.orb{position:absolute;inset:0;border-radius:50%;background:var(--acc2);border:3px solid var(--acc);transform:scale(.55)}
+.orb.big{transform:scale(1)}
+.orb-t{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px}
+.orb-t b{font-size:20px;font-weight:800;font-stretch:112%}
+.orb-t span{font:800 40px/1 Archivo,sans-serif;font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:no-preference){.orb{transition:transform 4s linear}}

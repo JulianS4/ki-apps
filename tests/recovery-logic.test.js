@@ -4,6 +4,7 @@ import { MOBILITY, AMPEL } from '../js/areas/recovery/data.js';
 import {
   checkSum, ampel, plannedBed, hoursInBed, cycleInfo, mobilityFor,
   timerState, boxPhase, sundayOf, deloadTriggers,
+  clockStart, clockElapsed, clockPause, clockResume,
 } from '../js/areas/recovery/logic.js';
 import { addDays } from '../js/core/dates.js';
 
@@ -143,4 +144,18 @@ test('deloadTriggers: manual flags and suggestion', () => {
     ['rot2', true], ['schlaf3', true], ['puls', true], ['schmerz', true], ['leistung', false], ['stimmung', false],
   ]);
   assert.equal(two.items[3].label, 'Gelenk- oder Sehnenschmerz > 3 Tage');
+});
+
+test('timer clock counts real time, also while the app was hidden', () => {
+  const c = clockStart(1000);
+  assert.equal(clockElapsed(c, 6000), 5);
+});
+
+test('timer clock stands still while paused', () => {
+  let c = clockPause(clockStart(0), 10000);
+  assert.equal(clockElapsed(c, 50000), 10);
+  c = clockResume(c, 50000);
+  assert.equal(clockElapsed(c, 53000), 13);
+  assert.equal(clockPause(clockPause(c, 60000), 70000).pausedAt, 60000);
+  assert.equal(clockResume(c, 90000), c);
 });

@@ -100,3 +100,10 @@ export function deloadTriggers({ morning = {}, complaints = [], flags = {} }, to
   const count = items.filter(i => i.on).length;
   return { items, count, suggest: count >= 2 };
 }
+
+// Timer clock: elapsed seconds come from wall-clock times, so a timer that
+// was hidden or suspended is right again the moment it is looked at.
+export const clockStart = now => ({ startedAt: now, pausedAt: null, pausedTotal: 0 });
+export const clockElapsed = (c, now) => ((c.pausedAt ?? now) - c.startedAt - c.pausedTotal) / 1000;
+export const clockPause = (c, now) => (c.pausedAt == null ? { ...c, pausedAt: now } : c);
+export const clockResume = (c, now) => (c.pausedAt == null ? c : { ...c, pausedTotal: c.pausedTotal + now - c.pausedAt, pausedAt: null });

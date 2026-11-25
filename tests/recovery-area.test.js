@@ -92,3 +92,51 @@ test('summary reports ampel, mobility and cycle', () => {
 test('header highlights the active tab', () => {
   assert.match(recovery.header({ area: 'recovery', view: 'cycle' }), /href="#recovery\/zyklus" class="on"/);
 });
+
+const MOB = { area: 'recovery', view: 'mobility' };
+test('mobility view shows the first step before it starts', () => {
+  const html = recovery.render(MOB, mk());
+  assert.match(html, /Deep Squat Hold/);
+  assert.match(html, /Als Nächstes: Couch Stretch/);
+  assert.match(html, /1:30/);
+  assert.match(html, /15:00/);
+  assert.match(html, /data-a="tstart"/);
+});
+
+test('saturday mobility runs 20 minutes', () => {
+  assert.match(recovery.render(MOB, mk(new Date(2026, 10, 28, 8, 0))), /20:00/);
+});
+
+test('breath view uses the chosen minutes', () => {
+  const html = recovery.render({ area: 'recovery', view: 'breath', min: 5 }, mk());
+  assert.match(html, /5:00/);
+  assert.match(html, /Box-Breathing · 5 min/);
+});
+
+test('a running mobility follows the real clock and marks the day when done', t => {
+  let now = 1_000_000;
+  t.mock.method(Date, 'now', () => now);
+  const ctx = mk();
+  recovery.onClick(click({ a: 'tstart' }), MOB, ctx);
+  now += 575_000;
+  const mid = recovery.render(MOB, ctx);
+  assert.match(mid, /Pigeon Stretch/);
+  assert.match(mid, /1:55/);
+  assert.equal(ctx.store.get('rec.mobility'), null);
+  now += 400_000;
+  recovery.mount(null, MOB, ctx);
+  assert.deepEqual(ctx.store.get('rec.mobility')['2026-11-23'], { done: true });
+  assert.match(recovery.render(MOB, ctx), /Geschafft ✓/);
+  recovery.onNavigate({ area: 'heute' });
+});
+
+test('leaving a running timer stops it without marking the day', t => {
+  let now = 1_000_000;
+  t.mock.method(Date, 'now', () => now);
+  const ctx = mk();
+  recovery.onClick(click({ a: 'tstart' }), MOB, ctx);
+  now += 300_000;
+  recovery.onNavigate({ area: 'heute' });
+  assert.equal(ctx.store.get('rec.mobility'), null);
+  assert.match(recovery.render(MOB, ctx), /data-a="tstart"/);
+});
