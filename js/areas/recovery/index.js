@@ -71,14 +71,20 @@ export const weeklyDone = (ctx, d) => {
   return !!w && WEEKLY.every(k => isNum(w[k]));
 };
 
-export function summary(ctx) {
-  const d = day(ctx), sum = checkSum(map(ctx, 'rec.morning')[d]), m = mobilityFor(d);
+// Recovery state for any date; Training uses it for the day it shows.
+export function recoveryFor(ctx, d) {
+  const sum = checkSum(map(ctx, 'rec.morning')[d]), m = mobilityFor(d);
   return {
     ampel: ampel(sum), sum,
     mobility: { routine: m.routine, name: m.name, minutes: m.minutes, done: !!map(ctx, 'rec.mobility')[d] },
     cycle: cycleInfo(d, anchor(ctx)),
-    suggest: deloadTriggers(inputs(ctx), d).suggest,
+    weeklyDone: weeklyDone(ctx, d),
   };
+}
+
+export function summary(ctx) {
+  const d = day(ctx), r = recoveryFor(ctx, d);
+  return { ampel: r.ampel, sum: r.sum, mobility: r.mobility, cycle: r.cycle, suggest: deloadTriggers(inputs(ctx), d).suggest };
 }
 
 /* Guided timers. One runner at a time; its time always comes from Date.now(),

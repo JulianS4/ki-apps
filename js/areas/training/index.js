@@ -5,6 +5,7 @@ import { computePRs, prOf, prText, lastFor, totals } from './logic.js';
 import { dayView, histView, exDetail, getDay, cur, dateFor, keyFor, todayId, clock } from './view.js';
 import { bindChart } from './chart.js';
 import { setTrainingSummary } from '../heute.js';
+import { recoveryFor } from '../recovery/index.js';
 import { dfmt } from '../../core/dates.js';
 
 const SC_NAME = 'Training loggen';
@@ -33,9 +34,9 @@ export function todaySummary(ctx) {
 const dayOf = (route, ctx) => route.day || todayId(ctx);
 function ensure(id, ctx) {
   const k = keyFor(st, id, ctx);
-  if (!st.sess[k]) st.sess[k] = { date: dateFor(st, id, ctx), day: id, sets: {}, n: {}, warm: {}, mob: false, week: {} };
+  if (!st.sess[k]) st.sess[k] = { date: dateFor(st, id, ctx), day: id, sets: {}, n: {}, warm: {} };
   const s = st.sess[k];
-  s.sets = s.sets || {}; s.n = s.n || {}; s.warm = s.warm || {}; s.week = s.week || {};
+  s.sets = s.sets || {}; s.n = s.n || {}; s.warm = s.warm || {};
   return s;
 }
 
@@ -140,7 +141,6 @@ export function onInput(e, route, ctx) {
     a[i] = Object.assign({}, a[i] || {}, { [t.dataset.f]: t.value.replace(',', '.') });
     save(ctx);
   }
-  if (t.dataset.a === 'wnote') { const s = ensure(id, ctx); s.week = Object.assign({}, s.week, { note: t.value }); save(ctx); }
 }
 
 export function onChange(e, route, ctx) {
@@ -148,7 +148,6 @@ export function onChange(e, route, ctx) {
   if (route.view !== 'day') return;
   const id = dayOf(route, ctx);
   if (t.dataset.a === 'warm') { const s = ensure(id, ctx); s.warm[t.dataset.i] = t.checked; save(ctx); ctx.rerender(); }
-  if (t.dataset.a === 'mob') { const s = ensure(id, ctx); s.mob = t.checked; save(ctx); ctx.rerender(); }
   if (t.dataset.a === 'date') setDate(id, t.value, ctx);
 }
 
@@ -177,7 +176,8 @@ export function onClick(e, route, ctx) {
     if (x.ok) {
       st.PR = computePRs(st.sess, st.plan);
       const f = prOf(st.PR, s, ex.id)[i];
-      if (f) {
+      // No record hunting in the deload week: no toast, no buzz.
+      if (f && !recoveryFor(ctx, s.date).cycle.deload) {
         ctx.toast(f === 'w' ? 'Neues Höchstgewicht' : 'Neuer Rekord', ex.name + ' · ' + prText(ex, x));
         try { if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 120]); } catch (er) { /* no vibration */ }
       }
@@ -199,7 +199,6 @@ export function onClick(e, route, ctx) {
     location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SC_NAME)}&input=text&text=${encodeURIComponent(body)}`;
   }
   if (a === 'edit') { st.edit = !st.edit; ctx.rerender(); }
-  if (a === 'scale') { const s = ensure(id, ctx); s.week = Object.assign({}, s.week, { [t.dataset.k]: +t.dataset.n }); save(ctx); ctx.rerender(); }
   if (a === 'exedit') openSheet(id, +t.dataset.b, +t.dataset.x);
   if (a === 'add') openSheet(id, +t.dataset.b, -1);
   if (a === 'reset') {

@@ -2,7 +2,9 @@
 // from the area state `st` ({plan, sess, selD, edit, exM, allEx, PR, CH}).
 import { DAYS, DN, ds, dayIdx, monday, addDays, dfmt } from '../../core/dates.js';
 import { esc } from '../../core/html.js';
-import { CATS, UNIT, CHECKQ } from './plan-default.js';
+import { CATS, UNIT } from './plan-default.js';
+import { recoveryFor } from '../recovery/index.js';
+import { DELOAD_RULES } from '../recovery/data.js';
 import {
   num, fmtN, okSets, fmtSets, target, prKind, exDef, exHist, lastFor, dateOf, totals, weekDone,
   prScan, prOf, prCount, prText, metrics, series,
@@ -23,7 +25,9 @@ function strip(st, sel, ctx) {
   return '<nav class="week" aria-label="Wochentage">' + DAYS.map((id, i) => {
     const d = new Date(c.mo + 'T12:00:00');
     d.setDate(d.getDate() + i);
-    return `<a href="${L.day(id)}" class="${id === sel ? 'sel' : ''} ${i === c.ti ? 'today' : ''} ${weekDone(st.sess, id, c.mo) ? 'done' : ''}" aria-current="${id === sel ? 'page' : 'false'}"><b>${DN[id]}</b><span>${d.getDate()}.</span></a>`;
+    // Sunday is done once its week check in Recovery is filled in.
+    const done = id === 'so' ? recoveryFor(ctx, addDays(c.mo, 6)).weeklyDone : weekDone(st.sess, id, c.mo);
+    return `<a href="${L.day(id)}" class="${id === sel ? 'sel' : ''} ${i === c.ti ? 'today' : ''} ${done ? 'done' : ''}" aria-current="${id === sel ? 'page' : 'false'}"><b>${DN[id]}</b><span>${d.getDate()}.</span></a>`;
   }).join('') + '</nav>';
 }
 
@@ -31,12 +35,16 @@ export function dayView(st, id, ctx) {
   const d = getDay(st, id), s = cur(st, id, ctx), { t, o } = totals(d, s), pct = t ? Math.round(o / t * 100) : 0;
   const c = clock(ctx), isToday = id === DAYS[c.ti];
   const ring = d.type === 'ruhe' ? '' : `<div class="ring" aria-label="${o} von ${t} Sätzen"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="var(--line)" stroke-width="4"/><circle class="p" cx="20" cy="20" r="17" fill="none" stroke="var(--acc)" stroke-width="4" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${100 - pct}"/></svg><div class="n"><b${(o + '/' + t).length > 4 ? ' class="sm"' : ''}>${o}/${t}</b><span>Sätze</span></div></div>`;
-  const dt = dateFor(st, id, ctx), past = dt !== c.td;
+  const dt = dateFor(st, id, ctx), past = dt !== c.td, rec = recoveryFor(ctx, dt), cy = rec.cycle, trains = d.type !== 'ruhe';
+  const cyLine = !trains ? '' : cy.deload ? ' · Deload-Woche' : ` · Woche ${cy.week} · RIR ${cy.main}`;
   const opts = [...Array(14)].map((_, i) => { const k = addDays(c.td, -i); return `<option value="${k}"${k === dt ? ' selected' : ''}>${i === 0 ? 'Heute · ' : i === 1 ? 'Gestern · ' : ''}${dfmt(k)}</option>`; }).join('');
   const dsel = `<label class="dsel${past ? ' past' : ''}"><select data-a="date" aria-label="Datum dieser Einheit">${opts}</select></label>`;
-  let h = strip(st, id, ctx) + `<div class="hero"><div><p class="k">${DN[id]}${isToday ? ' · heute' : ''}</p><h1>${esc(d.name)}</h1><p class="m">${esc(d.meta)}</p><div class="tools">${dsel}${d.type !== 'ruhe' ? `<button class="btn ${st.edit ? 'pri' : ''}" data-a="edit" type="button">${st.edit ? 'Fertig mit Bearbeiten' : 'Plan bearbeiten'}</button>` : ''}</div></div>${ring}</div>`;
+  let h = strip(st, id, ctx) + `<div class="hero"><div><p class="k">${DN[id]}${isToday ? ' · heute' : ''}</p><h1>${esc(d.name)}</h1><p class="m">${esc(d.meta)}${cyLine}</p><div class="tools">${dsel}${d.type !== 'ruhe' ? `<button class="btn ${st.edit ? 'pri' : ''}" data-a="edit" type="button">${st.edit ? 'Fertig mit Bearbeiten' : 'Plan bearbeiten'}</button>` : ''}</div></div>${ring}</div>`;
+  // Morning-check advice only for today's session; deload rules for the whole week.
+  if (trains && !past && rec.ampel && rec.ampel.key !== 'gruen') h += `<div class="amp ${rec.ampel.key}" role="status"><p class="k"><i class="dot" aria-hidden="true"></i>Morgen-Check: ${rec.ampel.label}</p><b>${esc(rec.ampel.advice)}</b><a class="more" href="#recovery">Recovery ›</a></div>`;
+  if (trains && cy.deload) h += `<div class="amp deload"><p class="k"><i class="dot" aria-hidden="true"></i>Deload-Woche · RIR ${cy.main}</p><ul>${DELOAD_RULES.map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>`;
   if (d.warm && d.warm.length) h += `<section class="blk"><div class="bh"><h2>Warm-up</h2><p>${d.type === 'athletik' ? '10' : d.warm.length > 5 ? '8' : '5'} min</p></div><ul class="list">${d.warm.map((w, i) => `<li><label><input type="checkbox" data-a="warm" data-i="${i}" ${s && s.warm && s.warm[i] ? 'checked' : ''}>${esc(w)}</label></li>`).join('')}</ul></section>`;
-  if (d.type === 'ruhe') h += restView(s);
+  if (d.type === 'ruhe') h += `<section class="blk"><div class="cards"><a class="card" href="#recovery/woche"><p class="k">Wochen-Check → Recovery</p><b>${rec.weeklyDone ? 'Erledigt ✓' : 'Noch offen'}</b><span>Schlaf, Energie, Gelenke, Ziel · 15 min ›</span></a></div></section>`;
   d.blocks.forEach((b, bi) => {
     const kind = b.kind === 'super' ? 'Supersatz · abwechselnd' : b.kind === 'circuit' ? 'Zirkel' : '';
     h += `<section class="blk"><div class="bh"><h2>${esc(b.kind === 'single' ? b.label : 'Block ' + b.label)}</h2><p>${[kind, b.rest ? b.rest + ' s Pause' : ''].filter(Boolean).join(' · ')}</p></div>`;
@@ -50,7 +58,12 @@ export function dayView(st, id, ctx) {
         : past ? `<div class="health"><p><b>Einheit vom ${dfmt(dt)}</b> · An Apple Health senden geht nur am selben Tag, weil die Dauer aus den Uhrzeiten der Sätze kommt. Trag sie bei Bedarf direkt in der Health-App ein.</p></div>`
           : `<div class="health"><p><b>Fertig?</b> Training mit Dauer an Apple Health senden. Google Health übernimmt es von dort.</p><button class="btn pri" data-a="health" type="button">An Apple Health</button></div>`;
   }
-  h += `<section class="blk"><div class="bh"><h2>Mobility</h2><p>Routine im Recoveryplan</p></div><ul class="list"><li><label><input type="checkbox" data-a="mob" ${s && s.mob ? 'checked' : ''}>${esc(d.mob)}</label></li></ul></section>`;
+  // The routine follows the weekday shown; done/open only when the session's
+  // date falls on that weekday (a previewed later day has no status yet).
+  const own = DAYS[dayIdx(new Date(dt + 'T12:00:00'))] === id;
+  const m = own ? rec.mobility : recoveryFor(ctx, addDays(c.mo, DAYS.indexOf(id))).mobility;
+  const mst = own ? (m.done ? 'erledigt' : 'offen ›') : '›';
+  h += `<section class="blk"><div class="bh"><h2>Mobility</h2><p>in Recovery</p></div><ul class="list"><li><a class="go" href="#recovery"><span class="ck${own && m.done ? ' on' : ''}" aria-hidden="true">${own && m.done ? '✓' : ''}</span><span class="t">Mobility · Routine ${m.routine} · ${m.name} · ${m.minutes} min</span><span class="s">${mst}</span></a></li></ul></section>`;
   if (st.edit) h += `<section class="blk"><button class="btn red" data-a="reset" type="button">Ganzen Plan auf Notion-Stand zurücksetzen</button></section>`;
   return h;
 }
@@ -73,12 +86,6 @@ function exView(st, ex, b, bi, ei, s, dt) {
   <div class="sets">${rows}</div></article>`;
 }
 
-function restView(s) {
-  const w = (s && s.week) || {};
-  return `<section class="blk"><div class="bh"><h2>Wochen-Check</h2><p>15 min · 1 = schlecht, 5 = top</p></div>${CHECKQ.map(([k, l]) => `<div class="ex" style="--c:var(--k-core)"><h3 style="margin:0;font-size:17px">${l}</h3><div class="scale">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="${w[k] === n ? 'on' : ''}" data-a="scale" data-k="${k}" data-n="${n}" aria-pressed="${w[k] === n}">${n}</button>`).join('')}</div></div>`).join('')}
-  <label class="note" for="wNote" style="display:block;margin:10px 0 4px">Notizen zur Woche</label><textarea id="wNote" data-a="wnote" placeholder="Was lief gut, was zwickt, was änderst du nächste Woche?">${esc(w.note)}</textarea></section>`;
-}
-
 function exList(st) {
   const ids = [];
   st.plan.days.forEach(d => d.blocks.forEach(b => b.ex.forEach(ex => { if (!ids.includes(ex.id)) ids.push(ex.id); })));
@@ -95,7 +102,7 @@ function exList(st) {
 
 export function histView(st, ctx) {
   const c = clock(ctx);
-  const all = Object.values(st.sess).filter(s => (s.sets && Object.values(s.sets).some(a => a.some(x => x && x.ok))) || (s.week && Object.keys(s.week).length));
+  const all = Object.values(st.sess).filter(s => s.sets && Object.values(s.sets).some(a => a.some(x => x && x.ok)));
   const byDate = {};
   all.forEach(s => { const n = s.sets ? Object.values(s.sets).reduce((a, b) => a + b.filter(x => x && x.ok).length, 0) : 0; byDate[s.date] = Math.max(byDate[s.date] || 0, n >= 12 ? 2 : 1); });
   let g = '<div class="h"></div>' + DAYS.map(d => `<div class="h">${DN[d]}</div>`).join('');
@@ -111,10 +118,8 @@ export function histView(st, ctx) {
   const list = all.sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 40).map(s => {
     const d = getDay(st, s.day), ents = Object.entries(s.sets || {}).filter(([, a]) => a.some(x => x && x.ok));
     const n = prCount(st.PR, s);
-    const sum = s.day === 'so' ? 'Wochen-Check' : ents.reduce((a, [, x]) => a + x.filter(z => z && z.ok).length, 0) + ' Sätze' + (n ? ' · ' + n + ' PR' : '');
-    const items = s.day === 'so'
-      ? CHECKQ.map(([k, l]) => `<li>${l}<span>${esc((s.week && s.week[k]) || '–')}/5</span></li>`).join('') + (s.week && s.week.note ? `<li>${esc(s.week.note)}</li>` : '')
-      : ents.map(([id, a]) => { const ex = exDef(st.plan, st.sess, id); return `<li>${esc((s.n && s.n[id]) || ex.name)}<span>${esc(fmtSets(a, ex))}</span></li>`; }).join('');
+    const sum = ents.reduce((a, [, x]) => a + x.filter(z => z && z.ok).length, 0) + ' Sätze' + (n ? ' · ' + n + ' PR' : '');
+    const items = ents.map(([id, a]) => { const ex = exDef(st.plan, st.sess, id); return `<li>${esc((s.n && s.n[id]) || ex.name)}<span>${esc(fmtSets(a, ex))}</span></li>`; }).join('');
     return `<details class="ses"><summary><b>${esc(d ? d.name : s.day)}</b><span>${dfmt(s.date)} · ${esc(sum)}</span></summary><ul>${items}</ul></details>`;
   }).join('');
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Letzte 12 Wochen</p><h1>Verlauf</h1></div></div>

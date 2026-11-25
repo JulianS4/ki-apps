@@ -61,7 +61,7 @@ export function totals(day, session) {
 
 export const weekDone = (sess, dayId, mondayStr) => Object.values(sess).some(s =>
   s.day === dayId && s.date >= mondayStr &&
-  ((s.sets && Object.values(s.sets).some(a => a.some(x => x && x.ok))) || (s.week && Object.keys(s.week).length)));
+  s.sets && Object.values(s.sets).some(a => a.some(x => x && x.ok)));
 
 /* A set is a record when no earlier set beats or ties it on both weight and reps.
    The first session of an exercise is the baseline and never counts. */
