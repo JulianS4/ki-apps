@@ -5,6 +5,7 @@ const FILES = [
   'js/app.js', 'js/core/dates.js', 'js/core/store.js', 'js/core/routes.js', 'js/core/schedule.js',
   'js/core/backup.js', 'js/core/html.js', 'js/areas/heute.js', 'js/areas/settings.js',
   'js/areas/training/index.js', 'js/areas/training/plan-default.js', 'js/areas/training/logic.js',
+  'js/areas/training/view.js', 'js/areas/training/chart.js',
 ];
 
 self.addEventListener('install', e => {
