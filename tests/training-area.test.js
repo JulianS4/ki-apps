@@ -48,3 +48,17 @@ test('reload picks up sessions written by a backup import', () => {
   training.reload(ctx);
   assert.equal(training.todaySummary(ctx).done, 1);
 });
+
+const TUE = new Date(2026, 10, 24, 17, 0);
+const stale = (dataset, extra = {}) => ({ target: { dataset, value: '6', closest: () => ({ dataset }), ...extra } });
+test('a stale tap for an exercise not in today\'s plan writes nothing', () => {
+  const ctx = mk();
+  ctx.now = () => TUE;
+  assert.doesNotThrow(() => training.onClick(stale({ a: 'chk', e: 'pistol', i: '0', b: '0' }), { area: 'training', view: 'day', day: null }, ctx));
+  training.onInput(stale({ f: 'v', e: 'pistol', i: '0' }), { area: 'training', view: 'day', day: null }, ctx);
+  assert.equal(Object.keys(ctx.store.get('train.sess', {})).length, 0);
+});
+test('sessions without sets do not crash the summary', () => {
+  const ctx = mk({ 's_2026-11-23_mo': { date: '2026-11-23', day: 'mo' } });
+  assert.deepEqual(training.todaySummary(ctx), { name: 'Lower A', type: 'kraft', done: 0, total: 23 });
+});

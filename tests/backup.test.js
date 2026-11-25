@@ -57,3 +57,9 @@ test('roundtrip', () => {
   assert.deepEqual(b.get('train.sess'), a.get('train.sess'));
   assert.deepEqual(b.get('train.plan'), a.get('train.plan'));
 });
+
+test('import reports a storage failure instead of claiming success', () => {
+  const b = memBackend();
+  b.setItem = () => { throw new Error('QuotaExceededError'); };
+  assert.throws(() => importBackup(legacy(), createStore(b)), { message: 'Speichern nicht möglich – Speicher voll oder privater Modus?' });
+});

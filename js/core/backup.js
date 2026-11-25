@@ -1,5 +1,6 @@
 // One JSON file for all areas. Also reads backups of the old Hybrid-Training app.
 const INVALID = 'Keine gültige Backup-Datei';
+export const STORAGE_FAILED = 'Speichern nicht möglich – Speicher voll oder privater Modus?';
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const validPlan = p => isObj(p) && Array.isArray(p.days) && p.days.length === 7;
 
@@ -12,13 +13,15 @@ export function buildBackup(store, exportedIso) {
 // Sessions merge per key (backup wins), the plan only replaces when it is
 // a full week, everything else is replaced as a whole.
 function put(store, key, value) {
+  let ok = true;
   if (key === 'train.sess') {
-    if (isObj(value)) store.set(key, { ...store.get(key, {}), ...value });
+    if (isObj(value)) ok = store.set(key, { ...store.get(key, {}), ...value });
   } else if (key === 'train.plan') {
-    if (validPlan(value)) store.set(key, value);
+    if (validPlan(value)) ok = store.set(key, value);
   } else if (key !== 'meta.lastBackup') {
-    store.set(key, value);
+    ok = store.set(key, value);
   }
+  if (!ok) throw new Error(STORAGE_FAILED);
 }
 
 export function importBackup(obj, store) {

@@ -16,6 +16,8 @@ export function reload(ctx) {
   const p = ctx.store.get('train.plan');
   st.plan = p && Array.isArray(p.days) && p.days.length === 7 ? p : clone(DEF);
   st.sess = ctx.store.get('train.sess', {}) || {};
+  // Foreign or hand-edited backups may carry sessions without sets; never crash on them.
+  for (const s of Object.values(st.sess)) if (s && (typeof s.sets !== 'object' || s.sets === null)) s.sets = {};
 }
 
 function save(ctx) {
@@ -131,6 +133,8 @@ export function onInput(e, route, ctx) {
   const t = e.target;
   if (route.view !== 'day') return;
   const id = dayOf(route, ctx);
+  // A screen left open overnight can show yesterday's exercises; don't write them into today.
+  if (t.dataset.f && !findEx(getDay(st, id), t.dataset.e).ex) { ctx.rerender(); return; }
   if (t.dataset.f) {
     const s = ensure(id, ctx), a = s.sets[t.dataset.e] || (s.sets[t.dataset.e] = []), i = +t.dataset.i;
     a[i] = Object.assign({}, a[i] || {}, { [t.dataset.f]: t.value.replace(',', '.') });
@@ -154,6 +158,7 @@ export function onClick(e, route, ctx) {
   const t = e.target.closest('[data-a]');
   if (!t) return;
   const a = t.dataset.a, id = route.view === 'day' ? dayOf(route, ctx) : null, d = id && getDay(st, id);
+  if (a === 'chk' && !findEx(d, t.dataset.e).ex) { ctx.rerender(); return; }
   if (a === 'chk') {
     try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (er) { /* no audio */ }
     const s = ensure(id, ctx), { ex } = findEx(d, t.dataset.e), arr = s.sets[ex.id] || (s.sets[ex.id] = []), i = +t.dataset.i, x = Object.assign({}, arr[i] || {});

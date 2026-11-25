@@ -1,5 +1,5 @@
 // KI-Apps shell: routing, shared context, delegated events, offline cache.
-import { createStore } from './core/store.js';
+import { createStore, pickBackend } from './core/store.js';
 import { parseRoute } from './core/routes.js';
 import * as heute from './areas/heute.js';
 import * as settings from './areas/settings.js';
@@ -7,17 +7,9 @@ import * as training from './areas/training/index.js';
 
 const $ = s => document.querySelector(s);
 
-// localStorage can be missing or throw (private mode); fall back to memory.
-const memory = new Map();
-const fallback = {
-  getItem: k => memory.get(k) ?? null,
-  setItem: (k, v) => memory.set(k, String(v)),
-  removeItem: k => memory.delete(k),
-  key: i => [...memory.keys()][i] ?? null,
-  get length() { return memory.size; },
-};
-let backend = fallback;
-try { backend = window.localStorage; backend.getItem('ki.probe'); } catch (e) { backend = fallback; }
+// localStorage can be missing or throw (private mode, blocked cookies); then
+// the app runs on memory and says so, because nothing survives a restart.
+const { backend, persistent } = pickBackend(() => window.localStorage);
 
 const AREAS = { heute, training, settings };
 const TITLES = { training: 'Training', settings: 'Einstellungen' };
@@ -85,7 +77,13 @@ addEventListener('resize', () => {
   }
 });
 
+// Home-screen apps resume without reloading: redraw so "Heute" and the
+// training day follow the clock instead of showing this morning's state.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+setInterval(() => { if (!document.hidden && current && current.route.area === 'heute') render(); }, 60000);
+
 if (training.init) training.init(ctx);
 render();
-ctx.setStatus(ctx.store.keys().length ? 'Gespeichert auf diesem Gerät' : 'Bereit · Daten bleiben auf diesem Gerät');
+ctx.setStatus(!persistent ? 'Speichern nicht möglich – privater Modus? Einträge gehen beim Schließen verloren.'
+  : ctx.store.keys().length ? 'Gespeichert auf diesem Gerät' : 'Bereit · Daten bleiben auf diesem Gerät');
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

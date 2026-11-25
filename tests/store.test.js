@@ -28,3 +28,19 @@ test('remove deletes the key', () => {
   s.remove('a');
   assert.equal(b.getItem('ki.a'), null);
 });
+
+import { pickBackend } from '../js/core/store.js';
+test('pickBackend uses the real storage when it works', () => {
+  const b = memBackend();
+  const r = pickBackend(() => b);
+  assert.equal(r.backend, b);
+  assert.equal(r.persistent, true);
+});
+test('pickBackend falls back to memory when storage is blocked', () => {
+  for (const get of [() => { throw new Error('SecurityError'); }, () => ({ getItem() { throw new Error('denied'); } }), () => null]) {
+    const r = pickBackend(get);
+    assert.equal(r.persistent, false);
+    r.backend.setItem('ki.a', '1');
+    assert.equal(r.backend.getItem('ki.a'), '1');
+  }
+});

@@ -1,5 +1,5 @@
 // Settings: backup, Apple Health shortcut guide, install hint.
-import { buildBackup, importBackup } from '../core/backup.js';
+import { buildBackup, importBackup, STORAGE_FAILED } from '../core/backup.js';
 import { today, dfmt } from '../core/dates.js';
 
 const SC_NAME = 'Training loggen';
@@ -56,5 +56,5 @@ export function onChange(e, route, ctx) {
       ctx.rerender();
       document.getElementById('impMsg').textContent = `Backup geladen ✓ (${r.sessions} Einheiten)`;
     })
-    .catch(() => { document.getElementById('impMsg').textContent = INVALID; });
+    .catch(er => { document.getElementById('impMsg').textContent = er && er.message === STORAGE_FAILED ? STORAGE_FAILED : INVALID; });
 }
