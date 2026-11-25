@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KI-Apps">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e0f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>KI-Apps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <p class="status" id="status">Lädt…</p>
+  <main id="main"></main>
+</div>
+</div>
+<div id="bar"><div class="in"><div class="t" id="barT"><small>Pause</small>0:00</div><button class="btn" id="bPlus" type="button">+15 s</button><button class="btn" id="bSkip" type="button">Weiter</button></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="sheet" id="sheet"><form id="form" autocomplete="off">
+  <h2 id="fTitle">Übung</h2>
+  <div class="fg">
+    <label class="full">Name<input id="fName" required></label>
+    <label>Kategorie<select id="fCat"></select></label>
+    <label>Einheit<select id="fUnit"><option value="reps">Wiederholungen</option><option value="sec">Sekunden</option><option value="min">Minuten</option><option value="check">Nur abhaken</option></select></label>
+    <label>Sätze<input id="fSets" type="number" inputmode="numeric" min="1" max="10"></label>
+    <label>Gewicht/Strecke<select id="fLoad"><option value="">Keins</option><option value="kg">kg (Weste/Hantel)</option><option value="km">km</option></select></label>
+    <label>Ziel von<input id="fMin" type="number" inputmode="numeric" min="0"></label>
+    <label>Ziel bis<input id="fMax" type="number" inputmode="numeric" min="0"></label>
+    <label>Pro Seite?<select id="fPer"><option value="">Nein</option><option value="/Seite">Ja, pro Seite</option></select></label>
+    <label>Pause (s)<input id="fRest" type="number" inputmode="numeric" min="0" placeholder="vom Block"></label>
+    <label class="full">Equipment<input id="fEq"></label>
+    <label class="full">Hinweis<input id="fNote"></label>
+  </div>
+  <div class="fa"><button class="btn red" type="button" id="fDel">Löschen</button><span class="sp"></span><button class="btn" type="button" id="fCancel">Abbrechen</button><button class="btn pri" type="submit">Speichern</button></div>
+</form></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

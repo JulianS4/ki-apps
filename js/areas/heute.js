@@ -1,0 +1,48 @@
+// Start page: what's on now, today's training, backup reminder.
+import { ds, dayIdx, DAYS, DN, addDays } from '../core/dates.js';
+import { nowNext } from '../core/schedule.js';
+import { esc } from '../core/html.js';
+import { DEF } from './training/plan-default.js';
+import { totals } from './training/logic.js';
+
+const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+const MO = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function daysBetween(a, b) {
+  let n = 0, d = a;
+  while (d < b && n < 10000) { d = addDays(d, 1); n++; }
+  return n;
+}
+
+function backupCard(store, todayStr) {
+  const last = store.get('meta.lastBackup');
+  const age = last ? daysBetween(last, todayStr) : null;
+  if (age !== null && age <= 14) return '';
+  const title = age === null ? 'Noch kein Backup' : `Letztes Backup vor ${age} Tagen`;
+  return `<a class="card warn" href="#einstellungen"><b>${title}</b><span>Deine Daten liegen nur auf diesem Gerät. Jetzt sichern ›</span></a>`;
+}
+
+// Stage 1: computed here; Task 6 swaps in the training area's own summary.
+export let trainingSummary = (store, now) => {
+  const plan = store.get('train.plan') || DEF, day = plan.days[dayIdx(now)];
+  const s = (store.get('train.sess', {}) || {})['s_' + ds(now) + '_' + day.id];
+  const { t, o } = totals(day, s);
+  return { name: day.name, type: day.type, done: o, total: t };
+};
+export const setTrainingSummary = fn => { trainingSummary = fn; };
+
+export function render(route, ctx) {
+  const now = ctx.now(), todayStr = ds(now), { now: cur, next } = nowNext(now);
+  const nextWhen = (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start;
+  const tr = trainingSummary(ctx.store, now);
+  const trLine = tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`;
+  return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1></div></div>
+  ${backupCard(ctx.store, todayStr)}
+  <section class="blk"><div class="cards">
+    ${cur ? `<div class="card now"><p class="k">Jetzt</p><b>${esc(cur.title)}</b><span>bis ${cur.end}</span></div>` : ''}
+    <div class="card"><p class="k">Als Nächstes</p><b>${esc(next.title)}</b><span>${nextWhen}</span></div>
+  </div></section>
+  <section class="blk"><div class="bh"><h2>Bereiche</h2></div><div class="tiles">
+    <a class="tile" href="#training"><span class="k">Training</span><b>${esc(tr.type === 'ruhe' ? 'Ruhetag' : tr.name)}</b><span>${trLine}</span></a>
+  </div><p class="note soon">Kommt bald: Recovery · Ernährung · Routinen · Körper · Arena</p></section>`;
+}
