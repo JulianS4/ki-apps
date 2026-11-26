@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { render, setFoodSummary, foodSummary as foodSummaryDefault, setBodySummary, bodySummary as bodySummaryDefault } from '../js/areas/heute.js';
+import { render, setFoodSummary, foodSummary as foodSummaryDefault, setBodySummary, bodySummary as bodySummaryDefault, setArenaSummary, arenaSummary as arenaSummaryDefault } from '../js/areas/heute.js';
 import { createStore } from '../js/core/store.js';
 import { memBackend } from './helpers.js';
 
@@ -64,11 +64,10 @@ test('heute shows the deload rules in the deload week', () => {
   assert.match(html, /Deload-Woche/);
   assert.match(html, /Sätze halbieren/);
 });
-test('recovery tile and coming-soon line', () => {
+test('recovery tile', () => {
   const s = createStore(memBackend());
   let html = render({ area: 'heute' }, ctx(s));
   assert.match(html, /<a class="tile" href="#recovery">[\s\S]*?Mobility B · Lower[\s\S]*?offen<\/span><\/a>/);
-  assert.doesNotMatch(html.match(/Kommt bald[^<]*/)[0], /Recovery/);
   s.set('rec.mobility', { '2026-11-23': { done: true } });
   html = render({ area: 'heute' }, ctx(s));
   assert.match(html, /✓ erledigt/);
@@ -103,10 +102,6 @@ test('mealprep hint on wednesday', () => {
   assert.match(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 25, 10, 0))), /Heute Mealprep/);
   assert.doesNotMatch(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 26, 10, 0))), /Heute Mealprep/);
 });
-test('coming-soon line', () => {
-  const html = render({ area: 'heute' }, ctx());
-  assert.doesNotMatch(html.match(/Kommt bald[^<]*/)[0], /Ernährung/);
-});
 test('one broken area never blanks the start page', () => {
   const s = createStore(memBackend());
   s.set('food.supps', [null]);
@@ -133,11 +128,8 @@ test('now card links to the holder during a routine', () => {
   assert.match(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 23, 6, 30))), /href="#routinen\/halterung"/);
   assert.doesNotMatch(render({ area: 'heute' }, ctx()), /href="#routinen\/halterung"/);
 });
-test('coming-soon line after routines', () => {
-  const soon = render({ area: 'heute' }, ctx()).match(/Kommt bald[^<]*/)[0];
-  assert.match(soon, /Arena/);
-  assert.doesNotMatch(soon, /Körper/);
-  assert.doesNotMatch(soon, /Routinen/);
+test('no coming-soon line once the arena is here', () => {
+  assert.doesNotMatch(render({ area: 'heute' }, ctx()), /Kommt bald/);
 });
 
 test('body tile shows the latest weight and the distance to 90', () => {
@@ -161,4 +153,14 @@ test('broken body summary keeps Heute up', () => {
   const original = bodySummaryDefault;
   setBodySummary(() => { throw new Error('x'); });
   try { assert.match(render({ area: 'heute' }, ctx()), /Bereiche/); } finally { setBodySummary(original); }
+});
+
+test('arena tile: set up, today’s score, or open', () => {
+  assert.match(render({ area: 'heute' }, ctx()), /Arena · einrichten/);
+  const s = createStore(memBackend());
+  s.set('arena.conn', { cfg: { apiKey: 'a', authDomain: 'b', projectId: 'c', appId: 'd' }, code: 'C'.repeat(22), player: 'julian', key: 'J'.repeat(32) });
+  s.set('arena.cache', { day: '2026-11-23', julian: 2.4, uygar: 1.8 });
+  assert.match(render({ area: 'heute' }, ctx(s)), /Julian 2,4 : 1,8 Uygar/);
+  s.set('arena.cache', { day: '2026-11-22', julian: 2.4, uygar: 1.8 });
+  assert.match(render({ area: 'heute' }, ctx(s)), /Arena öffnen/);
 });

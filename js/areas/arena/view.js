@@ -6,6 +6,15 @@ import { fmt1 } from './logic.js';
 const hero = (k, title) => `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">${k}</p><h1>${title}</h1></div></div>`;
 const score = s => `<h2 class="ascore">Julian ${fmt1(s.julian)} : ${fmt1(s.uygar)} Uygar</h2>`;
 
+export function inviteView(v) {
+  if (!v.ok) return hero('Einladung', 'Arena') + '<section class="blk"><p class="note">Diese Einladung ist ungültig oder unvollständig.</p></section>';
+  const hint = v.standalone ? '' : `<div class="card warn"><b>Läuft KI-Apps bei dir als App auf dem Home-Bildschirm?</b>
+    <span>Dann öffne sie und füge diesen Link dort unter Einstellungen → Einladung einfügen ein. Safari und die App haben getrennten Speicher.</span>
+    <div class="tools" style="margin-top:8px"><button class="btn" type="button" data-a="acopy">Link kopieren</button></div></div>`;
+  return hero('Einladung', `Du bist ${esc(v.name)}`) + `<section class="blk"><p class="note">Die Arena ist auf diesem Gerät eingerichtet.</p>
+  <div class="tools"><button class="btn pri" type="button" data-a="agoto">Zur Arena</button></div>${hint}</section>`;
+}
+
 export const emptyView = () => hero('Julian · Uygar', 'Arena')
   + '<section class="blk"><p class="note">Noch keine Arena auf diesem Gerät.</p><div class="tools"><a class="btn pri" href="#einstellungen">Zu den Einstellungen</a></div></section>';
 export const loadingView = () => hero('Julian · Uygar', 'Arena') + '<p class="note">Arena wird geladen …</p>';

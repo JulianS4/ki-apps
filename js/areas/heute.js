@@ -14,6 +14,8 @@ import { summary as routSum } from './routines/index.js';
 import { summary as bodySum } from './body/index.js';
 import { fmtNum } from './body/logic.js';
 import { toGoal } from './body/view.js';
+import { conn as arenaConn, cacheSummary } from './arena/index.js';
+import { berlinDay, fmt1 } from './arena/logic.js';
 
 const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const MO = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -52,6 +54,14 @@ export let routinesSummary = ctx => routSum(ctx);
 export const setRoutinesSummary = fn => { routinesSummary = fn; };
 export let bodySummary = ctx => bodySum(ctx);
 export const setBodySummary = fn => { bodySummary = fn; };
+// Arena: the last known score from its cache; Heute never loads Firebase.
+export let arenaSummary = ctx => ({ has: !!arenaConn(ctx), cache: cacheSummary(ctx), today: berlinDay(ctx.now()) });
+export const setArenaSummary = fn => { arenaSummary = fn; };
+function arenaTile(a) {
+  const t = (href, b, s) => `<a class="tile" href="${href}"><span class="k">Arena</span><b>${b}</b><span>${s}</span></a>`;
+  if (!a.has) return t('#einstellungen', 'Arena · einrichten ›', 'Julian · Uygar');
+  return a.cache && a.cache.day === a.today ? t('#arena', `Julian ${fmt1(a.cache.julian)} : ${fmt1(a.cache.uygar)} Uygar`, 'heute') : t('#arena', 'Arena öffnen ›', 'Julian · Uygar');
+}
 
 // Körper: the quarter check stays on Heute until all eight are done.
 function quarterCard(b) {
@@ -91,7 +101,7 @@ export function render(route, ctx) {
   const now = ctx.now(), todayStr = ds(now), { now: cur, next } = nowNext(now);
   const nextWhen = (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start;
   // Each area is read on its own: bad data in one never blanks the start page.
-  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx)), rt = safe(() => routinesSummary(ctx)), bd = safe(() => bodySummary(ctx));
+  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx)), rt = safe(() => routinesSummary(ctx)), bd = safe(() => bodySummary(ctx)), ar = safe(() => arenaSummary(ctx));
   const cy = rec && rec.cycle, mob = rec && rec.mobility;
   const trLine = tr && (tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`);
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1>${cy ? `<p class="m">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</p>` : ''}</div></div>
@@ -108,5 +118,6 @@ export function render(route, ctx) {
     ${fd ? foodTile(fd) : ''}
     ${rt ? `<a class="tile" href="#routinen"><span class="k">Routinen</span><b>Morgen ${rt.morgen.done}/${rt.morgen.total}</b><span>Abend ${rt.abend.done}/${rt.abend.total}</span></a>` : ''}
     ${bd ? bodyTile(bd) : ''}
-  </div><p class="note soon">Kommt bald: Arena</p></section>`;
+    ${ar ? arenaTile(ar) : ''}
+  </div></section>`;
 }

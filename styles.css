@@ -332,3 +332,6 @@ textarea.tx{padding:10px 12px;min-height:80px;resize:vertical}
 .awk tfoot th,.awk tfoot td{font-weight:800}
 .alead{font-weight:700;margin:10px 2px}
 .ahist li{padding:12px 14px}
+.wph+span,.prose textarea.tx{font-size:16px}
+.prose textarea.tx{width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+.prose input.tx[readonly]{width:100%;box-sizing:border-box;font-size:13px;color:var(--mut)}

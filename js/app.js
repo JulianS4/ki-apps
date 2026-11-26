@@ -10,6 +10,7 @@ import * as food from './areas/food/index.js';
 import * as routines from './areas/routines/index.js';
 import * as body from './areas/body/index.js';
 import * as arena from './areas/arena/index.js';
+import { arenaOnly } from './areas/arena/index.js';
 
 const $ = s => document.querySelector(s);
 
@@ -41,7 +42,7 @@ const ctx = {
 };
 
 function header(route, area) {
-  const left = route.area === 'heute'
+  const left = route.area === 'arena' && arenaOnly(ctx.store) ? '<span class="brand">Arena</span>' : route.area === 'heute'
     ? '<a class="brand" href="#heute">KI-Apps</a>'
     : `<a class="home" href="#heute">‹ Heute</a><span class="brand">${TITLES[route.area]}</span>`;
   const right = area.header ? area.header(route, ctx)
@@ -54,6 +55,8 @@ function render() {
   if (ae && /INPUT|TEXTAREA/.test(ae.tagName) && ae.closest('#main')) { needs = true; return; }
   needs = false;
   const route = parseRoute(location.hash), area = AREAS[route.area];
+  // Uygar sees only the arena (and settings) until he shows everything.
+  if (arenaOnly(ctx.store) && route.area !== 'arena' && route.area !== 'settings') { location.replace('#arena'); return; }
   current = { route, area };
   $('#top').innerHTML = header(route, area);
   $('#main').innerHTML = area.render(route, ctx);

@@ -4,6 +4,9 @@ import { today, dfmt } from '../core/dates.js';
 import { runMigrations } from '../core/migrate.js';
 import { photoStore } from './body/index.js';
 import { exportPhotos, importPhotos, mergeIndex } from './body/photos.js';
+import { conn as arenaConn, setupArena, joinArena, leaveArena, inviteLink } from './arena/index.js';
+import { PLAYERS } from './arena/data.js';
+import { esc } from '../core/html.js';
 
 const SC_NAME = 'Training loggen';
 
@@ -18,7 +21,70 @@ function prepare(ctx) {
     .then(r => { if (run === gen) { prepared = r; pending = null; } });
   return pending;
 }
-export function onNavigate() { gen++; prepared = null; pending = null; }
+export function onNavigate() { gen++; prepared = null; pending = null; amsg = ''; aconfirm = null; }
+
+// Arena: set up (Julian), paste an invite (Uygar, or a second device), share links.
+let adraft = { cfg: '', inv: '' }, amsg = '', aconfirm = null;
+function arenaSection(ctx) {
+  const c = arenaConn(ctx), sure = a => aconfirm === a;
+  const msg = `<p class="note" aria-live="polite">${esc(amsg)}</p>`;
+  const leave = `<button class="btn red" type="button" data-a="aleave">${sure('aleave') ? 'Sicher? Nochmal tippen' : 'Arena verlassen'}</button>`;
+  const linkRow = (p, label) => `<p class="note fl"><b>${label}</b></p><input class="tx" readonly value="${esc(inviteLink(ctx, p) || '')}" aria-label="${label}">
+    <div class="tools"><button class="btn" type="button" data-a="ashare" data-p="${p}">Teilen</button><button class="btn" type="button" data-a="acopy2" data-p="${p}">Kopieren</button></div>`;
+  let body;
+  if (!c) {
+    body = `<p>Die Arena ist euer Punktewettkampf, Julian gegen Uygar, und der einzige Teil, der online läuft. Die Firebase-Einrichtung steht in der <a href="https://github.com/JulianS4/ki-apps/blob/main/docs/arena-firebase.md">Anleitung</a>.</p>
+    <p class="note fl"><b>Arena einrichten</b> · Firebase-Konfiguration einfügen</p>
+    <textarea class="tx" data-a="acfg" rows="5" placeholder="const firebaseConfig = { apiKey: …, projectId: … };">${esc(adraft.cfg)}</textarea>
+    <div class="tools"><button class="btn pri" type="button" data-a="acreate">Arena anlegen</button></div>
+    <p class="note fl"><b>Einladung einfügen</b> · den ganzen Link</p>
+    <textarea class="tx" data-a="ainv" rows="3" placeholder="https://…#arena/einladung?…">${esc(adraft.inv)}</textarea>
+    <div class="tools"><button class="btn" type="button" data-a="ajoin">Einladung einfügen</button></div>`;
+  } else if (c.player === 'julian' && c.keys) {
+    body = `<p>Du bist <b>Julian</b>. Den Link für Uygar nur an Uygar schicken: Wer ihn hat, spielt als Uygar.</p>
+    ${linkRow('uygar', 'Einladung für Uygar')}${linkRow('julian', 'Link für mich')}
+    <div class="tools"><button class="btn" type="button" data-a="anew">${sure('anew') ? 'Sicher? Nochmal tippen' : 'Neue Arena anlegen'}</button>${leave}</div>`;
+  } else {
+    const full = ctx.store.get('app.full') === true;
+    body = `<p>Du bist <b>${PLAYERS[c.player]}</b>.</p>
+    <div class="tools">${c.player === 'uygar' ? `<button class="btn" type="button" data-a="afull">${full ? 'Weitere Bereiche ausblenden' : 'Weitere Bereiche einblenden'}</button>` : ''}${leave}</div>`;
+  }
+  return `<section class="blk prose"><div class="bh"><h2>Arena</h2><p>Julian · Uygar</p></div><div class="ex">${body}${msg}</div></section>`;
+}
+function arenaClick(t, ctx) {
+  const a = t.dataset.a, say = m => { amsg = m; ctx.rerender(); };
+  if (a === 'acreate') {
+    say('Arena wird angelegt …');
+    return setupArena(ctx, adraft.cfg).then(r => { if (r.ok) adraft.cfg = ''; say(r.ok ? 'Arena angelegt ✓ Schick jetzt Uygar seine Einladung.' : r.error); });
+  }
+  if (a === 'ajoin') {
+    const r = joinArena(ctx, adraft.inv);
+    if (r.ok) adraft.inv = '';
+    return say(r.ok ? `Arena übernommen ✓ Du bist ${PLAYERS[r.player]}.` : 'Diese Einladung ist ungültig oder unvollständig.');
+  }
+  if (a === 'ashare' || a === 'acopy2') {
+    const link = inviteLink(ctx, t.dataset.p);
+    if (!link || typeof navigator === 'undefined') return undefined;
+    if (a === 'ashare' && navigator.share) return navigator.share({ title: 'KI-Apps Arena', url: link }).catch(() => {});
+    if (!navigator.clipboard) return say('Kopieren ging nicht – den Link im Feld markieren und kopieren.');
+    return navigator.clipboard.writeText(link).then(() => say('Link kopiert ✓'), () => say('Kopieren ging nicht – den Link im Feld markieren und kopieren.'));
+  }
+  if (a === 'anew' || a === 'aleave') {
+    if (aconfirm !== a) { aconfirm = a; ctx.rerender(); return undefined; }
+    aconfirm = null;
+    if (a === 'aleave') { leaveArena(ctx); return say('Arena auf diesem Gerät verlassen.'); }
+    const c = arenaConn(ctx);
+    say('Neue Arena wird angelegt …');
+    return setupArena(ctx, JSON.stringify(c.cfg)).then(r => say(r.ok ? 'Neue Arena angelegt ✓ Schick Uygar die neue Einladung.' : r.error));
+  }
+  if (a === 'afull') { ctx.store.set('app.full', ctx.store.get('app.full') !== true); ctx.rerender(); }
+  return undefined;
+}
+export function onInput(e) {
+  const t = e.target, a = t.dataset && t.dataset.a;
+  if (a === 'acfg') adraft.cfg = t.value;
+  if (a === 'ainv') adraft.inv = t.value;
+}
 const INVALID = 'Keine gültige Backup-Datei';
 
 export function render(route, ctx) {
@@ -26,10 +92,11 @@ export function render(route, ctx) {
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Daten & Einrichtung</p><h1>Einstellungen</h1></div></div>
   <section class="blk prose"><div class="bh"><h2>Backup</h2><p>${n} Trainingseinheiten · ${last ? 'letztes ' + dfmt(last) : 'noch keins'}</p></div>
   <div class="ex" style="--c:var(--k-core)"><p>Alles liegt nur auf diesem Gerät, ohne Konto und ohne Cloud. Speicher ab und zu ein Backup, z. B. in die Dateien-App oder iCloud Drive.</p>
-  <p class="note">Umzug aus der alten Hybrid-Training-App: dort „Backup speichern“, hier „Backup laden“.</p>
+  <p class="note">Umzug aus der alten Hybrid-Training-App: dort „Backup speichern“, hier „Backup laden“.</p>${arenaConn(ctx) ? '<p class="note">Das Backup enthält auch deinen Arena-Zugang.</p>' : ''}
   <p class="note"><label class="wph"><input type="checkbox" id="withPhotos"${withPhotos ? ' checked' : ''}> mit Fotos</label> <span id="photoSize"></span></p>
   <div class="tools"><button class="btn pri" data-a="export" type="button">Backup speichern</button><label class="btn" for="imp" style="display:inline-flex;align-items:center">Backup laden<input id="imp" type="file" accept="application/json,.json" style="display:none"></label></div>
   <p class="note" id="impMsg" aria-live="polite"></p></div></section>
+  ${arenaSection(ctx)}
   <section class="blk prose"><div class="bh"><h2>Apple Health einrichten</h2><p>einmalig · 3 min</p></div>
   <div class="ex" style="--c:var(--k-push)"><p>Das Training schickt Krafteinheiten über einen Kurzbefehl an Apple Health. Google Health holt sie sich von dort, wenn die Verbindung in der Google-Health-App unter <b>Partner-Apps → Apple Health</b> aktiv ist.</p>
   <ol class="steps">
@@ -57,6 +124,8 @@ export function mount(root, route, ctx) {
 
 // Nothing waits between the tap and the download.
 export function onClick(e, route, ctx) {
+  const at = e.target.closest('[data-a]');
+  if (at && at.dataset && at.dataset.a && at.dataset.a !== 'export') return arenaClick(at, ctx);
   const t = e.target.closest('[data-a="export"]');
   if (!t) return;
   const msg = document.getElementById('impMsg'), say = txt => { if (msg) msg.textContent = txt; };
@@ -101,8 +170,10 @@ export function onChange(e, route, ctx) {
   if (t.id !== 'imp' || !t.files[0]) return undefined;
   t.files[0].text()
     .then(async txt => {
-      const obj = JSON.parse(txt), r = importBackup(obj, ctx.store);
+      const before = (arenaConn(ctx) || {}).code, obj = JSON.parse(txt), r = importBackup(obj, ctx.store);
       let note = '';
+      const after = arenaConn(ctx);
+      if (after && after.code !== before) note += ' · Arena-Zugang aus dem Backup übernommen';
       if (obj && obj.photos && typeof obj.photos === 'object') {
         const s = photoStore();
         if (s) {

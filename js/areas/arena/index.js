@@ -3,9 +3,9 @@
 // while the app runs, so the Heute tile can show the last known score.
 import { ds, dayIdx } from '../../core/dates.js';
 import { TASKS, PLAYERS } from './data.js';
-import { cleanConn, cleanTasks, berlinDay, plusDays, mondayOf, weekDays, isoWeek, editable, dayPoints, weekSums, history, totalsSince, suggest, randomId } from './logic.js';
+import { cleanConn, cleanTasks, berlinDay, plusDays, mondayOf, weekDays, isoWeek, editable, dayPoints, weekSums, history, totalsSince, suggest, randomId, parseConfig, encodeInvite, decodeInvite } from './logic.js';
 import { firebaseNet } from './net.js';
-import { emptyView, loadingView, offlineView, deniedView, configView, todayView, weekView, historyView } from './view.js';
+import { emptyView, loadingView, offlineView, deniedView, configView, todayView, weekView, historyView, inviteView } from './view.js';
 import { hoursInBed } from '../recovery/logic.js';
 import { summary as foodSummary } from '../food/index.js';
 import { DEF } from '../training/plan-default.js';
@@ -59,13 +59,65 @@ function connect(ctx) {
 // Tests and the setup flow wait for the connection; errors stay in the model.
 export const ready = ctx => { connect(ctx); return readyP ? readyP.catch(() => {}) : Promise.resolve(); };
 
+// ---------------- setup and access ----------------
+// Uygar plays in the arena only, until he shows the other areas himself.
+export function arenaOnly(store) {
+  const c = cleanConn(store.get('arena.conn'));
+  return !!c && c.player === 'uygar' && store.get('app.full') !== true;
+}
+const appUrl = () => (typeof location !== 'undefined' && location.origin ? location.origin + location.pathname : 'https://julians4.github.io/ki-apps/');
+export function inviteLink(ctx, player) {
+  const c = conn(ctx);
+  if (!c || !c.keys || !(player in PLAYERS)) return null;
+  return `${appUrl()}#arena/einladung?${encodeInvite({ cfg: c.cfg, code: c.code, player, key: c.keys[player] })}`;
+}
+const SETUP_ERR = {
+  offline: 'Kein Netz – bitte online nochmal versuchen.',
+  config: 'Firebase lehnt die Konfiguration ab – Schritte 2–4 der Anleitung prüfen.',
+  denied: 'Firebase hat abgelehnt – sind die Regeln aus Schritt 5 veröffentlicht?',
+};
+// A new arena: long random code, one key per player, Notion's five tasks.
+export async function setupArena(ctx, text) {
+  const cfg = parseConfig(text);
+  if (!cfg) return { ok: false, error: 'Konfiguration nicht erkannt' };
+  const keys = { julian: randomId(24), uygar: randomId(24) }, c = { cfg, code: randomId(16), player: 'julian', key: keys.julian, keys };
+  const n = factory(c);
+  try {
+    await n.create({ start: today(ctx), tasks: TASKS, keys });
+  } catch (e) {
+    n.close();
+    return { ok: false, error: SETUP_ERR[e && e.message] || SETUP_ERR.denied };
+  }
+  n.close();
+  ctx.store.set('arena.conn', c);
+  ctx.store.remove('arena.cache');
+  disconnect();
+  return { ok: true };
+}
+export function joinArena(ctx, text) {
+  const c = decodeInvite(text);
+  if (!c) return { ok: false };
+  ctx.store.set('arena.conn', c);
+  ctx.store.remove('arena.cache');
+  disconnect();
+  return { ok: true, player: c.player };
+}
+export function leaveArena(ctx) {
+  ctx.store.remove('arena.conn');
+  ctx.store.remove('arena.cache');
+  disconnect();
+}
+const standalone = () => typeof navigator !== 'undefined' && (navigator.standalone === true
+  || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches));
+
 // ---------------- screen state ----------------
-let shown = null, edit = false, confirm = false, week = null, err = '';
+let shown = null, edit = false, confirm = false, week = null, err = '', invite = null;
 export function onNavigate() { shown = null; edit = false; confirm = false; week = null; err = ''; }
 
-export function header(route) {
+export function header(route, ctx) {
   const v = route.view, tab = (h, l, on) => `<a href="${h}"${on ? ' class="on"' : ''}>${l}</a>`;
-  return `<nav class="tabs">${tab('#arena', 'Heute', v === 'today')}${tab('#arena/woche', 'Woche', v === 'week')}${tab('#arena/verlauf', 'Verlauf', v === 'history')}</nav>`;
+  const gear = ctx && arenaOnly(ctx.store) ? '<a href="#einstellungen" aria-label="Einstellungen">⚙</a>' : '';
+  return `<nav class="tabs">${tab('#arena', 'Heute', v === 'today' || v === 'invite')}${tab('#arena/woche', 'Woche', v === 'week')}${tab('#arena/verlauf', 'Verlauf', v === 'history')}${gear}</nav>`;
 }
 
 const mine = (ctx, d) => model.days.find(x => x.player === conn(ctx).player && x.date === d);
@@ -110,6 +162,14 @@ function weekVM(ctx) {
 }
 
 export function render(route, ctx) {
+  // An invite is taken over once; the address loses its data only afterwards (mount).
+  if (route.view === 'invite') {
+    if (!invite || invite.token !== route.token) {
+      const link = typeof location !== 'undefined' && location.href ? location.href : `#arena/einladung?${route.token}`;
+      invite = { token: route.token, link, ...joinArena(ctx, route.token) };
+    }
+    return inviteView({ ...invite, name: PLAYERS[invite.player], standalone: standalone() });
+  }
   if (!conn(ctx)) return emptyView();
   const m = connect(ctx);
   if (!m.loaded) return m.error === 'denied' ? deniedView() : m.error === 'config' ? configView() : m.error ? offlineView() : loadingView();
@@ -121,7 +181,9 @@ export function render(route, ctx) {
   return todayView(todayVM(ctx));
 }
 
-export function mount() { /* the connection is opened by render */ }
+export function mount(root, route) {
+  if (route.view === 'invite' && invite && invite.ok && typeof history !== 'undefined' && history.replaceState) history.replaceState(null, '', '#arena');
+}
 
 // The whole day is written each time, points included.
 function setValue(ctx, id, value) {
@@ -144,7 +206,13 @@ function putTask(ctx, task) {
 
 export function onClick(e, route, ctx) {
   const t = e.target.closest('[data-a]');
-  if (!t || !conn(ctx) || !model) return;
+  if (!t) return;
+  if (t.dataset.a === 'acopy' && invite && typeof navigator !== 'undefined' && navigator.clipboard) {
+    navigator.clipboard.writeText(invite.link).then(() => ctx.toast('Link kopiert', 'Jetzt in der App unter Einstellungen einfügen.'), () => {});
+    return;
+  }
+  if (t.dataset.a === 'agoto') { invite = null; ctx.go('#arena'); ctx.rerender(); return; }
+  if (!conn(ctx) || !model) return;
   const a = t.dataset.a, id = t.dataset.t, task = model.tasks.find(x => x.id === id);
   if ((a === 'yes' || a === 'no' || a === 'take') && task && task.kind === 'yes') setValue(ctx, id, a !== 'no');
   if (a === 'day' && isDay(t.dataset.d)) { shown = t.dataset.d; edit = false; ctx.rerender(); }

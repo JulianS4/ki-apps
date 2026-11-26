@@ -1,5 +1,6 @@
 // Offline cache: network first, cache as fallback. Bump CACHE on every release.
-const CACHE = 'ki-apps-v6';
+const CACHE = 'ki-apps-v7';
+const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'js/app.js', 'js/core/dates.js', 'js/core/store.js', 'js/core/routes.js', 'js/core/schedule.js',
@@ -10,6 +11,7 @@ const FILES = [
   'js/areas/food/data.js', 'js/areas/food/logic.js', 'js/areas/food/view.js', 'js/areas/food/index.js',
   'js/core/guided.js', 'js/areas/routines/data.js', 'js/areas/routines/logic.js', 'js/areas/routines/view.js', 'js/areas/routines/index.js',
   'js/areas/body/data.js', 'js/areas/body/logic.js', 'js/areas/body/view.js', 'js/areas/body/index.js', 'js/areas/body/chart.js', 'js/areas/body/photos.js',
+  'js/areas/arena/data.js', 'js/areas/arena/logic.js', 'js/areas/arena/net.js', 'js/areas/arena/view.js', 'js/areas/arena/index.js',
 ];
 
 self.addEventListener('install', e => {
@@ -20,17 +22,21 @@ self.addEventListener('activate', e => {
     .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
+// Own files and the pinned Firebase SDK go network first and are cached;
+// every other request (Firestore's own channel) passes through untouched.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url), sdk = url.href.startsWith(SDK);
+  if (url.origin !== location.origin && !sdk) return;
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        if (res.ok && new URL(e.request.url).origin === location.origin) {
+        if (res.ok) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy));
         }
         return res;
       })
-      .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('index.html')))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || (sdk ? Response.error() : caches.match('index.html'))))
   );
 });
