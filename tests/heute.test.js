@@ -120,3 +120,21 @@ test('one broken area never blanks the start page', () => {
     setFoodSummary(original);
   }
 });
+
+test('heute routines tile', () => {
+  const s = createStore(memBackend());
+  s.set('rout.days', { '2026-11-23': { morgen: { wecker: true, toilette: true, mund: true } } });
+  const html = render({ area: 'heute' }, ctx(s));
+  assert.match(html, /href="#routinen"/);
+  assert.match(html, /Morgen 3\/10/);
+  assert.match(html, /Abend 0\/7/);
+});
+test('now card links to the holder during a routine', () => {
+  assert.match(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 23, 6, 30))), /href="#routinen\/halterung"/);
+  assert.doesNotMatch(render({ area: 'heute' }, ctx()), /href="#routinen\/halterung"/);
+});
+test('coming-soon line after routines', () => {
+  const soon = render({ area: 'heute' }, ctx()).match(/Kommt bald[^<]*/)[0];
+  assert.match(soon, /Körper/);
+  assert.doesNotMatch(soon, /Routinen/);
+});
