@@ -37,10 +37,10 @@ export function migrateToRecovery(sess, rec) {
 
 export function runMigrations(store) {
   const r = migrateToRecovery(store.get('train.sess', {}), { mobility: store.get('rec.mobility', {}), weekly: store.get('rec.weekly', {}) });
-  if (r.moved > 0) {
-    store.set('rec.mobility', r.rec.mobility);
-    store.set('rec.weekly', r.rec.weekly);
-    store.set('train.sess', r.sess);
-  }
+  if (r.moved === 0) return 0;
+  // Sessions lose their old fields only after Recovery has saved them; with
+  // full storage nothing changes and the next start simply tries again.
+  if (!(store.set('rec.mobility', r.rec.mobility) && store.set('rec.weekly', r.rec.weekly))) return 0;
+  store.set('train.sess', r.sess);
   return r.moved;
 }

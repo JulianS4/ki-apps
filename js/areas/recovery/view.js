@@ -129,8 +129,11 @@ function triggers(t) {
   const items = t.items.map(i => i.auto
     ? `<li><div class="li"><span class="ck${i.on ? ' on' : ''}" aria-hidden="true">${i.on ? '✓' : ''}</span><span class="t">${esc(i.label)}</span><span class="s">${i.on ? 'trifft zu' : 'nein'}</span></div></li>`
     : `<li><label><input type="checkbox" data-a="flag" data-k="${i.key}" ${i.on ? 'checked' : ''}>${esc(i.label)}<span class="s">diese Woche</span></label></li>`).join('');
+  const note = t.deload ? 'Du bist gerade im Deload. Die Anzeichen zählen wieder für die nächste Aufbauphase.'
+    : t.suggest ? 'Zwei oder mehr Anzeichen treffen zu: Zieh den Deload vor.'
+      : 'Ab zwei Anzeichen empfiehlt die App, den Deload vorzuziehen. Vier davon erkennt sie selbst.';
   return `<section class="blk"><div class="bh"><h2>Deload vorziehen?</h2><p>${t.count} von 6${t.suggest ? ' · empfohlen' : ''}</p></div><ul class="list">${items}</ul>
-  <p class="note">${t.suggest ? 'Zwei oder mehr Anzeichen treffen zu: Zieh den Deload vor.' : 'Ab zwei Anzeichen empfiehlt die App, den Deload vorzuziehen. Vier davon erkennt sie selbst.'}</p></section>`;
+  <p class="note">${note}</p></section>`;
 }
 
 function complaints(v) {
@@ -139,6 +142,7 @@ function complaints(v) {
   const done = v.done.length ? `<details class="ses"><summary><b>Erledigt</b><span>${v.done.length}</span></summary><ul>${v.done.map(c => `<li>${esc(c.place)}<span>${dshort(c.start)}–${dshort(c.resolved)}</span></li>`).join('')}</ul></details>` : '';
   return `<section class="blk"><div class="bh"><h2>Beschwerden</h2><p>${v.open.length} offen</p></div>
   <div class="ex"><label class="note fl" for="cPlace">Körperstelle</label><input id="cPlace" class="tx" data-a="cf" data-k="place" value="${esc(d.place)}" placeholder="z. B. Knie links" autocomplete="off">
+  <label class="note fl" for="cStart">Seit wann?</label><select id="cStart" class="tx" data-a="cf" data-k="start">${[...Array(14)].map((_, i) => { const k = addDays(v.today, -i); return `<option value="${k}"${k === (d.start || v.today) ? ' selected' : ''}>${i === 0 ? 'Heute · ' : i === 1 ? 'Gestern · ' : ''}${dfmt(k)}</option>`; }).join('')}</select>
   <p class="note fl">Stärke · 1 = leicht, 5 = stark</p>${scale('clv', 'level', d.level, 'Stärke')}
   <label class="note fl" for="cNote">Notiz</label><input id="cNote" class="tx" data-a="cf" data-k="note" value="${esc(d.note)}" placeholder="optional" autocomplete="off">
   ${v.cerr ? `<p class="note err" role="alert">${esc(v.cerr)}</p>` : ''}<div class="tools"><button class="btn pri" data-a="cadd" type="button">Hinzufügen</button></div></div>

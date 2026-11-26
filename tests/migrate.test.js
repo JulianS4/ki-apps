@@ -83,3 +83,16 @@ test('backup import merges recovery entries per date', () => {
   assert.deepEqual(store.get('rec.complaints').map(c => c.id).sort(), ['a', 'b']);
   assert.deepEqual(store.get('rec.cycle'), { anchor: '2026-11-30' });
 });
+
+// When storage is full, nothing may leave the sessions before Recovery holds it.
+test('runMigrations keeps the old fields when recovery cannot be saved', () => {
+  const be = memBackend();
+  const set = be.setItem;
+  be.setItem = (k, v) => { if (k.startsWith('ki.rec.')) throw new Error('QuotaExceededError'); set(k, v); };
+  const store = createStore(be);
+  store.set('train.sess', legacy());
+  runMigrations(store);
+  assert.equal(store.get('rec.weekly'), null);
+  assert.equal(store.get('train.sess')['s_2026-11-23_mo'].mob, true);
+  assert.ok(store.get('train.sess')['s_2026-11-22_so'].week);
+});

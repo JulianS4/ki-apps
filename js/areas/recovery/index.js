@@ -3,7 +3,7 @@
 import { ds, DAYS, dayIdx, addDays } from '../../core/dates.js';
 import { BLOCKS, CYCLE_ANCHOR, MOBILITY, RIR } from './data.js';
 import {
-  checkSum, ampel, plannedBed, cycleInfo, mobilityFor, deloadTriggers, sundayOf,
+  checkSum, ampel, plannedBed, cycleInfo, mobilityFor, deloadTriggers, sundayOf, validDay,
   timerState, clockStart, clockElapsed, clockPause, clockResume,
 } from './logic.js';
 import { todayView, mobilityView, breathView, mobilityFields, breathFields, weekView, cycleView } from './view.js';
@@ -17,7 +17,13 @@ const map = (ctx, k) => ctx.store.get(k, {}) || {};
 function put(ctx, k, v) {
   if (!ctx.store.set(k, v)) ctx.setStatus('Speichern nicht möglich – privater Modus?');
 }
-export const anchor = ctx => (ctx.store.get('rec.cycle') || {}).anchor || CYCLE_ANCHOR;
+// A broken anchor (e.g. from a hand-edited backup) must not take the app down.
+export const anchor = ctx => { const a = (ctx.store.get('rec.cycle') || {}).anchor; return validDay(a) ? a : CYCLE_ANCHOR; };
+// In the deload week there is nothing to pull forward, so no suggestion.
+const triggersFor = (ctx, d, cycle) => {
+  const t = deloadTriggers(inputs(ctx), d);
+  return cycle.deload ? { ...t, suggest: false, deload: true } : t;
+};
 const inputs = ctx => ({ morning: map(ctx, 'rec.morning'), complaints: ctx.store.get('rec.complaints', []) || [], flags: map(ctx, 'rec.flags') });
 
 // Today's morning entry, with bed and wake times taken from the Week Routine
@@ -43,7 +49,8 @@ function setWeekly(ctx, patch) {
 
 // Screen-only state: deload confirmation and the complaint being typed.
 let confirmDeload = false, cerr = '';
-let draft = { place: '', level: null, note: '' };
+const emptyDraft = () => ({ place: '', level: null, note: '', start: null });
+let draft = emptyDraft();
 
 function weekVM(ctx) {
   const d = day(ctx), sunday = sundayOf(d), weekly = map(ctx, 'rec.weekly'), morning = map(ctx, 'rec.morning');
@@ -61,7 +68,7 @@ function cycleVM(ctx) {
   const all = (ctx.store.get('rec.complaints', []) || []).filter(x => x && x.id);
   return {
     c, rows: RIR.map(r => ({ ...r, start: addDays(first, (r.week - 1) * 7) })), confirm: confirmDeload,
-    trig: deloadTriggers(inputs(ctx), d), open: all.filter(x => !x.resolved), done: all.filter(x => x.resolved),
+    trig: triggersFor(ctx, d, c), open: all.filter(x => !x.resolved), done: all.filter(x => x.resolved),
     draft, cerr, today: d,
   };
 }
@@ -84,7 +91,7 @@ export function recoveryFor(ctx, d) {
 
 export function summary(ctx) {
   const d = day(ctx), r = recoveryFor(ctx, d);
-  return { ampel: r.ampel, sum: r.sum, mobility: r.mobility, cycle: r.cycle, suggest: deloadTriggers(inputs(ctx), d).suggest };
+  return { ampel: r.ampel, sum: r.sum, mobility: r.mobility, cycle: r.cycle, suggest: triggersFor(ctx, d, r.cycle).suggest };
 }
 
 /* Guided timers. One runner at a time; its time always comes from Date.now(),
@@ -192,7 +199,7 @@ export function render(route, ctx) {
     day: d, entry, planned: plannedBed(d), sum: s.sum, amp: s.ampel,
     mob: { ...mobilityFor(d), done: s.mobility.done }, sat: wd === 'sa',
     blocks: BLOCKS[wd] || null, blockDone: map(ctx, 'rec.blocks')[d] || {}, weeklyDone: weeklyDone(ctx, d),
-    cycle: s.cycle, trig: deloadTriggers(inputs(ctx), d),
+    cycle: s.cycle, trig: triggersFor(ctx, d, s.cycle),
   });
 }
 
@@ -250,9 +257,9 @@ export function onClick(e, route, ctx) {
     cerr = !place ? 'Bitte eine Körperstelle eintragen.' : !draft.level ? 'Bitte die Stärke wählen.' : '';
     if (!cerr) {
       const list = ctx.store.get('rec.complaints', []) || [];
-      list.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), place, level: draft.level, start: day(ctx), note: draft.note.trim(), resolved: null });
+      list.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), place, level: draft.level, start: draft.start || day(ctx), note: draft.note.trim(), resolved: null });
       put(ctx, 'rec.complaints', list);
-      draft = { place: '', level: null, note: '' };
+      draft = emptyDraft();
     }
     ctx.rerender();
   }
@@ -268,6 +275,11 @@ export function onInput(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a, k = t.dataset && t.dataset.k;
   if (a === 'wkt' && (k === 'gut' || k === 'next')) setWeekly(ctx, { [k]: t.value });
   if (a === 'cf' && (k === 'place' || k === 'note')) draft[k] = t.value;
+  // Pain that began earlier: only a real day from the last two weeks, never the future.
+  if (a === 'cf' && k === 'start') {
+    const d = day(ctx);
+    draft.start = validDay(t.value) && t.value <= d && t.value >= addDays(d, -13) ? t.value : null;
+  }
 }
 
 export function onChange(e, route, ctx) {
@@ -281,6 +293,7 @@ export function onChange(e, route, ctx) {
     setMorning(ctx, { puls: n >= 25 && n <= 200 ? n : null });
     ctx.rerender();
   }
+  if (a === 'cf') onInput(e, route, ctx); // a <select> may only report "change"
   if (a === 'mobdone') { setDone(ctx, 'rec.mobility', day(ctx), t.checked); ctx.rerender(); }
   if (a === 'flag' && ['leistung', 'stimmung'].includes(t.dataset.k)) {
     const w = cycleInfo(day(ctx)).start, m = map(ctx, 'rec.flags'), f = { ...m[w] };

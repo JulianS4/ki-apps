@@ -109,7 +109,7 @@ test('deloadTriggers: two red checks in 7 days', () => {
 });
 
 test('deloadTriggers: three bad nights', () => {
-  const morning = { '2026-11-19': chk(2, 4, 4), '2026-11-22': chk(1, 4, 4), '2026-11-25': { schlaf: 2 } };
+  const morning = { '2026-11-19': chk(2, 4, 4), '2026-11-22': chk(1, 4, 4), '2026-11-25': chk(2, 3, 3) };
   assert.equal(on(deloadTriggers({ ...none, morning }, T), 'schlaf3'), true);
   delete morning['2026-11-25'];
   assert.equal(on(deloadTriggers({ ...none, morning }, T), 'schlaf3'), false);
@@ -158,4 +158,14 @@ test('timer clock stands still while paused', () => {
   assert.equal(clockElapsed(c, 53000), 13);
   assert.equal(clockPause(clockPause(c, 60000), 70000).pausedAt, 60000);
   assert.equal(clockResume(c, 90000), c);
+});
+
+// Review Focus 1: a day with only one or two of the three scores does not count.
+test('deloadTriggers ignore incomplete morning checks', () => {
+  const nights = { '2026-11-19': { schlaf: 2 }, '2026-11-22': { schlaf: 1 }, '2026-11-25': { schlaf: 2 } };
+  assert.equal(on(deloadTriggers({ ...none, morning: nights }, T), 'schlaf3'), false);
+  const morning = {};
+  for (let i = 0; i < 14; i++) morning[addDays(T, -i)] = { puls: 50 };
+  for (const d of ['2026-11-20', '2026-11-22', '2026-11-25']) morning[d] = { puls: 56 };
+  assert.equal(on(deloadTriggers({ ...none, morning }, T), 'puls'), false);
 });

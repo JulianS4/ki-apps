@@ -64,6 +64,9 @@ export function boxPhase(t) {
   return { phase: PHASES[n], left: 4 - (s % 4), n };
 }
 
+// A real 'YYYY-MM-DD' calendar day (values from backups may be anything).
+export const validDay = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && ds(noon(v)) === v;
+
 export const sundayOf = day => addDays(day, 6 - dayIdx(noon(day)));
 
 const median = xs => {
@@ -82,7 +85,8 @@ const LABELS = [
 
 // "Deload vorziehen?": suggest once two of the six signs are present.
 export function deloadTriggers({ morning = {}, complaints = [], flags = {} }, today) {
-  const last = n => Array.from({ length: n }, (_, i) => morning[addDays(today, -i)]).filter(Boolean);
+  // Only complete checks count: a day with one or two scores is not a check yet.
+  const last = n => Array.from({ length: n }, (_, i) => morning[addDays(today, -i)]).filter(e => checkSum(e) != null);
   const week = last(7);
   const pulses = last(14).map(e => e.puls).filter(isNum);
   // Median, not mean: the elevated days themselves must not lift the baseline.

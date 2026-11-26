@@ -211,3 +211,42 @@ test('a complaint needs a body part', () => {
   recovery.onClick(click({ a: 'cadd' }), CYCLE, ctx);
   assert.equal(ctx.store.get('rec.complaints'), null);
 });
+
+test('a broken cycle anchor from a backup falls back to the notion anchor', () => {
+  for (const bad of ['30.11.2026', '2026-11-3', 123, '2026-13-45']) {
+    const ctx = mk(WED);
+    ctx.store.set('rec.cycle', { anchor: bad });
+    assert.equal(recovery.summary(ctx).cycle.week, 6, String(bad));
+    assert.doesNotThrow(() => recovery.render(TODAY, ctx));
+    assert.doesNotThrow(() => recovery.render(CYCLE, ctx));
+  }
+});
+
+test('no "Deload vorziehen?" during the deload week', () => {
+  const ctx = mk(WED);
+  const red = { schlaf: 2, energie: 3, muskeln: 3, bed: '21:30', wake: '06:00', puls: null };
+  ctx.store.set('rec.morning', { '2026-11-20': red, '2026-11-24': red });
+  ctx.store.set('rec.flags', { '2026-11-23': { leistung: true } });
+  assert.equal(recovery.summary(ctx).suggest, true);
+  ctx.store.set('rec.cycle', { anchor: '2026-11-30' });
+  assert.equal(recovery.summary(ctx).suggest, false);
+  assert.doesNotMatch(recovery.render(TODAY, ctx), /Deload vorziehen\?<\/b>/);
+  assert.doesNotMatch(recovery.render(CYCLE, ctx), /empfohlen|Zieh den Deload vor/);
+});
+
+test('a complaint can start on an earlier day', () => {
+  const ctx = mk(WED);
+  assert.match(recovery.render(CYCLE, ctx), /data-k="start"/);
+  recovery.onInput(input({ a: 'cf', k: 'place' }, 'Achillessehne'), CYCLE, ctx);
+  recovery.onInput(input({ a: 'cf', k: 'start' }, '2026-11-21'), CYCLE, ctx);
+  recovery.onClick(click({ a: 'clv', n: '2' }), CYCLE, ctx);
+  recovery.onClick(click({ a: 'cadd' }), CYCLE, ctx);
+  assert.equal(ctx.store.get('rec.complaints')[0].start, '2026-11-21');
+  assert.equal(recovery.summary(ctx).suggest, false);
+  assert.match(recovery.render(CYCLE, ctx), /seit 4 Tagen/);
+  recovery.onInput(input({ a: 'cf', k: 'start' }, 'gestern'), CYCLE, ctx);
+  recovery.onInput(input({ a: 'cf', k: 'place' }, 'Knie'), CYCLE, ctx);
+  recovery.onClick(click({ a: 'clv', n: '2' }), CYCLE, ctx);
+  recovery.onClick(click({ a: 'cadd' }), CYCLE, ctx);
+  assert.equal(ctx.store.get('rec.complaints')[1].start, '2026-11-25');
+});
