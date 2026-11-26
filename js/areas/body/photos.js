@@ -30,19 +30,28 @@ export function idbPhotos(idb = globalThis.indexedDB) {
   const open = () => db || (db = new Promise((ok, no) => {
     const r = idb.open('ki-apps-photos', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('photos');
-    r.onsuccess = () => ok(r.result);
+    r.onsuccess = () => {
+      // WebKit drops connections when it ends its storage process; open anew then.
+      const c = r.result;
+      c.onclose = () => { db = null; };
+      c.onversionchange = () => { c.close(); db = null; };
+      ok(c);
+    };
     r.onerror = () => { db = null; no(r.error); };
     r.onblocked = () => { db = null; no(new Error('blocked')); };
   }));
-  const run = async (mode, fn) => {
+  const once = async (mode, fn) => {
     const tx = (await open()).transaction('photos', mode);
     const done = mode === 'readwrite'
       ? new Promise((ok, no) => { tx.oncomplete = ok; tx.onerror = () => no(tx.error); tx.onabort = () => no(tx.error || new Error('abort')); })
       : null;
+    if (done) done.catch(() => {});
     const out = await req(fn(tx.objectStore('photos')));
     if (done) await done;
     return out;
   };
+  // One retry on a fresh connection covers a connection lost in the background.
+  const run = (mode, fn) => once(mode, fn).catch(() => { db = null; return once(mode, fn); });
   return {
     put: (k, blob) => run('readwrite', s => s.put(blob, k)).then(() => undefined),
     get: k => run('readonly', s => s.get(k)).then(v => v || null),

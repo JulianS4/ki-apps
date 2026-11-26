@@ -39,3 +39,42 @@ test('mergeIndex joins poses per day', () => {
   assert.deepEqual(mergeIndex({ '2026-11-02': { vorne: true } }, { '2026-11-02': { hinten: true }, '2026-11-03': { seitlich: true }, x: 1 }),
     { '2026-11-02': { vorne: true, hinten: true }, '2026-11-03': { seitlich: true } });
 });
+
+// A tiny IndexedDB stand-in: every open() hands out a new connection, and
+// `current.dead` makes the latest one behave like one WebKit dropped.
+function fakeIdb() {
+  const data = new Map(), f = { opens: 0 };
+  const req = run => { const r = {}; setTimeout(() => { try { r.result = run(); if (r.onsuccess) r.onsuccess(); } catch (e) { r.error = e; if (r.onerror) r.onerror(); } }, 0); return r; };
+  f.open = () => {
+    f.opens++;
+    const conn = {
+      dead: false,
+      transaction() {
+        if (conn.dead) throw Object.assign(new Error('The database connection is closing.'), { name: 'InvalidStateError' });
+        const tx = {}, done = () => setTimeout(() => tx.oncomplete && tx.oncomplete(), 0);
+        tx.objectStore = () => ({
+          put: (v, k) => req(() => { data.set(k, v); done(); }),
+          get: k => req(() => data.get(k)),
+          delete: k => req(() => { data.delete(k); done(); }),
+          getAllKeys: () => req(() => [...data.keys()]),
+          getAll: () => req(() => [...data.values()]),
+        });
+        return tx;
+      },
+      createObjectStore() {},
+      close() {},
+    };
+    f.current = conn;
+    return req(() => conn);
+  };
+  return f;
+}
+
+test('a lost IndexedDB connection is opened again', async () => {
+  const idb = fakeIdb(), s = idbPhotos(idb);
+  await s.put('2026-11-02:vorne', jpeg());
+  idb.current.dead = true;
+  await s.put('2026-11-03:vorne', jpeg());
+  assert.ok(await s.get('2026-11-03:vorne'));
+  assert.equal(idb.opens, 2);
+});

@@ -132,7 +132,12 @@ test('history draws a chart from two weights, one value stays a number', () => {
 
 
 const small = async () => new Blob(['small'], { type: 'image/jpeg' });
-const pick = (ctx, pose) => body.onChange({ target: { dataset: { a: 'pfile', pose }, files: [new Blob(['big'])] } }, PH, ctx);
+// Photos come in through the listener mount() puts on each file input.
+async function pick(ctx, pose) {
+  const input = { dataset: { a: 'pfile', pose }, files: [new Blob(['big'])], addEventListener(t, f) { this.f = f; } };
+  body.mount({ querySelectorAll: sel => (sel.includes('pfile') ? [input] : []) }, PH, ctx);
+  await input.f({ target: input });
+}
 
 test('a photo is indexed only after the store has it', async () => {
   const ctx = mk(), s = memPhotos();
@@ -195,4 +200,23 @@ test('without a photo store the tab says so', () => {
   ctx.store.set('body.weight', { '2026-11-20': 92 });
   assert.match(body.render(PH, ctx), /Fotos sind auf diesem Gerät nicht verfügbar/);
   assert.match(body.render(OV, ctx), /92 kg/);
+});
+
+// ---- final review fixes ----
+test('picking a date keeps the typed values and saves to that date', () => {
+  const ctx = mk();
+  let redraws = 0;
+  ctx.rerender = () => { redraws++; };
+  body.render(ENTRY(), ctx);
+  fill(ctx, { kg: '92' });
+  body.onChange({ target: { dataset: { a: 'bdate' }, value: '2026-11-25' } }, ENTRY(), ctx);
+  fill(ctx, { fat: '15' }); // on the iPhone the page has not redrawn yet: still the old route
+  body.onClick(click({ a: 'bsave' }), ENTRY(), ctx);
+  assert.deepEqual(ctx.store.get('body.weight'), { '2026-11-25': 92 });
+  assert.deepEqual(ctx.store.get('body.log'), { '2026-11-25': { fat: 15 } });
+  body.render(ENTRY(), ctx);
+  const before = redraws;
+  body.onChange({ target: { dataset: { a: 'bdate' }, value: '2026-12-01' } }, ENTRY(), ctx);
+  assert.equal(redraws, before + 1);
+  assert.match(body.render(ENTRY(), ctx), /data-a="bdate"[^>]*value="2026-11-26"/);
 });

@@ -6,6 +6,19 @@ import { photoStore } from './body/index.js';
 import { exportPhotos, importPhotos, mergeIndex } from './body/photos.js';
 
 const SC_NAME = 'Training loggen';
+
+// "mit Fotos": the photos are read as soon as the box is ticked, so the
+// download itself starts within the tap (iOS may drop one that waits).
+let withPhotos = false, prepared = null, pending = null, gen = 0;
+function prepare(ctx) {
+  const run = ++gen, s = photoStore();
+  prepared = null;
+  pending = (s ? exportPhotos(s, ctx.store.get('body.photos')) : Promise.resolve({ none: true }))
+    .then(r => r, () => ({ error: true }))
+    .then(r => { if (run === gen) { prepared = r; pending = null; } });
+  return pending;
+}
+export function onNavigate() { gen++; prepared = null; pending = null; }
 const INVALID = 'Keine gültige Backup-Datei';
 
 export function render(route, ctx) {
@@ -14,7 +27,7 @@ export function render(route, ctx) {
   <section class="blk prose"><div class="bh"><h2>Backup</h2><p>${n} Trainingseinheiten · ${last ? 'letztes ' + dfmt(last) : 'noch keins'}</p></div>
   <div class="ex" style="--c:var(--k-core)"><p>Alles liegt nur auf diesem Gerät, ohne Konto und ohne Cloud. Speicher ab und zu ein Backup, z. B. in die Dateien-App oder iCloud Drive.</p>
   <p class="note">Umzug aus der alten Hybrid-Training-App: dort „Backup speichern“, hier „Backup laden“.</p>
-  <p class="note"><label class="wph"><input type="checkbox" id="withPhotos"> mit Fotos</label> <span id="photoSize"></span></p>
+  <p class="note"><label class="wph"><input type="checkbox" id="withPhotos"${withPhotos ? ' checked' : ''}> mit Fotos</label> <span id="photoSize"></span></p>
   <div class="tools"><button class="btn pri" data-a="export" type="button">Backup speichern</button><label class="btn" for="imp" style="display:inline-flex;align-items:center">Backup laden<input id="imp" type="file" accept="application/json,.json" style="display:none"></label></div>
   <p class="note" id="impMsg" aria-live="polite"></p></div></section>
   <section class="blk prose"><div class="bh"><h2>Apple Health einrichten</h2><p>einmalig · 3 min</p></div>
@@ -34,31 +47,31 @@ export function render(route, ctx) {
 }
 
 // The size of the stored photos, so "mit Fotos" is a choice with numbers.
-export function mount() {
+export function mount(root, route, ctx) {
+  if (withPhotos && !prepared && !pending && ctx) prepare(ctx);
   const el = document.getElementById('photoSize'), s = photoStore();
   if (!el || !s) return;
   const fmt = n => (n < 1048576 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1).replace('.', ',')} MB`);
   s.size().then(n => { el.textContent = n ? `· Fotos: ${fmt(n)}` : '· keine Fotos'; }).catch(() => {});
 }
 
-// Without photos the download starts right away; with photos it waits for them.
-export async function onClick(e, route, ctx) {
+// Nothing waits between the tap and the download.
+export function onClick(e, route, ctx) {
   const t = e.target.closest('[data-a="export"]');
   if (!t) return;
-  const box = document.getElementById('withPhotos'), withPhotos = !!(box && box.checked);
+  const msg = document.getElementById('impMsg'), say = txt => { if (msg) msg.textContent = txt; };
+  if (withPhotos && !prepared) { say('Fotos werden vorbereitet – gleich nochmal tippen.'); return; }
+  if (withPhotos && prepared.error) { say('Fotos konnten nicht gelesen werden. Für ein Backup ohne Fotos das Häkchen entfernen.'); return; }
   const backup = buildBackup(ctx.store, new Date().toISOString(), { photos: withPhotos });
   let note = '';
-  if (withPhotos) {
-    const s = photoStore();
-    if (s) {
-      const r = await exportPhotos(s, backup.data['body.photos']);
-      backup.photos = r.photos;
-      backup.data['body.photos'] = r.index;
-      note = ` · ${r.count} Fotos${r.missing ? ` (${r.missing} fehlte${r.missing > 1 ? 'n' : ''} auf diesem Gerät)` : ''}`;
-    } else {
-      delete backup.data['body.photos'];
-      note = ' · ohne Fotos (auf diesem Gerät nicht verfügbar)';
-    }
+  if (withPhotos && prepared.none) {
+    delete backup.data['body.photos'];
+    note = ' · ohne Fotos (auf diesem Gerät nicht verfügbar)';
+  } else if (withPhotos) {
+    const n = prepared.count, m = prepared.missing;
+    backup.photos = prepared.photos;
+    backup.data['body.photos'] = prepared.index;
+    note = ` · ${n} ${n === 1 ? 'Foto' : 'Fotos'}${m ? ` (${m} ${m === 1 ? 'fehlte' : 'fehlten'} auf diesem Gerät)` : ''}`;
   }
   const data = JSON.stringify(backup);
   try {
@@ -72,13 +85,20 @@ export async function onClick(e, route, ctx) {
   } catch (er) { /* download blocked */ }
   ctx.store.set('meta.lastBackup', today());
   t.textContent = 'Backup erstellt ✓';
-  const msg = document.getElementById('impMsg');
-  if (msg) msg.textContent = 'Backup gespeichert' + note;
+  say('Backup gespeichert' + note);
 }
 
 export function onChange(e, route, ctx) {
   const t = e.target;
-  if (t.id !== 'imp' || !t.files[0]) return;
+  if (t.id === 'withPhotos') {
+    withPhotos = !!t.checked;
+    if (withPhotos) return prepare(ctx);
+    gen++;
+    prepared = null;
+    pending = null;
+    return undefined;
+  }
+  if (t.id !== 'imp' || !t.files[0]) return undefined;
   t.files[0].text()
     .then(async txt => {
       const obj = JSON.parse(txt), r = importBackup(obj, ctx.store);
@@ -91,6 +111,7 @@ export function onChange(e, route, ctx) {
           note = ` · Fotos: ${p.written} geladen${p.failed ? `, ${p.failed} fehlgeschlagen` : ''}`;
         } else note = ' · Fotos nicht geladen (auf diesem Gerät nicht verfügbar)';
       }
+      if (withPhotos) prepare(ctx);
       runMigrations(ctx.store);
       ctx.reloadAll();
       ctx.rerender();

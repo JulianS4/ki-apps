@@ -21,7 +21,7 @@ const last = pts => pts[pts.length - 1] || null;
 // Screen-only state: the form being filled, its error and the delete question
 // (a date for a measurement day, "p:" + date for a photo day), and the photo
 // screen: day for new photos, the two compared days, the pose.
-let draft = null, err = '', confirm = null, pday = null, pa = null, pb = null, pose = 'vorne', urls = [];
+let draft = null, err = '', confirm = null, chosen = null, pday = null, pa = null, pb = null, pose = 'vorne', urls = [];
 
 // Photo store: tests set one; the app opens IndexedDB once. null = not available.
 let photos, resize = resizeImage;
@@ -38,7 +38,7 @@ function freeUrls() {
 
 export function reload() { /* state is read from the store on every render */ }
 export function onNavigate() {
-  draft = null; err = ''; confirm = null; pday = null; pa = null; pb = null; pose = 'vorne';
+  draft = null; err = ''; confirm = null; chosen = null; pday = null; pa = null; pb = null; pose = 'vorne';
   freeUrls();
 }
 
@@ -66,8 +66,10 @@ function storedValues(ctx, d) {
   out.mob = x.mob || '';
   return out;
 }
+// The day picked in the form wins over the address: on the iPhone the page
+// redraws only once the date field is left, so typing must not depend on it.
 function draftFor(ctx, route) {
-  const d = entryDay(ctx, route.date);
+  const d = entryDay(ctx, chosen || route.date);
   if (!draft || draft.date !== d) { draft = { date: d, values: storedValues(ctx, d) }; err = ''; }
   return draft;
 }
@@ -85,6 +87,7 @@ function save(ctx, route) {
   put(ctx, 'body.log', log);
   draft = null;
   err = '';
+  chosen = null;
   ctx.go('#koerper/verlauf');
 }
 
@@ -158,8 +161,8 @@ async function loadImages(root) {
   freeUrls();
   const s = photoStore();
   for (const img of root.querySelectorAll('img[data-photo]')) {
-    let blob = null;
-    try { blob = s ? await s.get(img.dataset.photo) : null; } catch (e) { blob = null; }
+    let blob = null, failed = false;
+    try { blob = s ? await s.get(img.dataset.photo) : null; } catch (e) { failed = true; }
     if (!img.isConnected) continue;
     if (blob) {
       const u = URL.createObjectURL(blob);
@@ -168,7 +171,7 @@ async function loadImages(root) {
     } else {
       const m = document.createElement('div');
       m.className = 'pmiss';
-      m.textContent = 'Foto nicht auf diesem Gerät';
+      m.textContent = failed ? 'Foto konnte nicht geladen werden' : 'Foto nicht auf diesem Gerät';
       img.replaceWith(m);
     }
   }
@@ -181,9 +184,16 @@ export function render(route, ctx) {
   return overviewView(overviewVM(ctx));
 }
 
-export function mount(root, route) {
+export function mount(root, route, ctx) {
   if (route.view === 'history' && root) root.querySelectorAll('.bchart').forEach((el, i) => bindChart(el, CH[i]));
-  if (route.view === 'photos' && root) loadImages(root);
+  if (route.view === 'photos' && root) {
+    // The camera can return after a redraw (the page was hidden meanwhile). A
+    // listener on the input itself still fires once the input has left the page.
+    for (const inp of root.querySelectorAll('input[data-a="pfile"]')) {
+      if (POSES.some(p => p.id === inp.dataset.pose)) inp.addEventListener('change', () => savePhoto(ctx, inp.dataset.pose, inp.files && inp.files[0]));
+    }
+    loadImages(root);
+  }
 }
 
 export function onClick(e, route, ctx) {
@@ -219,10 +229,21 @@ export function onInput(e, route, ctx) {
 
 export function onChange(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a;
-  if (a === 'bdate' && isDay(t.value) && t.value <= dayOf(ctx)) ctx.go('#koerper/messung?' + t.value);
-  if (a === 'pdate' && isDay(t.value) && t.value <= dayOf(ctx)) { pday = t.value; ctx.rerender(); }
+  if (a === 'bdate') {
+    if (isDay(t.value) && t.value <= dayOf(ctx)) {
+      // Typed values come along unless that day already has its own.
+      const cur = draftFor(ctx, route), stored = storedValues(ctx, t.value);
+      chosen = t.value;
+      draft = { date: t.value, values: Object.values(stored).some(v => v !== '') ? stored : { ...cur.values } };
+      err = '';
+    }
+    ctx.rerender();
+  }
+  if (a === 'pdate') {
+    if (isDay(t.value) && t.value <= dayOf(ctx)) pday = t.value;
+    ctx.rerender();
+  }
   if ((a === 'pa' || a === 'pb') && isDay(t.value)) { if (a === 'pa') pa = t.value; else pb = t.value; ctx.rerender(); }
-  if (a === 'pfile' && POSES.some(p => p.id === t.dataset.pose)) return savePhoto(ctx, t.dataset.pose, t.files && t.files[0]);
   if (a === 'qtick' && QUARTER_ITEMS.some(i => i.id === t.dataset.id)) {
     const q = quarterOf(dayOf(ctx)), all = cleanTicks(ctx.store.get('body.quarter')), x = { ...(all[q] || {}) };
     if (t.checked) x[t.dataset.id] = true; else delete x[t.dataset.id];
