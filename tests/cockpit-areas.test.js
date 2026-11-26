@@ -238,7 +238,7 @@ test('projects and business log: per-project numbers and evaluation', () => {
   const log = projects.render(R.log, ctx);
   assert.match(log, /Verkauf/);
   assert.match(log, /Reselling[\s\S]*−5,00 €/);
-  projects.onClick(click({ a: 'lper', v: 'vormonat' }), R.log, ctx);
+  projects.onClick(click({ a: 'per', chart: 'log', v: 'woche' }), R.log, ctx);
   assert.doesNotMatch(projects.render(R.log, ctx), /Verkauf/);
   assert.match(projects.render({ area: 'projects', view: 'project', id: 'gibtsnicht' }, ctx), /nicht gefunden/);
 });
