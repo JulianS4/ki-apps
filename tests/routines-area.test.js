@@ -247,3 +247,98 @@ test('a deleted mobility step is no longer set by everything done', () => {
   assert.deepEqual(rout.summary(ctx).abend, { done: 6, total: 6 });
   assert.equal(ctx.store.get('rec.mobility'), null);
 });
+
+// ---- edit mode ----
+const edit = (ctx, k = 'morgen') => rout.onClick(click({ a: 'redit', k }), TODAY, ctx);
+const base = (ctx, k = 'morgen') => rout.steps(ctx)[k];
+
+test('edit mode shows base times, titles and the tools', () => {
+  const ctx = mk(at(8, 0, 28)); // Samstag: Anzeige 07:10, bearbeitet wird die Grundzeit
+  assert.match(rout.render(TODAY, ctx), /data-a="redit" data-k="morgen"/);
+  edit(ctx);
+  const html = rout.render(TODAY, ctx);
+  assert.match(html, /data-a="rfrom" data-k="morgen" data-id="toilette" value="06:10"/);
+  assert.match(html, /data-a="rto" data-k="morgen" data-id="toilette" value="06:20"/);
+  assert.match(html, /data-a="rt" data-k="morgen" data-id="toilette" value="Toilette"/);
+  assert.match(html, /data-a="pn" data-cat="Essentials" data-id="handy" value="Handy"/);
+  assert.match(html, /\+ Schritt/);
+  assert.match(html, /Fertig mit Bearbeiten/);
+  assert.match(html, /Auf Notion-Stand zurücksetzen/);
+  assert.match(html, /Sa\/So automatisch \+1 h/);
+  assert.doesNotMatch(html, /data-a="rt" data-k="abend"/);
+  rout.onNavigate({ area: 'food', view: 'today' }, ctx);
+  assert.doesNotMatch(rout.render(TODAY, ctx), /data-a="rt"/);
+});
+
+test('renaming a step keeps its tick and its link', () => {
+  const ctx = mk();
+  step(ctx, 'morgen', 'toilette');
+  edit(ctx);
+  rout.onInput(change({ a: 'rt', k: 'morgen', id: 'toilette' }, { value: 'Klo' }), TODAY, ctx);
+  rout.onInput(change({ a: 'rt', k: 'abend', id: 'mobility' }, { value: 'Dehnen' }), TODAY, ctx);
+  assert.equal(base(ctx).find(s => s.id === 'toilette').title, 'Klo');
+  assert.deepEqual(rout.summary(ctx).morgen, { done: 1, total: 10 });
+  step(ctx, 'abend', 'mobility');
+  assert.deepEqual(ctx.store.get('rec.mobility')['2026-11-26'], { done: true });
+});
+
+test('changing a time re-sorts and still shifts on weekends', () => {
+  const ctx = mk();
+  let now = at(6, 7);
+  ctx.now = () => now;
+  edit(ctx);
+  rout.onChange(change({ a: 'rfrom', k: 'morgen', id: 'toilette' }, { value: '05:50' }), TODAY, ctx);
+  assert.equal(base(ctx)[0].id, 'toilette');
+  rout.onChange(change({ a: 'rto', k: 'morgen', id: 'toilette' }, { value: '05:40' }), TODAY, ctx);
+  assert.equal(base(ctx)[0].to, '06:20');
+  rout.onChange(change({ a: 'rto', k: 'morgen', id: 'toilette' }, { value: '' }), TODAY, ctx);
+  assert.equal('to' in base(ctx)[0], false);
+  rout.onChange(change({ a: 'rfrom', k: 'morgen', id: 'toilette' }, { value: 'quatsch' }), TODAY, ctx);
+  assert.equal(base(ctx)[0].from, '05:50');
+  now = at(8, 0, 28);
+  edit(ctx);
+  assert.match(rout.render(TODAY, ctx), /ab 06:50/);
+});
+
+test('adding and deleting steps', () => {
+  const ctx = mk();
+  edit(ctx);
+  rout.onClick(click({ a: 'radd', k: 'morgen' }), TODAY, ctx);
+  assert.deepEqual(rout.summary(ctx).morgen, { done: 0, total: 11 });
+  const added = base(ctx).find(s => s.title === 'Neuer Schritt');
+  assert.equal(added.from, '07:00');
+  rout.onClick(click({ a: 'rdel', k: 'morgen', id: added.id }), TODAY, ctx);
+  assert.deepEqual(rout.summary(ctx).morgen, { done: 0, total: 10 });
+  ctx.store.set('rout.steps', { morgen: [{ id: 'x', from: '06:00', title: 'Nur einer' }] });
+  rout.onClick(click({ a: 'rdel', k: 'morgen', id: 'x' }), TODAY, ctx);
+  assert.equal(base(ctx).length, 1);
+  assert.doesNotMatch(rout.render(TODAY, ctx), /data-a="rdel" data-k="morgen"/);
+});
+
+test('pack items can be renamed, removed and added', () => {
+  const ctx = mk();
+  edit(ctx);
+  rout.onInput(change({ a: 'pn', cat: 'Essentials', id: 'handy' }, { value: 'iPhone' }), TODAY, ctx);
+  rout.onClick(click({ a: 'pdel', cat: 'Essentials', id: 'airpods' }), TODAY, ctx);
+  rout.onClick(click({ a: 'padd', cat: 'Tasche' }), TODAY, ctx);
+  edit(ctx);
+  const html = rout.render(TODAY, ctx);
+  assert.match(html, /iPhone/);
+  assert.match(html, /Neuer Gegenstand/);
+  assert.match(html, /Packliste 0\/15/);
+  assert.doesNotMatch(html, /data-id="airpods"/);
+});
+
+test('reset restores Notion after two taps', () => {
+  const ctx = mk();
+  edit(ctx);
+  rout.onClick(click({ a: 'radd', k: 'abend' }), TODAY, ctx);
+  rout.onClick(click({ a: 'pdel', cat: 'Essentials', id: 'handy' }), TODAY, ctx);
+  rout.onClick(click({ a: 'rreset' }), TODAY, ctx);
+  assert.match(rout.render(TODAY, ctx), /Sicher\? Nochmal tippen/);
+  assert.equal(rout.summary(ctx).abend.total, 8);
+  rout.onClick(click({ a: 'rreset' }), TODAY, ctx);
+  assert.deepEqual(rout.summary(ctx), { morgen: { done: 0, total: 10 }, abend: { done: 0, total: 7 } });
+  assert.match(rout.render(TODAY, ctx), /Packliste 0\/15/);
+  assert.doesNotMatch(rout.render(TODAY, ctx), /data-a="rt"/);
+});

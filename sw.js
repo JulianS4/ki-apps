@@ -1,5 +1,5 @@
 // Offline cache: network first, cache as fallback. Bump CACHE on every release.
-const CACHE = 'ki-apps-v4';
+const CACHE = 'ki-apps-v5';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'js/app.js', 'js/core/dates.js', 'js/core/store.js', 'js/core/routes.js', 'js/core/schedule.js',

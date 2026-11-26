@@ -31,11 +31,39 @@ function rows(kind, r, v, extras) {
   }).join('');
 }
 
+// Edit mode: the base times (before the weekend shift), the title, and ×
+// unless it is the last step; the morning also edits the pack list.
+const HINT = { morgen: 'Zeiten für Mo–Fr · Sa/So automatisch +1 h', abend: 'Zeiten für So–Do · Fr/Sa automatisch +1 h' };
+const LINK_NOTE = {
+  water: 'zählt 0,5 L beim Wasser', grandpa: 'mit dem Grandpa-Timer', pack: 'mit der Packliste',
+  mobility: 'Häkchen geteilt mit Recovery', supps: 'Häkchen geteilt mit den Abend-Supplements', breath: 'mit dem Box-Breathing-Timer',
+};
+function editRows(kind, v) {
+  const list = v.base[kind];
+  return list.map(s => {
+    const at = `data-k="${kind}" data-id="${esc(s.id)}"`;
+    return `<li class="ed"><div class="li"><input type="time" class="rtime" data-a="rfrom" ${at} value="${esc(s.from)}" aria-label="von"><span class="dash">–</span><input type="time" class="rtime" data-a="rto" ${at} value="${esc(s.to || '')}" aria-label="bis">${list.length > 1 ? `<button class="btn" type="button" data-a="rdel" ${at} aria-label="${esc(s.title || 'Schritt')} entfernen">×</button>` : ''}</div>
+    <div class="li"><input class="tx" data-a="rt" ${at} value="${esc(s.title)}" aria-label="Titel" autocomplete="off"></div>${s.link ? `<p class="note lk">${LINK_NOTE[s.link]}</p>` : ''}</li>`;
+  }).join('');
+}
+function packEdit(v) {
+  return `<p class="note fl"><b>Packliste</b></p>${v.packList.map(c => {
+    const cat = esc(c.cat);
+    return `<p class="note fl">${cat}</p>${c.items.length ? `<ul class="list">${c.items.map(i => `<li><div class="li"><input class="tx" data-a="pn" data-cat="${cat}" data-id="${esc(i.id)}" value="${esc(i.name)}" aria-label="Name" autocomplete="off"><button class="btn" type="button" data-a="pdel" data-cat="${cat}" data-id="${esc(i.id)}" aria-label="${esc(i.name)} entfernen">×</button></div></li>`).join('')}</ul>` : ''}
+    <button class="add" type="button" data-a="padd" data-cat="${cat}">+ Gegenstand</button>`;
+  }).join('')}`;
+}
+
 function routine(kind, v) {
   const r = v.routines[kind], complete = r.prog.done === r.prog.total;
-  return `<section class="blk"><div class="bh"><h2>${LABELS[kind]}</h2><p>ab ${r.steps[0].from} · ${r.prog.done}/${r.prog.total}</p></div>
-  <ul class="list rlist">${rows(kind, r, v, true)}</ul>
-  <div class="tools"><button class="btn${complete ? ' pri' : ''}" type="button" data-a="all" data-k="${kind}">${complete ? 'Alles erledigt ✓' : 'Alles erledigt'}</button></div></section>`;
+  const head = `<section class="blk"><div class="bh"><h2>${LABELS[kind]}</h2><p>ab ${r.steps[0].from} · ${r.prog.done}/${r.prog.total}</p></div>`;
+  if (v.editing === kind) {
+    return head + `<p class="note">${HINT[kind]}</p><ul class="list rlist">${editRows(kind, v)}</ul>
+  <button class="add" type="button" data-a="radd" data-k="${kind}">+ Schritt</button>${kind === 'morgen' ? packEdit(v) : ''}
+  <div class="tools"><button class="btn pri" type="button" data-a="redit" data-k="${kind}">Fertig mit Bearbeiten</button><button class="btn red" type="button" data-a="rreset">${v.confirm ? 'Sicher? Nochmal tippen' : 'Auf Notion-Stand zurücksetzen'}</button></div></section>`;
+  }
+  return head + `<ul class="list rlist">${rows(kind, r, v, true)}</ul>
+  <div class="tools"><button class="btn${complete ? ' pri' : ''}" type="button" data-a="all" data-k="${kind}">${complete ? 'Alles erledigt ✓' : 'Alles erledigt'}</button><button class="btn" type="button" data-a="redit" data-k="${kind}">Bearbeiten</button></div></section>`;
 }
 
 export function todayView(v) {

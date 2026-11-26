@@ -63,3 +63,16 @@ test('import reports a storage failure instead of claiming success', () => {
   b.setItem = () => { throw new Error('QuotaExceededError'); };
   assert.throws(() => importBackup(legacy(), createStore(b)), { message: 'Speichern nicht möglich – Speicher voll oder privater Modus?' });
 });
+
+test('edited routine lists travel as a whole', () => {
+  const lists = { morgen: [{ id: 'x', from: '06:00', title: 'Nur einer' }] }, pack = [{ cat: 'Tasche', items: [] }];
+  const a = fresh();
+  a.set('rout.steps', lists);
+  a.set('rout.pack', pack);
+  const b = fresh();
+  importBackup(buildBackup(a, '2026-11-26T10:00:00Z'), b);
+  assert.deepEqual(b.get('rout.steps'), lists);
+  assert.deepEqual(b.get('rout.pack'), pack);
+  importBackup({ app: 'ki-apps', v: 1, data: { 'rout.days': {} } }, b);
+  assert.deepEqual(b.get('rout.steps'), lists);
+});
