@@ -1,10 +1,13 @@
 // Körper area: measurements with curves, photos with a before/after view and
 // the quarter check. Weight lives in body.weight, which Ernährung reads for
 // the protein target; everything else in body.log, body.quarter, body.photos.
-import { ds } from '../../core/dates.js';
-import { FIELDS, QUARTER_ITEMS } from './data.js';
+import { ds, dfmt } from '../../core/dates.js';
+import { esc } from '../../core/html.js';
+import { bindChart } from '../training/chart.js';
+import { FIELDS, QUARTER_ITEMS, GOALS } from './data.js';
 import { checkForm, cleanWeights, cleanLog, cleanTicks, measureDays, series, quarterOf, quarterStatus, fmtNum, fmtTime } from './logic.js';
-import { overviewView, entryView, historyView, photosPlaceholder, dayLine } from './view.js';
+import { overviewView, entryView, historyView, photosPlaceholder, dayLine, fmtValue } from './view.js';
+import { lineChart } from './chart.js';
 
 export const dayOf = ctx => ds(ctx.now());
 const isDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -70,9 +73,31 @@ function overviewVM(ctx) {
   const { weights, log } = data(ctx), pick = id => last(series(weights, log, id));
   return { quarter: { q: quarterOf(dayOf(ctx)), ...quarterStatus(quarterOf(dayOf(ctx)), data(ctx)) }, latest: { kg: pick('kg'), fat: pick('fat'), run5k: pick('run5k'), hang: pick('hang') } };
 }
+// One curve per value with at least two entries; a single entry is a line.
+const mainWidth = () => (typeof document !== 'undefined' && document.getElementById('main') && document.getElementById('main').clientWidth) || 600;
+const CHARTS = FIELDS.map(f => ({
+  id: f.id, label: f.label, unit: f.id === 'run5k' ? 'min' : f.unit,
+  ...(f.id === 'kg' ? { goal: GOALS.kg } : {}), ...(f.id === 'fat' ? { band: GOALS.fat } : {}),
+  ...(f.id === 'run5k' ? { fmt: fmtTime, step: 5 } : {}), ...(f.id === 'hang' ? { step: 1 } : {}),
+}));
+let CH = [];
+function charts(ctx) {
+  const { weights, log } = data(ctx), curves = [], singles = [];
+  CH = [];
+  for (const c of CHARTS) {
+    const pts = series(weights, log, c.id);
+    if (pts.length >= 2) {
+      const r = lineChart({ ...c, pts, width: mainWidth() });
+      CH.push(r.ch);
+      curves.push(`<div class="bchart"><p class="note fl"><b>${esc(c.label)}</b></p>${r.html}</div>`);
+    } else if (pts.length === 1) singles.push(`<li>${esc(c.label)} ${fmtValue(c.id, pts[0].y)} am ${dfmt(pts[0].date)}</li>`);
+  }
+  return (curves.length ? `<section class="blk">${curves.join('')}</section>` : '')
+    + (singles.length ? `<section class="blk"><p class="note">Eine Messung bisher, die Kurve kommt ab der zweiten:</p><ul class="note bsingle">${singles.join('')}</ul></section>` : '');
+}
 function historyVM(ctx) {
   const { weights, log } = data(ctx), w = cleanWeights(weights), l = cleanLog(log);
-  return { days: measureDays(w, l).map(date => ({ date, line: dayLine(w[date], l[date] || {}) })), confirm };
+  return { days: measureDays(w, l).map(date => ({ date, line: dayLine(w[date], l[date] || {}) })), confirm, charts: charts(ctx) };
 }
 
 export function render(route, ctx) {
@@ -82,7 +107,9 @@ export function render(route, ctx) {
   return overviewView(overviewVM(ctx));
 }
 
-export function mount() { /* charts and photos are bound in later tasks */ }
+export function mount(root, route) {
+  if (route.view === 'history' && root) root.querySelectorAll('.bchart').forEach((el, i) => bindChart(el, CH[i]));
+}
 
 export function onClick(e, route, ctx) {
   const t = e.target.closest('[data-a]');

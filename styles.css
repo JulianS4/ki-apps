@@ -294,3 +294,8 @@ button.lk{border:0;background:none;padding:6px 0;color:inherit;font:inherit;text
 textarea.tx{padding:10px 12px;min-height:80px;resize:vertical}
 .bday{display:flex;flex-direction:column;gap:2px;color:inherit;text-decoration:none;min-width:0}
 .bday .note{margin:0}
+.chart .goal{stroke:var(--acc);stroke-width:1.5;stroke-dasharray:5 4}
+.chart .band{fill:var(--acc);opacity:.13}
+.chart text.gl{fill:var(--acc);font-weight:600}
+.bchart+.bchart{margin-top:14px}
+.bsingle{margin:6px 0 0;padding-left:18px}

@@ -118,3 +118,13 @@ test('header highlights the tab', () => {
   assert.match(body.header({ area: 'body', view: 'history' }), /href="#koerper\/verlauf" class="on"/);
   assert.match(body.header(ENTRY()), /href="#koerper" class="on"/);
 });
+
+test('history draws a chart from two weights, one value stays a number', () => {
+  const ctx = mk();
+  ctx.store.set('body.weight', { '2026-11-01': 93, '2026-11-20': 92.4 });
+  ctx.store.set('body.log', { '2026-11-20': { fat: 14.5 } });
+  const html = body.render(HIST, ctx);
+  assert.match(html, /class="goal"/);
+  assert.match(html, /Körperfett 14,5 %/);
+  assert.equal((html.match(/<svg/g) || []).length, 1);
+});
