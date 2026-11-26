@@ -5,7 +5,7 @@ import { ds, addDays } from '../../core/dates.js';
 import { mobilityFor } from '../recovery/logic.js';
 import { supps, setSuppGroup, groupDone } from '../food/index.js';
 import { timerState, startRun, toggleRun, stopRun, runOf, activeRun, mountRun, unlockAudio, stepTimerView, keepAwake } from '../../core/guided.js';
-import { GRANDPA, GRANDPA_END } from './data.js';
+import { GRANDPA, GRANDPA_END, EVENING } from './data.js';
 import { routineFor, progress, activeStep } from './logic.js';
 import { todayView, holderView } from './view.js';
 
@@ -32,11 +32,14 @@ function editTicks(ctx, d, fn) {
   put(ctx, 'rout.days', all);
 }
 
-// Linked steps read the state of the area that owns them.
+// Linked steps read the state of the area that owns them. With no evening
+// supplements the supplements step is a plain tick of its own.
 const eveningSupps = ctx => supps(ctx).filter(s => s.group === 'abends');
+const SUPP_STEP = EVENING.find(s => s.link === 'supps').id;
 function linked(ctx, d) {
   const mob = map(ctx, 'rec.mobility')[d];
-  return { mobility: isObj(mob) && mob.done === true, supps: groupDone(ctx, 'abends', d) };
+  const sup = eveningSupps(ctx).length ? groupDone(ctx, 'abends', d) : ticksOf(ctx, d).abend[SUPP_STEP] === true;
+  return { mobility: isObj(mob) && mob.done === true, supps: sup };
 }
 // ...and are written there, never stored twice.
 function setLinked(ctx, d, link, on) {
@@ -45,7 +48,8 @@ function setLinked(ctx, d, link, on) {
     if (on) m[d] = { done: true }; else delete m[d];
     put(ctx, 'rec.mobility', m);
   }
-  if (link === 'supps') setSuppGroup(ctx, 'abends', on, d);
+  if (link === 'supps' && eveningSupps(ctx).length) setSuppGroup(ctx, 'abends', on, d);
+  else if (link === 'supps') editTicks(ctx, d, x => { if (on) x.abend[SUPP_STEP] = true; else delete x.abend[SUPP_STEP]; });
 }
 function completeRoutine(ctx, kind, d) {
   const steps = routineFor(kind, d);
@@ -60,6 +64,10 @@ export function summaryFor(ctx, d) {
 export const summary = ctx => summaryFor(ctx, dayOf(ctx));
 
 export function reload() { /* state is read from the store on every render */ }
+// Screen-only state: which fold-outs are open. Kept here because every tick
+// redraws the page (on iOS a tapped checkbox does not keep the focus).
+const open = { pack: false, yest: false };
+
 // The Grandpa timer belongs to its view: leaving it ends the timer.
 let holdInt = null;
 function leaveHolder() {
@@ -69,6 +77,8 @@ function leaveHolder() {
 }
 
 export function onNavigate(next) {
+  open.pack = false;
+  open.yest = false;
   if (!(next && next.area === 'routines' && next.view === 'holder')) leaveHolder();
   const r = activeRun();
   if (r && r.kind === 'grandpa' && !(next && next.area === 'routines' && next.view === 'grandpa')) stopRun();
@@ -79,17 +89,17 @@ export function header(route) {
   return `<nav class="tabs">${tab('#routinen', 'Tag', v !== 'holder')}${tab('#routinen/halterung', 'Halterung', v === 'holder')}</nav>`;
 }
 
+function routineVM(ctx, kind, d) {
+  const steps = routineFor(kind, d), ticks = ticksOf(ctx, d)[kind], l = linked(ctx, d);
+  return { day: d, steps, ticks, linked: l, prog: progress(steps, ticks, l) };
+}
 function todayVM(ctx) {
-  const d = dayOf(ctx), t = timeOf(ctx), ticks = ticksOf(ctx, d), l = linked(ctx, d), y = addDays(d, -1), yp = summaryFor(ctx, y).abend;
-  const routines = {};
-  for (const k of KINDS) {
-    const steps = routineFor(k, d);
-    routines[k] = { steps, ticks: ticks[k], prog: progress(steps, ticks[k], l) };
-  }
+  const d = dayOf(ctx), t = timeOf(ctx), y = routineVM(ctx, 'abend', addDays(d, -1));
   return {
-    day: d, first: t < '14:00' ? 'morgen' : 'abend', routines, linked: l, pack: ticks.pack,
+    day: d, first: t < '14:00' ? 'morgen' : 'abend', open: { ...open },
+    routines: { morgen: routineVM(ctx, 'morgen', d), abend: routineVM(ctx, 'abend', d) }, pack: ticksOf(ctx, d).pack,
     mob: mobilityFor(d), supps: eveningSupps(ctx).map(s => s.name),
-    yesterday: t < '12:00' && yp.done < yp.total ? yp : null,
+    yesterday: t < '12:00' && y.prog.done < y.prog.total ? y : null,
   };
 }
 
@@ -123,6 +133,7 @@ export function onClick(e, route, ctx) {
   const a = t.dataset.a, k = t.dataset.k;
   if (a === 'all' && KINDS.includes(k)) { completeRoutine(ctx, k, dayOf(ctx)); ctx.rerender(); }
   if (a === 'yall') { completeRoutine(ctx, 'abend', addDays(dayOf(ctx), -1)); ctx.rerender(); }
+  if (a === 'open' && k in open) { if (e.preventDefault) e.preventDefault(); open[k] = !open[k]; ctx.rerender(); }
   if (a === 'tstart' && route.view === 'grandpa') {
     unlockAudio();
     const d = dayOf(ctx);
@@ -133,12 +144,19 @@ export function onClick(e, route, ctx) {
   if (a === 'tstop') { stopRun(); ctx.go('#routinen'); }
 }
 
+// A tick names its day; only today and yesterday can be changed.
+function tickDay(ctx, raw) {
+  const d = dayOf(ctx);
+  if (!raw || raw === d) return d;
+  return raw === addDays(d, -1) ? raw : null;
+}
+
 export function onChange(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a, d = dayOf(ctx);
   if (a === 'step' && KINDS.includes(t.dataset.k)) {
-    const k = t.dataset.k, s = routineFor(k, d).find(x => x.id === t.dataset.id);
-    if (s && (s.link === 'mobility' || s.link === 'supps')) setLinked(ctx, d, s.link, t.checked);
-    else if (s) editTicks(ctx, d, x => { if (t.checked) x[k][s.id] = true; else delete x[k][s.id]; });
+    const k = t.dataset.k, sd = tickDay(ctx, t.dataset.d), s = sd && routineFor(k, sd).find(x => x.id === t.dataset.id);
+    if (s && (s.link === 'mobility' || s.link === 'supps')) setLinked(ctx, sd, s.link, t.checked);
+    else if (s) editTicks(ctx, sd, x => { if (t.checked) x[k][s.id] = true; else delete x[k][s.id]; });
     ctx.rerender();
   }
   if (a === 'pack' && t.dataset.id) {

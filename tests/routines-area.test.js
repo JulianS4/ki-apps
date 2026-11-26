@@ -164,3 +164,46 @@ test('holder between routines shows the next one', () => {
   assert.match(late, /Morgenroutine/);
   assert.match(late, /Fr 06:00/);
 });
+
+// ---- final review fixes ----
+test('pack list stays open while ticking', () => {
+  const ctx = mk();
+  assert.doesNotMatch(rout.render(TODAY, ctx), /pk2" open/);
+  rout.onClick(click({ a: 'open', k: 'pack' }), TODAY, ctx);
+  rout.onChange(change({ a: 'pack', id: 'handy' }, { checked: true }), TODAY, ctx);
+  assert.match(rout.render(TODAY, ctx), /<details class="ses pk2" open>/);
+  rout.onNavigate({ area: 'food', view: 'today' }, ctx);
+  assert.doesNotMatch(rout.render(TODAY, ctx), /pk2" open/);
+});
+
+test('yesterday evening can be ticked step by step', () => {
+  const ctx = mk(at(7, 0));
+  assert.match(rout.render(TODAY, ctx), /data-k="abend" data-d="2026-11-25" data-id="mobility"/);
+  rout.onChange(change({ a: 'step', k: 'abend', d: '2026-11-25', id: 'mobility' }, { checked: true }), TODAY, ctx);
+  rout.onChange(change({ a: 'step', k: 'abend', d: '2026-11-25', id: 'shutdown' }, { checked: true }), TODAY, ctx);
+  assert.deepEqual(ctx.store.get('rec.mobility'), { '2026-11-25': { done: true } });
+  assert.deepEqual(rout.summaryFor(ctx, '2026-11-25').abend, { done: 2, total: 7 });
+  assert.deepEqual(rout.summary(ctx).abend, { done: 0, total: 7 });
+  assert.match(rout.render(TODAY, ctx), /Gestern Abend 2\/7/);
+  rout.onClick(click({ a: 'open', k: 'yest' }), TODAY, ctx);
+  assert.match(rout.render(TODAY, ctx), /<details class="yd" open>/);
+});
+
+test('a tick for a day other than today or yesterday is ignored', () => {
+  const ctx = mk(at(7, 0));
+  rout.onChange(change({ a: 'step', k: 'abend', d: '2026-11-20', id: 'shutdown' }, { checked: true }), TODAY, ctx);
+  assert.equal(rout.summaryFor(ctx, '2026-11-20').abend.done, 0);
+  assert.equal(rout.summary(ctx).abend.done, 0);
+});
+
+test('evening supplements step works without evening supplements', () => {
+  const ctx = mk();
+  ctx.store.set('food.supps', [{ id: 'omega', group: 'morgens', name: 'Omega' }]);
+  step(ctx, 'abend', 'lesen');
+  assert.equal(rout.summary(ctx).abend.done, 1);
+  assert.match(rout.render(TODAY, ctx), /data-id="lesen" checked/);
+  step(ctx, 'abend', 'lesen', false);
+  assert.equal(rout.summary(ctx).abend.done, 0);
+  rout.onClick(click({ a: 'all', k: 'abend' }), TODAY, ctx);
+  assert.deepEqual(rout.summary(ctx).abend, { done: 7, total: 7 });
+});
