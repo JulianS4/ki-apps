@@ -1,6 +1,6 @@
 // Routine views as HTML strings. Pure: everything comes in through `v`.
 import { esc } from '../../core/html.js';
-import { dfmt } from '../../core/dates.js';
+import { dfmt, DN, DAYS, dayIdx } from '../../core/dates.js';
 import { PACK, PHONE_NOTE, LABELS } from './data.js';
 
 const hero = (v, title) => `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">${dfmt(v.day)}</p><h1>${title}</h1></div></div>`;
@@ -40,4 +40,15 @@ export function todayView(v) {
   return hero(v, 'Routinen') + `<p class="note">${esc(PHONE_NOTE)}</p>${y}${order.map(k => routine(k, v)).join('')}`;
 }
 
-export const placeholderView = (v, title) => hero(v, title);
+// Phone-holder mode: the step that is on now, big enough to read from 1–2 m.
+export function holderView(v) {
+  const a = v.active;
+  if (a.kind) {
+    return `<div class="holder"><p class="hk">${LABELS[a.kind]}</p><h1 class="hs">${esc(a.step.title)}</h1>
+    <p class="ht">${a.step.from}–${a.step.until}</p>${a.next ? `<p class="hn">Danach: ${esc(a.next.title)}</p>` : ''}
+    <p class="note">${esc(PHONE_NOTE)}</p></div>`;
+  }
+  const u = a.upcoming, when = u.day === v.day ? `um ${u.from}` : `· ${DN[DAYS[dayIdx(new Date(u.day + 'T12:00:00'))]]} ${u.from}`;
+  return `<div class="holder"><p class="hk">Gerade keine Routine</p><h1 class="hs hs-s">Nächste Routine: ${LABELS[u.kind]} ${when}</h1>
+  <p class="note">Der Bildschirm bleibt an, solange diese Ansicht offen ist.</p></div>`;
+}

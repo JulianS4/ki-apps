@@ -148,3 +148,19 @@ test('grandpa timer ticks the step when done', t => {
   rout.onNavigate({ area: 'routines', view: 'today' }, ctx);
   assert.equal(runOf('grandpa'), null);
 });
+
+const HOLD = { area: 'routines', view: 'holder' };
+test('holder shows the current step', () => {
+  const html = rout.render(HOLD, mk(at(6, 7)));
+  assert.match(html, /Anziehen → Chinese Grandpa Routine im Tageslicht/);
+  assert.match(html, /06:05–06:10/);
+  assert.match(html, /Danach: Toilette/);
+  assert.match(html, /Morgenroutine/);
+});
+
+test('holder between routines shows the next one', () => {
+  assert.match(rout.render(HOLD, mk(at(21, 15, 27))), /Nächste Routine: Abendroutine um 21:30/);
+  const late = rout.render(HOLD, mk(at(22, 0)));
+  assert.match(late, /Morgenroutine/);
+  assert.match(late, /Fr 06:00/);
+});

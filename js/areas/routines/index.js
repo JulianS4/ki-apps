@@ -4,10 +4,10 @@
 import { ds, addDays } from '../../core/dates.js';
 import { mobilityFor } from '../recovery/logic.js';
 import { supps, setSuppGroup, groupDone } from '../food/index.js';
-import { timerState, startRun, toggleRun, stopRun, runOf, activeRun, mountRun, unlockAudio, stepTimerView } from '../../core/guided.js';
+import { timerState, startRun, toggleRun, stopRun, runOf, activeRun, mountRun, unlockAudio, stepTimerView, keepAwake } from '../../core/guided.js';
 import { GRANDPA, GRANDPA_END } from './data.js';
-import { routineFor, progress } from './logic.js';
-import { todayView, placeholderView } from './view.js';
+import { routineFor, progress, activeStep } from './logic.js';
+import { todayView, holderView } from './view.js';
 
 const p2 = n => String(n).padStart(2, '0');
 export const dayOf = ctx => ds(ctx.now());
@@ -61,7 +61,15 @@ export const summary = ctx => summaryFor(ctx, dayOf(ctx));
 
 export function reload() { /* state is read from the store on every render */ }
 // The Grandpa timer belongs to its view: leaving it ends the timer.
+let holdInt = null;
+function leaveHolder() {
+  clearInterval(holdInt);
+  holdInt = null;
+  keepAwake(false);
+}
+
 export function onNavigate(next) {
+  if (!(next && next.area === 'routines' && next.view === 'holder')) leaveHolder();
   const r = activeRun();
   if (r && r.kind === 'grandpa' && !(next && next.area === 'routines' && next.view === 'grandpa')) stopRun();
 }
@@ -95,12 +103,18 @@ export function render(route, ctx) {
       doneToday: ticksOf(ctx, d).morgen.grandpa === true,
     });
   }
-  if (route.view === 'holder') return placeholderView({ day: dayOf(ctx) }, 'Halterung');
+  if (route.view === 'holder') return holderView({ day: dayOf(ctx), active: activeStep(dayOf(ctx), timeOf(ctx)) });
   return todayView(todayVM(ctx));
 }
 
+// Holder mode keeps the screen on and follows the clock every 15 s; the
+// browser drops the wake lock in the background, so every mount asks again.
 export function mount(root, route, ctx) {
   if (route.view === 'grandpa') mountRun('grandpa', ctx);
+  if (route.view === 'holder') {
+    keepAwake(true);
+    if (!holdInt) holdInt = setInterval(() => ctx.rerender(), 15000);
+  }
 }
 
 export function onClick(e, route, ctx) {
