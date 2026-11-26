@@ -8,6 +8,7 @@ import * as training from './areas/training/index.js';
 import * as recovery from './areas/recovery/index.js';
 import * as food from './areas/food/index.js';
 import * as routines from './areas/routines/index.js';
+import * as body from './areas/body/index.js';
 
 const $ = s => document.querySelector(s);
 
@@ -15,8 +16,8 @@ const $ = s => document.querySelector(s);
 // the app runs on memory and says so, because nothing survives a restart.
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
-const AREAS = { heute, training, recovery, food, routines, settings };
-const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', settings: 'Einstellungen' };
+const AREAS = { heute, training, recovery, food, routines, body, settings };
+const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Körper', settings: 'Einstellungen' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
 

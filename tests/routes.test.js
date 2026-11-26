@@ -38,3 +38,12 @@ const cases = [
 for (const [hash, want] of cases) {
   test(`parseRoute(${JSON.stringify(hash)})`, () => assert.deepEqual(parseRoute(hash), want));
 }
+
+test('body routes', () => {
+  assert.deepEqual(parseRoute('#koerper'), { area: 'body', view: 'overview' });
+  assert.deepEqual(parseRoute('#koerper/verlauf'), { area: 'body', view: 'history' });
+  assert.deepEqual(parseRoute('#koerper/fotos'), { area: 'body', view: 'photos' });
+  assert.deepEqual(parseRoute('#koerper/messung?2026-11-20'), { area: 'body', view: 'entry', date: '2026-11-20' });
+  assert.deepEqual(parseRoute('#koerper/messung?quatsch'), { area: 'body', view: 'entry', date: null });
+  assert.deepEqual(parseRoute('#koerper/xyz'), { area: 'body', view: 'overview' });
+});

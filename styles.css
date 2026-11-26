@@ -286,3 +286,11 @@ button.lk{border:0;background:none;padding:6px 0;color:inherit;font:inherit;text
 .rlist .ed .dash{color:var(--mut)}
 .rlist .ed .btn{flex:none}
 .rlist .ed .lk{margin:0 14px 10px}
+/* Körper */
+.bf{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--mut);margin-top:8px}
+.bf small{font-weight:500}
+.bf .tx{color:var(--ink);font-weight:500}
+.bgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+textarea.tx{padding:10px 12px;min-height:80px;resize:vertical}
+.bday{display:flex;flex-direction:column;gap:2px;color:inherit;text-decoration:none;min-width:0}
+.bday .note{margin:0}
