@@ -31,6 +31,13 @@ export function srcLine(src, stand, ctx, { label = 'Stand', warnDays = 0 } = {})
   return `<span class="src${old ? ' old' : ''}">${esc(srcName(src))}${stand ? ` · ${label} ${dshort(stand)}` : ''}${old ? ' · veraltet?' : ''}${extra}</span>`;
 }
 export const when = d => (d ? dfmt(d) : '');
+// Totals that contain imported transactions say how old the import is.
+export function csvNote(ctx, txs) {
+  if (!txs.some(t => t.src === 'csv')) return '';
+  const last = db.list(ctx, 'import').filter(i => i.kind === 'csv').map(i => i.at).sort().pop();
+  return `<p class="src">Enthält importierte Buchungen · letzter CSV-Import ${last ? dshort(last) : 'unbekannt'} · evtl. nicht aktuell</p>`;
+}
+export const DEMO_NO_IMPORT = 'Im Beispielmodus ist kein Import möglich – erst „Beispiele beenden“, dann landen Importe bei deinen echten Daten.';
 
 export const empty = (text, actions = '') => `<div class="cempty"><p>${text}</p>${actions ? `<div class="tools">${actions}</div>` : ''}</div>`;
 export const newBtn = (name, label, preset) => `<button class="btn" type="button" data-a="fnew" data-s="${name}"${preset ? ` data-preset="${esc(JSON.stringify(preset))}"` : ''}>＋ ${label}</button>`;
@@ -135,6 +142,7 @@ export function tick(t, ctx) {
   if (t.dataset.a !== 'tick') return false;
   const it = db.find(ctx, t.dataset.s, t.dataset.id);
   if (it) db.upsert(ctx, t.dataset.s, { ...it, done: !!t.checked });
+  blurActive();
   ctx.rerender();
   return true;
 }

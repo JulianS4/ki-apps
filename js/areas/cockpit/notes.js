@@ -4,7 +4,7 @@ import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
 import { searchNotes, noteLinks, findNote } from './logic.js';
 import { TOPICS, label } from './data.js';
-import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon } from './ui.js';
+import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon, blurActive } from './ui.js';
 
 let q = '', topic = '';
 const UN = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
@@ -58,6 +58,7 @@ export function onClick(e, route, ctx) {
   } else if (a === 'tagq') { q = q === '#' + t.dataset.v ? '' : '#' + t.dataset.v; if (route.view === 'note') ctx.go('#wissen'); }
   else if (a === 'ntopic') topic = t.dataset.v;
   else return;
+  blurActive();
   ctx.rerender();
 }
 // The search redraws only its results, so typing keeps focus and keyboard.

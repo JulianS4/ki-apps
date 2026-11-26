@@ -149,7 +149,7 @@ export function dueTasks(school, projects, today, days = 7) {
 
 // CSV from bank exports: quotes, ';' or ',' or tab, BOM, CRLF.
 export function parseCsv(text) {
-  const s = String(text || '').replace(/^﻿/, ''), head = s.split(/\r?\n/)[0] || '';
+  const s = String(text || '').replace(/^﻿/, ''), head = s.split(/\r?\n/).slice(0, 20).join('\n');
   const delim = [';', '\t', ','].sort((a, b) => head.split(b).length - head.split(a).length)[0];
   const rows = [];
   let row = [], cell = '', q = false;
@@ -171,7 +171,7 @@ export function parseCsv(text) {
   return rows;
 }
 const GUESS = {
-  date: [/buchungstag/, /buchungsdatum/, /^datum/, /date/, /valuta/],
+  date: [/buchungstag/, /buchungsdatum/, /^buchung$/, /^datum/, /\bdate\b/, /valuta/],
   amount: [/^betrag/, /betrag/, /umsatz/, /amount/],
   payee: [/beguenstigt|begunstigt|zahlungspflichtig/, /empfanger|empfaenger/, /auftraggeber/, /^name|payee|gegenpartei/],
   purpose: [/verwendungszweck/, /zweck/, /beschreibung|description/, /buchungstext/],
@@ -183,6 +183,16 @@ export function guessMap(header) {
     for (const p of pats) { const i = h.findIndex((x, j) => !used.has(j) && p.test(x)); if (i >= 0) { map[k] = i; used.add(i); break; } }
   }
   return map;
+}
+// Some banks put account details above the column names: the header is the
+// first row where a date and an amount column are recognised, else the widest.
+export function findHeader(rows) {
+  const ok = r => { const m = guessMap(r); return m.date >= 0 && m.amount >= 0; };
+  const i = rows.findIndex(r => r.length >= 3 && ok(r)), j = i >= 0 ? i : rows.findIndex(ok);
+  if (j >= 0) return j;
+  let w = 0;
+  rows.forEach((r, j) => { if (r.length > rows[w].length) w = j; });
+  return w;
 }
 export function parseDay(v) {
   const s = String(v || '').trim();

@@ -4,7 +4,7 @@ import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
 import { logStats, periodRange, PERIODS, fmtDur, fmtMoney } from './logic.js';
 import { PROJ_STATUS, label } from './data.js';
-import { banner, hero, srcLine, pbar, empty, newBtn, editBtn, seg, formIf, common, tick, target, today, edInput, onNavigateCommon, mountCommon } from './ui.js';
+import { banner, hero, srcLine, pbar, empty, newBtn, editBtn, seg, formIf, common, tick, target, today, edInput, onNavigateCommon, mountCommon, blurActive } from './ui.js';
 
 let per = 'monat', lproj = '';
 const tabs = v => `<nav class="csub" aria-label="Projekte"><a href="#projekte"${v !== 'log' ? ' class="on" aria-current="page"' : ''}>Projekte</a><a href="#projekte/log"${v === 'log' ? ' class="on" aria-current="page"' : ''}>Business Log</a></nav>`;
@@ -63,7 +63,7 @@ export function render(route, ctx) {
 export function onClick(e, route, ctx) {
   const t = target(e);
   if (!t || common(t, ctx)) return;
-  if (t.dataset.a === 'lper') { per = t.dataset.v; ctx.rerender(); }
+  if (t.dataset.a === 'lper') { per = t.dataset.v; blurActive(); ctx.rerender(); }
 }
 export function onInput(e) { edInput(e.target); }
 export function onChange(e, route, ctx) {

@@ -23,6 +23,7 @@ export const SCHEMAS = {
 export const SOURCES = ['manuell', 'csv', 'import', 'beispiel'];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const MAX = { text: 300, long: 20000 };
+const ID = /^[\w-]{1,64}$/; // ids land in attributes and links
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isUrl = s => typeof s === 'string' && /^https?:\/\/[^\s]+$/i.test(s);
 const def = f => (f.t === 'select' ? f.opts[0][0] : f.t === 'bool' ? false : ['tags', 'refs', 'links'].includes(f.t) ? [] : ['text', 'long', 'ref'].includes(f.t) ? '' : f.def ?? null);
@@ -50,7 +51,7 @@ function cleanVal(f, v) {
 
 export function cleanItem(name, raw) {
   const s = SCHEMAS[name];
-  if (!s || !isObj(raw) || typeof raw.id !== 'string' || !raw.id) return null;
+  if (!s || !isObj(raw) || typeof raw.id !== 'string' || !ID.test(raw.id)) return null;
   const out = { id: raw.id };
   for (const f of s.fields) {
     const v = cleanVal(f, raw[f.k]);

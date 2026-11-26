@@ -4,6 +4,7 @@ import { ds } from '../../core/dates.js';
 import { SCHEMAS, cleanItem } from './schema.js';
 import { DEFAULT_CATS, DEFAULT_PROJECTS, demoData } from './data.js';
 import { uid } from './logic.js';
+import { STORAGE_FAILED } from '../../core/backup.js';
 
 export const isDemo = ctx => ctx.store.get('cx.demo') === true;
 const pre = ctx => (isDemo(ctx) ? 'demo.cx.' : 'cx.');
@@ -27,6 +28,10 @@ export function upsert(ctx, name, item) {
   if (name === 'account') {
     const hist = ((old && old.hist) || item.hist || []).filter(p => p.d !== next.asOf);
     next.hist = [...hist, { d: next.asOf, c: next.bal }].sort((a, b) => (a.d < b.d ? -1 : 1));
+    // An older balance fills in the history; the newest stays the current one.
+    const last = next.hist[next.hist.length - 1];
+    next.bal = last.c;
+    next.asOf = last.d;
   }
   const c = cleanItem(name, next);
   if (!c) return null;
@@ -76,6 +81,7 @@ export function exportData(ctx, iso) {
 export function importData(ctx, obj, file, today) {
   if (!obj || obj.app !== 'ki-cockpit' || !obj.data || typeof obj.data !== 'object') throw new Error('Keine gültige Cockpit-Datei');
   const demo = isDemo(ctx);
+  if (obj.demo === true && !demo) throw new Error('Diese Datei stammt aus dem Beispielmodus und wird nicht übernommen.');
   let n = 0;
   for (const name of NAMES) {
     const arr = obj.data[SCHEMAS[name].key];
@@ -86,7 +92,7 @@ export function importData(ctx, obj, file, today) {
       const c = cleanItem(name, { ...raw, src: ['manuell', 'csv', 'beispiel'].includes(raw.src) ? raw.src : 'import' });
       if (c) { byId.set(c.id, c); n++; }
     }
-    setRaw(ctx, SCHEMAS[name].key, [...byId.values()]);
+    if (!setRaw(ctx, SCHEMAS[name].key, [...byId.values()])) throw new Error(STORAGE_FAILED);
   }
   const b = obj.data.budgets;
   if (b && typeof b === 'object') for (const [k, v] of Object.entries(b)) if (Number.isInteger(v) && v > 0) setBudget(ctx, k, v);

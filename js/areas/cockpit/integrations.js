@@ -4,7 +4,7 @@ import { esc } from '../../core/html.js';
 import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
 import { zip, notesMarkdown } from './zip.js';
-import { banner, hero, common, target, today, onNavigateCommon, mountCommon, blurActive } from './ui.js';
+import { banner, hero, common, target, today, onNavigateCommon, mountCommon, blurActive, DEMO_NO_IMPORT } from './ui.js';
 
 const DOC = 'https://github.com/JulianS4/ki-apps/blob/main/docs/cockpit-integrationen.md';
 let confirmWipe = false, msg = '';
@@ -30,7 +30,8 @@ export function render(route, ctx) {
    <p>Die App liest Notion nicht. Eine echte Verbindung bräuchte einen kleinen eigenen Server, der den Notion-Schlüssel sicher aufbewahrt – im Browser oder im öffentlichen Code darf er nicht stehen, und Notion erlaubt keine direkten Browser-Abrufe.</p>
    <p class="note">Würde synchronisiert: Konten und Nettovermögen → Finanzen · Business Log → Projekte · Ausbildung → Ausbildung. Nur Seiten, die du der Integration in Notion ausdrücklich freigibst.</p>
    <p class="note">Bis dahin: Cockpit-Datei (JSON) importieren.${lastJson ? ` Zuletzt: ${esc(lastJson.file)} am ${dfmt(lastJson.at)} (${lastJson.n} Einträge).` : ''}</p>
-   <div class="tools"><label class="btn" for="jsonf">Cockpit-Datei importieren<input id="jsonf" type="file" accept="application/json,.json" hidden></label><a class="btn" href="${DOC}" target="_blank" rel="noopener noreferrer">Wie es ginge ›</a></div></section>
+   ${demo ? `<p class="note">${DEMO_NO_IMPORT}</p>` : ''}
+   <div class="tools">${demo ? '' : '<label class="btn" for="jsonf">Cockpit-Datei importieren<input id="jsonf" type="file" accept="application/json,.json" hidden></label>'}<a class="btn" href="${DOC}" target="_blank" rel="noopener noreferrer">Wie es ginge ›</a></div></section>
   <section class="ccard"><div class="ch"><h2>Bank</h2>${status(false, 'Nicht eingerichtet')}</div>
    <p>Keine Bank ist verbunden. Die App fragt nie nach Bank-Passwörtern und liest keine Bankseiten aus.</p>
    <p class="note">Eine spätere Verbindung ginge nur über einen zugelassenen Open-Banking-Dienst (PSD2): nur lesen, Freigabe direkt bei deiner Bank, zeitlich begrenzt und jederzeit widerrufbar. Abgerufen würden Kontoname, Kontostand und Umsätze (Datum, Betrag, Empfänger, Verwendungszweck).</p>

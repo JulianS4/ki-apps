@@ -4,7 +4,7 @@ import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
 import { netWorth, nextExams, currentDept, totals, filterTx, periodRange, logStats, dueTasks, daysUntil, gradeAvg, fmtDur, MONTHS } from './logic.js';
 import { PREP, AGENT_STATUS, label } from './data.js';
-import { banner, hero, money, amountsShown, srcLine, pbar, common, target, today, onNavigateCommon, mountCommon } from './ui.js';
+import { banner, hero, money, amountsShown, srcLine, pbar, common, target, today, onNavigateCommon, mountCommon, csvNote } from './ui.js';
 import { trainingSummary, recoverySummary } from '../heute.js';
 
 export const inDays = n => (n === 0 ? 'heute' : n === 1 ? 'morgen' : n < 0 ? 'vorbei' : `in ${n} Tagen`);
@@ -26,7 +26,7 @@ function examsCard(ctx, t) {
 function tasksCard(ctx, t) {
   const projs = db.list(ctx, 'project'), pt = db.list(ctx, 'ptask');
   const due = dueTasks({ tasks: db.list(ctx, 'stask') }, projs.map(p => ({ ...p, tasks: pt.filter(x => x.proj === p.id) })), t).slice(0, 6);
-  const body = due.length ? `<ul class="crows">${due.map(x => `<li><a class="nm" href="${x.href}"><b>${esc(x.text)}</b><small>${esc(x.where)}</small></a><span class="pill${x.overdue ? ' late' : x.due === t ? ' hot' : ''}">${x.overdue ? 'überfällig' : x.due === t ? 'heute' : dfmt(x.due)}</span></li>`).join('')}</ul>`
+  const body = due.length ? `<ul class="crows">${due.map(x => `<li><a class="nm" href="${esc(x.href)}"><b>${esc(x.text)}</b><small>${esc(x.where)}</small></a><span class="pill${x.overdue ? ' late' : x.due === t ? ' hot' : ''}">${x.overdue ? 'überfällig' : x.due === t ? 'heute' : dfmt(x.due)}</span></li>`).join('')}</ul>`
     : '<p class="note">Nichts fällig in den nächsten 7 Tagen.</p>';
   return card('Aufgaben', '', body, 'aus Ausbildung und Projekten');
 }
@@ -45,7 +45,7 @@ function monthCard(ctx, t) {
   const r = periodRange('monat', t), tx = filterTx(db.list(ctx, 'tx'), { range: r }), m = totals(tx, db.list(ctx, 'cat')), l = logStats(db.list(ctx, 'log'), { range: r });
   const row = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
   return card(`Diesen Monat · ${MONTHS[+t.slice(5, 7) - 1]}`, '', `<div class="kv2">${row('Einnahmen', money(m.inc, 'EUR', true))}${row('Ausgaben', money(m.exp, 'EUR', true))}${row('Zurückgelegt', money(m.save, 'EUR', true))}</div>
-  <p class="fl note">Business Log</p><div class="kv2">${row('Gewinn', money(l.profit, 'EUR', true))}${row('Stunden', fmtDur(l.min))}${row('Einträge', l.n)}</div>`,
+  ${csvNote(ctx, tx)}<p class="fl note">Business Log</p><div class="kv2">${row('Gewinn', money(l.profit, 'EUR', true))}${row('Stunden', fmtDur(l.min))}${row('Einträge', l.n)}</div>`,
   `Finanzen aus ${tx.length} Buchungen · Business aus ${l.n} Log-Einträgen`);
 }
 

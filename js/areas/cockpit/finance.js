@@ -2,9 +2,10 @@
 import { esc } from '../../core/html.js';
 import { dfmt, dshort } from '../../core/dates.js';
 import * as db from './db.js';
-import { netWorth, netWorthSeries, filterTx, totals, byCategory, budgetRows, periodRange, PERIODS, subTotals, subMonthly, nextBilling, parseCsv, guessMap, csvToTx, dedupe, parseMoney, fmtMoney, fmtEuro0, addMonths, MONTHS } from './logic.js';
+import { netWorth, netWorthSeries, filterTx, totals, byCategory, budgetRows, periodRange, PERIODS, subTotals, subMonthly, nextBilling, parseCsv, guessMap, findHeader, csvToTx, dedupe, parseMoney, fmtMoney, fmtEuro0, addMonths, MONTHS } from './logic.js';
 import { ACC_TYPES, EVERY, SUB_STATUS, label } from './data.js';
-import { banner, hero, money, signed, srcLine, srcName, bars, empty, newBtn, editBtn, seg, formIf, common, target, today, edInput, onNavigateCommon, mountCommon, blurActive } from './ui.js';
+import { banner, hero, money, signed, srcLine, srcName, bars, empty, newBtn, editBtn, seg, formIf, common, target, today, edInput, onNavigateCommon, mountCommon, blurActive, csvNote, DEMO_NO_IMPORT } from './ui.js';
+import { STORAGE_FAILED } from '../../core/backup.js';
 import { lineChart } from '../body/chart.js';
 import { bindChart } from '../training/chart.js';
 
@@ -15,7 +16,7 @@ const opt = (v, l, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' :
 const kv = rows => `<div class="kv2">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>`;
 
 function overview(ctx, t) {
-  const acc = db.list(ctx, 'account'), nw = netWorth(acc), series = netWorthSeries(acc), m = totals(filterTx(db.list(ctx, 'tx'), { range: periodRange('monat', t) }), db.list(ctx, 'cat'));
+  const acc = db.list(ctx, 'account'), nw = netWorth(acc), series = netWorthSeries(acc), mtx = filterTx(db.list(ctx, 'tx'), { range: periodRange('monat', t) }), m = totals(mtx, db.list(ctx, 'cat'));
   CH = null;
   let chart = '';
   if (series.length >= 2) {
@@ -30,7 +31,7 @@ function overview(ctx, t) {
   return `<section class="blk"><div class="nwbig"><span class="k">Gesamtvermögen</span><b>${money(nw.total)}</b><span class="note">${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'}${nw.oldest ? ` · ältester Stand ${dshort(nw.oldest)}` : ''}${nw.skipped.length ? ` · ohne ${esc(nw.skipped.join(', '))} (andere Währung)` : ''}</span></div></section>
   ${chart}
   <section class="blk"><div class="bh"><h2>Konten</h2><p><a href="#finanzen/konten">Bearbeiten ›</a></p></div>${accRows}</section>
-  <section class="blk"><div class="bh"><h2>${MONTHS[+t.slice(5, 7) - 1]}</h2><p><a href="#finanzen/kosten">Kosten ›</a></p></div>${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}<p class="note">Kontostände kommen aus deinen Einträgen, Einnahmen und Ausgaben aus den Buchungen.</p></section>`;
+  <section class="blk"><div class="bh"><h2>${MONTHS[+t.slice(5, 7) - 1]}</h2><p><a href="#finanzen/kosten">Kosten ›</a></p></div>${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}${csvNote(ctx, mtx)}<p class="note">Kontostände kommen aus deinen Einträgen, Einnahmen und Ausgaben aus den Buchungen.</p></section>`;
 }
 
 function accounts(ctx) {
@@ -51,6 +52,7 @@ function filters(ctx, withCat = true) {
 
 function csvBox(ctx) {
   const msg = csvMsg ? `<p class="note ok" role="status">${esc(csvMsg)}</p>` : '';
+  if (db.isDemo(ctx)) return `<section class="blk"><div class="bh"><h2>CSV-Import</h2></div><div class="ex"><p class="note">${DEMO_NO_IMPORT}</p></div></section>`;
   if (!csv) return `<section class="blk"><div class="bh"><h2>CSV-Import</h2><p>aus dem Online-Banking</p></div><div class="ex">
   <p>Exportiere die Umsätze im Online-Banking als CSV-Datei und wähle sie hier aus. Die Datei wird nur auf diesem Gerät gelesen. Importierte Buchungen sind so aktuell wie die Datei.</p>
   <div class="tools"><label class="btn" for="csvf">CSV-Datei wählen<input id="csvf" type="file" accept=".csv,text/csv,text/plain" hidden></label></div>${msg}</div></section>`;
@@ -58,7 +60,7 @@ function csvBox(ctx) {
   const head = csv.rows[0], acc = db.list(ctx, 'account');
   const colSel = (k, l) => `<label class="dsel">${l}<select data-a="csvmap" data-k="${k}">${opt('-1', '—', String(csv.map[k]))}${head.map((h, i) => opt(String(i), h || `Spalte ${i + 1}`, String(csv.map[k]))).join('')}</select></label>`;
   const prev = csvToTx(csv.rows.slice(1, 4), csv.map, csv.acc).tx;
-  return `<section class="blk"><div class="bh"><h2>CSV-Import</h2><p>${esc(csv.file)} · ${csv.rows.length - 1} Zeilen</p></div><div class="ex">
+  return `<section class="blk"><div class="bh"><h2>CSV-Import</h2><p>${esc(csv.file)} · ${csv.rows.length - 1} ${csv.rows.length === 2 ? 'Zeile' : 'Zeilen'}</p></div><div class="ex">
   <p class="note">Spalten prüfen – erkannt wurde, was nach Datum, Betrag, Empfänger und Verwendungszweck aussieht.</p>
   <div class="cflt">${colSel('date', 'Datum')}${colSel('amount', 'Betrag')}${colSel('payee', 'Empfänger')}${colSel('purpose', 'Zweck')}</div>
   <div class="cflt"><label class="dsel">In Konto<select data-a="csvacc">${opt('', 'Konto wählen', csv.acc)}${acc.map(a => opt(a.id, a.name, csv.acc)).join('')}</select></label></div>
@@ -74,17 +76,17 @@ function txView(ctx, t) {
   const list = tx.length ? `<ul class="crows card-l">${tx.map(x => `<li><div class="nm"><b>${esc(x.payee || x.note || '—')}</b><small>${dfmt(x.d)} · ${esc(cn(x.cat))} · ${esc(an(x.acc))}${x.src !== 'manuell' ? ' · ' + esc(srcName(x.src)) : ''}</small></div><span class="vr${x.amt > 0 ? ' pos' : ''}">${signed(x.amt)}</span>${editBtn('tx', x.id)}</li>`).join('')}</ul>`
     : empty(all.length ? 'Keine Buchungen für diese Auswahl.' : 'Noch keine Buchungen. Trag sie einzeln ein oder importiere eine CSV-Datei aus dem Online-Banking.');
   return `<section class="blk"><div class="bh"><h2>Buchungen</h2><p>${esc(r.label)}</p></div>${filters(ctx)}
-  ${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}
+  ${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}${csvNote(ctx, tx)}
   ${formIf(ctx, 'tx')}<div class="tools">${acc.length ? newBtn('tx', 'Buchung', flt.acc ? { acc: flt.acc } : null) : '<a class="btn" href="#finanzen/konten">Zuerst ein Konto anlegen</a>'}</div>
   ${list}</section>${csvBox(ctx)}`;
 }
 
 function costs(ctx, t) {
   const r = periodRange(flt.per, t), cats = db.list(ctx, 'cat'), all = filterTx(db.list(ctx, 'tx'), { acc: flt.acc });
-  const rows = byCategory(filterTx(all, { range: r }), cats), sum = rows.reduce((s, x) => s + x.c, 0);
+  const inR = filterTx(all, { range: r }), rows = byCategory(inR, cats), sum = rows.reduce((s, x) => s + x.c, 0);
   const months = [5, 4, 3, 2, 1, 0].map(i => { const first = addMonths(t.slice(0, 8) + '01', -i), rr = periodRange('monat', first); return { name: `${MONTHS[+first.slice(5, 7) - 1].slice(0, 3)} ${first.slice(2, 4)}`, c: totals(filterTx(all, { range: rr }), cats).exp }; });
   return `<section class="blk"><div class="bh"><h2>Kosten nach Kategorie</h2><p>${esc(r.label)}</p></div>${filters(ctx, false)}
-  ${rows.length ? `<p class="sum">Ausgaben gesamt <b>${fmtMoney(sum)}</b></p>${bars(rows, c => fmtMoney(c))}` : empty('Keine Ausgaben in diesem Zeitraum.')}
+  ${rows.length ? `<p class="sum">Ausgaben gesamt <b>${fmtMoney(sum)}</b></p>${bars(rows, c => fmtMoney(c))}` : empty('Keine Ausgaben in diesem Zeitraum.')}${csvNote(ctx, inR)}
   <p class="note">Sparen und Überträge zählen nicht als Ausgabe, sondern als „Zurückgelegt“.</p></section>
   <section class="blk"><div class="bh"><h2>Ausgaben pro Monat</h2><p>letzte 6 Monate</p></div>${months.some(x => x.c > 0) ? bars(months, c => fmtMoney(c)) : empty('Noch keine Ausgaben erfasst.')}</section>`;
 }
@@ -129,16 +131,18 @@ export function onNavigate(next) {
 
 export function csvLoad(ctx, text, file) {
   csvMsg = '';
-  const rows = parseCsv(text);
+  if (db.isDemo(ctx)) { csv = null; return; }
+  const all = parseCsv(text), rows = all.slice(findHeader(all));
   if (rows.length < 2 || rows[0].length < 2) { csv = { file, error: 'Keine Buchungen erkannt. Ist das eine CSV-Datei mit Kopfzeile aus dem Online-Banking?' }; return; }
   csv = { file, rows, map: guessMap(rows[0]), acc: flt.acc || '', msg: '' };
 }
 function csvImport(ctx) {
+  if (db.isDemo(ctx)) { csv = null; return; }
   if (!csv.acc) { csv.msg = 'Konto wählen, in das die Buchungen sollen.'; return; }
   const { tx, bad } = csvToTx(csv.rows.slice(1), csv.map, csv.acc);
   if (!tx.length) { csv.msg = 'Keine Zeile lesbar – Spalten für Datum und Betrag prüfen.'; return; }
   const all = db.list(ctx, 'tx'), { add, dup } = dedupe(all, tx);
-  db.setRaw(ctx, 'tx', [...all, ...add]);
+  if (!db.setRaw(ctx, 'tx', [...all, ...add])) { csv.msg = STORAGE_FAILED; return; }
   db.upsert(ctx, 'import', { kind: 'csv', file: csv.file.slice(0, 120), at: today(ctx), n: add.length, acc: csv.acc });
   csvMsg = `Import fertig: ${add.length} neu · ${dup} schon vorhanden${bad ? ` · ${bad} Zeilen unlesbar` : ''}. Neue Buchungen haben noch keine Kategorie.`;
   csv = null;
