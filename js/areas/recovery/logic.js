@@ -49,14 +49,8 @@ export function mobilityFor(day) {
   return { routine, name: routine === 'A' ? 'Upper' : 'Lower', minutes, end: minutes * 60 };
 }
 
-// Where a guided routine stands `t` seconds after its start.
-export function timerState(steps, end, t) {
-  if (t >= end) return { index: steps.length - 1, step: steps[steps.length - 1], left: 0, total: 0, done: true };
-  let index = 0;
-  while (index + 1 < steps.length && steps[index + 1].at <= t) index++;
-  const until = index + 1 < steps.length ? steps[index + 1].at : end;
-  return { index, step: steps[index], left: until - t, total: end - t, done: false };
-}
+// The guided timer helpers moved to core/guided.js; re-exported for callers.
+export { timerState, clockStart, clockElapsed, clockPause, clockResume } from '../../core/guided.js';
 
 const PHASES = ['Einatmen', 'Halten', 'Ausatmen', 'Halten'];
 export function boxPhase(t) {
@@ -105,9 +99,3 @@ export function deloadTriggers({ morning = {}, complaints = [], flags = {} }, to
   return { items, count, suggest: count >= 2 };
 }
 
-// Timer clock: elapsed seconds come from wall-clock times, so a timer that
-// was hidden or suspended is right again the moment it is looked at.
-export const clockStart = now => ({ startedAt: now, pausedAt: null, pausedTotal: 0 });
-export const clockElapsed = (c, now) => ((c.pausedAt ?? now) - c.startedAt - c.pausedTotal) / 1000;
-export const clockPause = (c, now) => (c.pausedAt == null ? { ...c, pausedAt: now } : c);
-export const clockResume = (c, now) => (c.pausedAt == null ? c : { ...c, pausedTotal: c.pausedTotal + now - c.pausedAt, pausedAt: null });

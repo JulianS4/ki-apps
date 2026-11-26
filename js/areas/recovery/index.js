@@ -4,9 +4,9 @@ import { ds, DAYS, dayIdx, addDays } from '../../core/dates.js';
 import { BLOCKS, CYCLE_ANCHOR, MOBILITY, RIR } from './data.js';
 import {
   checkSum, ampel, plannedBed, cycleInfo, mobilityFor, deloadTriggers, sundayOf, validDay,
-  timerState, clockStart, clockElapsed, clockPause, clockResume,
 } from './logic.js';
-import { todayView, mobilityView, breathView, mobilityFields, breathFields, weekView, cycleView } from './view.js';
+import { todayView, mobilityView, breathView, breathFields, weekView, cycleView } from './view.js';
+import { timerState, startRun, toggleRun, stopRun, runOf, activeRun, mountRun, unlockAudio } from '../../core/guided.js';
 
 const SCORES = ['schlaf', 'energie', 'muskeln'];
 const WEEKLY = ['schlaf', 'energie', 'gelenke', 'ziel'];
@@ -94,92 +94,25 @@ export function summary(ctx) {
   return { ampel: r.ampel, sum: r.sum, mobility: r.mobility, cycle: r.cycle, suggest: triggersFor(ctx, d, r.cycle).suggest };
 }
 
-/* Guided timers. One runner at a time; its time always comes from Date.now(),
-   so a timer that was in the background shows the right step on return. */
-let run = null, actx = null;
-const beep = () => {
-  try {
-    if (!actx) return;
-    [0, .25].forEach(o => { const os = actx.createOscillator(), g = actx.createGain(); os.frequency.value = 880; g.gain.value = .15; os.connect(g).connect(actx.destination); os.start(actx.currentTime + o); os.stop(actx.currentTime + o + .15); });
-  } catch (e) { /* no audio */ }
-  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) { /* no vibration */ }
-};
-function lockScreen() {
-  try {
-    if (!run || run.lock || run.locking || typeof navigator === 'undefined' || !navigator.wakeLock) return;
-    const r = run;
-    r.locking = true;
-    navigator.wakeLock.request('screen').then(l => {
-      r.locking = false;
-      if (run !== r || r.status !== 'running') { l.release().catch(() => {}); return; }
-      r.lock = l;
-      l.addEventListener('release', () => { if (r.lock === l) r.lock = null; });
-    }).catch(() => { r.locking = false; });
-  } catch (e) { /* no wake lock */ }
-}
-function unlockScreen() {
-  if (run && run.lock) { run.lock.release().catch(() => {}); run.lock = null; }
-}
-function stopRun() {
-  if (!run) return;
-  clearInterval(run.int);
-  unlockScreen();
-  run = null;
-}
-const mine = kind => (run && run.kind === kind ? run : null);
-const elapsed = r => clockElapsed(r.clock, Date.now());
-
-function paint(f) {
-  if (typeof document === 'undefined') return;
-  for (const [id, txt] of Object.entries(f.text)) { const el = document.getElementById(id); if (el && el.textContent !== txt) el.textContent = txt; }
-  const bar = document.getElementById('rtBar'), orb = document.getElementById('rtOrb');
-  if (bar && f.bar != null) bar.style.width = f.bar + '%';
-  if (orb && f.orb != null) orb.classList.toggle('big', f.orb);
-}
-
-function finish(ctx) {
-  if (run.kind === 'mobility') setDone(ctx, 'rec.mobility', run.day, true);
-  clearInterval(run.int);
-  run.int = null;
-  unlockScreen();
-  run.status = 'done';
-  beep();
-  ctx.rerender();
-}
-
-function tick(ctx) {
-  if (!run || run.status !== 'running') return;
-  const t = elapsed(run);
-  if (run.kind === 'mobility') {
-    const s = timerState(run.steps, run.end, t);
-    if (s.done) { finish(ctx); return; }
-    if (s.index !== run.last) { if (run.last >= 0) beep(); run.last = s.index; }
-    paint(mobilityFields(run.steps, s, run.end));
-  } else {
-    if (t >= run.dur) { finish(ctx); return; }
-    paint(breathFields(t, run.dur, false));
+/* Guided timers (core/guided.js): mobility marks the day done at the end. */
+function startTimer(route, ctx) {
+  if (route.view === 'mobility') {
+    const d = day(ctx), m = mobilityFor(d), steps = MOBILITY[m.routine].steps;
+    startRun({ kind: 'mobility', key: d, steps, end: m.end, onDone: c => setDone(c, 'rec.mobility', d, true) });
+  } else if (route.view === 'breath') {
+    const dur = route.min * 60;
+    startRun({ kind: 'breath', key: route.min, end: dur, fields: t => breathFields(t, dur, false) });
   }
 }
 
-function startRun(route, ctx) {
-  stopRun();
-  if (route.view === 'mobility') {
-    const d = day(ctx), m = mobilityFor(d);
-    run = { kind: 'mobility', day: d, routine: m.routine, steps: MOBILITY[m.routine].steps, end: m.end, last: -1 };
-  } else if (route.view === 'breath') {
-    run = { kind: 'breath', min: route.min, dur: route.min * 60 };
-  } else return;
-  Object.assign(run, { clock: clockStart(Date.now()), status: 'running', int: null, lock: null });
-}
-
 function mobilityVM(ctx) {
-  const r = mine('mobility'), d = r ? r.day : day(ctx), m = mobilityFor(d), steps = MOBILITY[m.routine].steps;
+  const r = runOf('mobility'), d = r ? r.def.key : day(ctx), m = mobilityFor(d), steps = MOBILITY[m.routine].steps;
   const status = r ? r.status : 'idle';
-  return { ...m, steps, status, state: timerState(steps, m.end, r ? Math.min(elapsed(r), m.end - 0.001) : 0), doneToday: !!map(ctx, 'rec.mobility')[d] };
+  return { ...m, steps, status, state: timerState(steps, m.end, r ? Math.min(r.t, m.end - 0.001) : 0), doneToday: !!map(ctx, 'rec.mobility')[d] };
 }
 function breathVM(route) {
-  const r = run && run.kind === 'breath' && run.min === route.min ? run : null, dur = route.min * 60;
-  return { min: route.min, dur, status: r ? r.status : 'idle', t: r ? Math.min(elapsed(r), dur) : 0 };
+  const r = runOf('breath', route.min), dur = route.min * 60;
+  return { min: route.min, dur, status: r ? r.status : 'idle', t: r ? Math.min(r.t, dur) : 0 };
 }
 
 export function reload() { /* state is read from the store on every render */ }
@@ -206,17 +139,15 @@ export function render(route, ctx) {
 // After every render: keep a running timer ticking and the screen awake
 // (the browser drops the wake lock whenever the app goes to the background).
 export function mount(root, route, ctx) {
-  if (!run || run.status !== 'running' || route.view !== run.kind) return;
-  if (!run.int) run.int = setInterval(() => tick(ctx), 250);
-  lockScreen();
-  tick(ctx);
+  if (route.view === 'mobility' || route.view === 'breath') mountRun(route.view, ctx);
 }
 
 // A timer belongs to its view: leaving the view ends it without marking it done.
 export function onNavigate(next) {
   confirmDeload = false;
   cerr = '';
-  if (run && !(next.area === 'recovery' && next.view === run.kind && (run.kind !== 'breath' || next.min === run.min))) stopRun();
+  const r = activeRun();
+  if (r && !(next.area === 'recovery' && next.view === r.kind && (r.kind !== 'breath' || next.min === r.key))) stopRun();
 }
 
 export function onClick(e, route, ctx) {
@@ -224,24 +155,8 @@ export function onClick(e, route, ctx) {
   if (!t) return;
   const a = t.dataset.a, n = +t.dataset.n;
   if (a === 'mc' && SCORES.includes(t.dataset.k) && n >= 1 && n <= 5) { setMorning(ctx, { [t.dataset.k]: n }); ctx.rerender(); }
-  if (a === 'tstart') {
-    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (er) { /* no audio */ }
-    startRun(route, ctx);
-    ctx.rerender();
-  }
-  if (a === 'tpause' && run) {
-    if (run.status === 'running') {
-      run.clock = clockPause(run.clock, Date.now());
-      run.status = 'paused';
-      clearInterval(run.int);
-      run.int = null;
-      unlockScreen();
-    } else if (run.status === 'paused') {
-      run.clock = clockResume(run.clock, Date.now());
-      run.status = 'running';
-    }
-    ctx.rerender();
-  }
+  if (a === 'tstart') { unlockAudio(); startTimer(route, ctx); ctx.rerender(); }
+  if (a === 'tpause') { toggleRun(); ctx.rerender(); }
   if (a === 'tstop') { stopRun(); ctx.go('#recovery'); }
   if (a === 'wk' && WEEKLY.includes(t.dataset.k) && n >= 1 && n <= 5) { setWeekly(ctx, { [t.dataset.k]: n }); ctx.rerender(); }
   if (a === 'deload') {
