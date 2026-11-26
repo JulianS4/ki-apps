@@ -1,12 +1,12 @@
 // Nutrition area: protein from tapped dishes, water, the clean-day rule,
 // supplements and the shopping list. All state lives in the store (food.*).
 import { ds } from '../../core/dates.js';
-import { DISHES, SUPPS, SHOP, WATER, SHOP_NOTE, RULES, SLOT_ORDER } from './data.js';
+import { DISHES, SUPPS, SHOP, WATER, SHOP_NOTE, RULES, SLOT_ORDER, SUPP_GROUPS } from './data.js';
 
 const SLOTS_OK = SLOT_ORDER;
 import {
   latestWeight, proteinTarget, foodTotals, cleanStreak, dueGroup, snackHint, dinnerHint, mealprepDay,
-  suggestions, slotAt,
+  suggestions, slotAt, slug,
 } from './logic.js';
 import { todayView, dishesView, shopView } from './view.js';
 
@@ -54,10 +54,10 @@ export function summary(ctx) {
 // the typed free grams and whether the weight field is open.
 let editing = null, peek = null, draft = '', weightEdit = false, held = 0;
 // Which list is in edit mode, and which double-tap reset is waiting for its second tap.
-let dishEditing = false, confirm = null;
+let dishEditing = false, confirm = null, suppEditing = false, shopEditing = false, shopOnly = false, drafts = {};
 
 export function reload() { /* state is read from the store on every render */ }
-export function onNavigate() { editing = null; peek = null; draft = ''; weightEdit = false; held = 0; dishEditing = false; confirm = null; }
+export function onNavigate() { editing = null; peek = null; draft = ''; weightEdit = false; held = 0; dishEditing = false; confirm = null; suppEditing = false; shopEditing = false; shopOnly = false; drafts = {}; }
 
 const uid = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -89,7 +89,7 @@ function todayVM(ctx) {
     meals: e.meals, editing,
     water: foodTotals(e).water, bottle: bottle(ctx),
     clean: e.clean, broken: e.broken, streak: cleanStreak(map(ctx, 'food.days'), d),
-    supps: supps(ctx), ticked: e.supps || {}, due: dueGroup(t),
+    supps: supps(ctx), ticked: e.supps || {}, due: dueGroup(t), suppEdit: suppEditing, confirm,
   };
 }
 
@@ -104,7 +104,9 @@ export function header(route) {
 export function render(route, ctx) {
   const v = { day: dayOf(ctx) };
   if (route.view === 'dishes') return dishesView({ ...v, dishes: dishes(ctx), edit: dishEditing, confirm: confirm === 'dishes' });
-  if (route.view === 'shop') return shopView({ ...v, note: SHOP_NOTE });
+  if (route.view === 'shop') {
+    return shopView({ ...v, note: SHOP_NOTE, shop: shop(ctx), need: map(ctx, 'food.need'), only: shopOnly, edit: shopEditing, drafts, confirm, mealprep: mealprepDay(v.day) });
+  }
   return todayView(todayVM(ctx));
 }
 
@@ -155,6 +157,38 @@ export function onClick(e, route, ctx) {
     ctx.rerender();
   }
   if (a === 'dreset') twice(ctx, 'dishes', () => { put(ctx, 'food.dishes', null); dishEditing = false; });
+  // Supplements
+  if (a === 'sedit') { suppEditing = !suppEditing; confirm = null; ctx.rerender(); }
+  if (a === 'sdel') { editList(ctx, 'food.supps', SUPPS, l => l.filter(s => s.id !== id)); ctx.rerender(); }
+  if (a === 'sadd' && SUPP_GROUPS.includes(t.dataset.group)) {
+    editList(ctx, 'food.supps', SUPPS, l => [...l, { id: 's' + uid(), group: t.dataset.group, name: 'Neues Supplement' }]);
+    ctx.rerender();
+  }
+  if (a === 'sreset') twice(ctx, 'supps', () => { put(ctx, 'food.supps', null); suppEditing = false; });
+  // Shopping list
+  if (a === 'onlyneed') { shopOnly = !shopOnly; ctx.rerender(); }
+  if (a === 'shopclear') twice(ctx, 'shopclear', () => put(ctx, 'food.need', {}));
+  if (a === 'iedit') { shopEditing = !shopEditing; confirm = null; ctx.rerender(); }
+  if (a === 'iadd') {
+    const cat = t.dataset.cat, name = String(drafts[cat] || '').trim();
+    if (name) {
+      editList(ctx, 'food.shop', SHOP, l => {
+        const ids = new Set(l.flatMap(c => c.items.map(i => i.id))), base = slug(name) || 'artikel';
+        let nid = base, k = 2;
+        while (ids.has(nid)) nid = base + '-' + k++;
+        return l.map(c => (c.cat === cat ? { ...c, items: [...c.items, { id: nid, name }] } : c));
+      });
+      drafts[cat] = '';
+    }
+    ctx.rerender();
+  }
+  if (a === 'idel') {
+    editList(ctx, 'food.shop', SHOP, l => l.map(c => ({ ...c, items: c.items.filter(i => i.id !== id) })));
+    const need = map(ctx, 'food.need');
+    if (need[id]) { delete need[id]; put(ctx, 'food.need', need); }
+    ctx.rerender();
+  }
+  if (a === 'ireset') twice(ctx, 'shop', () => { put(ctx, 'food.shop', null); shopEditing = false; });
   if (a === 'water' || a === 'waterminus') {
     const b = bottle(ctx);
     editDay(ctx, x => { x.water = Math.max(0, foodTotals(x).water + (a === 'water' ? b : -b)); });
@@ -213,6 +247,12 @@ export function onChange(e, route, ctx) {
     }
     ctx.rerender();
   }
+  if (a === 'need' && t.dataset.id) {
+    const need = map(ctx, 'food.need');
+    if (t.checked) need[t.dataset.id] = true; else delete need[t.dataset.id];
+    put(ctx, 'food.need', need);
+    ctx.rerender();
+  }
   if (a === 'dg') {
     const g = parseInt(t.value, 10);
     if (g >= 0 && g <= 150) editList(ctx, 'food.dishes', DISHES, l => l.map(d => (d.id === t.dataset.id ? { ...d, g } : d)));
@@ -229,6 +269,8 @@ export function onChange(e, route, ctx) {
 export function onInput(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a;
   if (a === 'free') draft = t.value;
+  if (a === 'inew') drafts[t.dataset.cat] = t.value;
+  if (a === 'sn') editList(ctx, 'food.supps', SUPPS, l => l.map(s => (s.id === t.dataset.id ? { ...s, name: t.value } : s)));
   if (a === 'dn' || a === 'di') {
     const f = a === 'dn' ? 'name' : 'ing';
     editList(ctx, 'food.dishes', DISHES, l => l.map(d => (d.id === t.dataset.id ? { ...d, [f]: t.value } : d)));

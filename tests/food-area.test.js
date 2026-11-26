@@ -197,3 +197,65 @@ test('adding and deleting a dish', () => {
   food.onClick(click({ a: 'ddel', id: added[0].id }), DISH, ctx);
   assert.equal(ctx.store.get('food.dishes').filter(d => d.name === 'Neues Gericht').length, 0);
 });
+
+const SHOP_V = { area: 'food', view: 'shop' };
+const MILK = 'Milchprodukte & Eier';
+
+test('shopping list marks missing items', () => {
+  const ctx = mk(THU, 85);
+  food.onChange(change({ a: 'need', id: 'eier' }, { checked: true }), SHOP_V, ctx);
+  assert.deepEqual(ctx.store.get('food.need'), { eier: true });
+  food.onClick(click({ a: 'onlyneed' }), SHOP_V, ctx);
+  let html = food.render(SHOP_V, ctx);
+  assert.match(html, /data-id="eier"/);
+  assert.doesNotMatch(html, /data-id="milch"/);
+  food.onChange(change({ a: 'need', id: 'eier' }, { checked: false }), SHOP_V, ctx);
+  assert.deepEqual(ctx.store.get('food.need'), {});
+  food.onChange(change({ a: 'need', id: 'milch' }, { checked: true }), SHOP_V, ctx);
+  food.onClick(click({ a: 'shopclear' }), SHOP_V, ctx);
+  assert.deepEqual(ctx.store.get('food.need'), { milch: true });
+  food.onClick(click({ a: 'shopclear' }), SHOP_V, ctx);
+  assert.deepEqual(ctx.store.get('food.need'), {});
+  html = food.render(SHOP_V, ctx);
+  assert.match(html, /Nichts fehlt/);
+});
+
+test('adding and removing a shopping item', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'iedit' }), SHOP_V, ctx);
+  food.onInput(input({ a: 'inew', cat: MILK }, 'Hafermilch'), SHOP_V, ctx);
+  food.onClick(click({ a: 'iadd', cat: MILK }), SHOP_V, ctx);
+  const items = () => ctx.store.get('food.shop').find(c => c.cat === MILK).items.map(i => i.id);
+  assert.ok(items().includes('hafermilch'));
+  food.onInput(input({ a: 'inew', cat: MILK }, 'Hafermilch'), SHOP_V, ctx);
+  food.onClick(click({ a: 'iadd', cat: MILK }), SHOP_V, ctx);
+  assert.ok(items().includes('hafermilch-2'));
+  food.onClick(click({ a: 'idel', id: 'hafermilch' }), SHOP_V, ctx);
+  assert.ok(!items().includes('hafermilch'));
+  food.onClick(click({ a: 'ireset' }), SHOP_V, ctx);
+  food.onClick(click({ a: 'ireset' }), SHOP_V, ctx);
+  assert.equal(ctx.store.get('food.shop'), null);
+});
+
+test('mealprep reminder on wednesday and sunday', () => {
+  assert.match(food.render(SHOP_V, mk(at(9, 0, 25))), /Heute Mealprep/);
+  assert.doesNotMatch(food.render(SHOP_V, mk(THU)), /Heute Mealprep/);
+});
+
+test('editing supplements keeps the shake', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'sedit' }), TODAY, ctx);
+  assert.match(food.render(TODAY, ctx), /data-a="sn"/);
+  food.onInput(input({ a: 'sn', id: 'kreatin' }, 'Kreatin + Whey'), TODAY, ctx);
+  assert.equal(ctx.store.get('food.supps').find(s => s.id === 'kreatin').name, 'Kreatin + Whey');
+  food.onChange(change({ a: 'supp', id: 'kreatin' }, { checked: true }), TODAY, ctx);
+  assert.equal(day(ctx).meals.find(m => m.supp === 'kreatin').g, 25);
+  food.onClick(click({ a: 'sadd', group: 'abends' }), TODAY, ctx);
+  const added = ctx.store.get('food.supps').find(s => s.name === 'Neues Supplement');
+  assert.equal(added.group, 'abends');
+  food.onClick(click({ a: 'sdel', id: added.id }), TODAY, ctx);
+  assert.equal(ctx.store.get('food.supps').some(s => s.id === added.id), false);
+  food.onClick(click({ a: 'sreset' }), TODAY, ctx);
+  food.onClick(click({ a: 'sreset' }), TODAY, ctx);
+  assert.equal(ctx.store.get('food.supps'), null);
+});

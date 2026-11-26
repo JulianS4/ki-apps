@@ -74,12 +74,16 @@ function clean(v) {
 function supplements(v) {
   const order = [v.due, ...SUPP_GROUPS.filter(g => g !== v.due)], ticked = v.ticked || {};
   const all = v.supps.filter(s => SUPP_GROUPS.includes(s.group)), done = all.filter(s => ticked[s.id]).length;
+  const row = s => v.suppEdit
+    ? `<li><div class="li"><input class="tx" data-a="sn" data-id="${esc(s.id)}" value="${esc(s.name)}" aria-label="Name" autocomplete="off"><button class="btn" type="button" data-a="sdel" data-id="${esc(s.id)}" aria-label="${esc(s.name)} entfernen">×</button></div></li>`
+    : `<li><label><input type="checkbox" data-a="supp" data-id="${esc(s.id)}" ${ticked[s.id] ? 'checked' : ''}><span>${esc(s.name)}${s.hint ? ` <small class="note">· ${esc(s.hint)}</small>` : ''}${s.shake ? ` <small class="note">· +${num(s.shake)} g Protein</small>` : ''}</span></label></li>`;
   return `<section class="blk"><div class="bh"><h2>Supplements</h2><p>${done}/${all.length} heute</p></div>${order.map(g => {
     const items = all.filter(s => s.group === g);
-    if (!items.length) return '';
+    if (!items.length && !v.suppEdit) return '';
     return `<p class="note fl"><b>${SUPP_LABELS[g]}</b>${g === v.due ? ' <span class="late now">jetzt</span>' : ''} · ${items.filter(s => ticked[s.id]).length}/${items.length}</p>
-    <ul class="list">${items.map(s => `<li><label><input type="checkbox" data-a="supp" data-id="${esc(s.id)}" ${ticked[s.id] ? 'checked' : ''}><span>${esc(s.name)}${s.hint ? ` <small class="note">· ${esc(s.hint)}</small>` : ''}${s.shake ? ` <small class="note">· +${num(s.shake)} g Protein</small>` : ''}</span></label></li>`).join('')}</ul>`;
-  }).join('')}</section>`;
+    ${items.length ? `<ul class="list">${items.map(row).join('')}</ul>` : ''}${v.suppEdit ? `<button class="add" type="button" data-a="sadd" data-group="${g}">+ Supplement</button>` : ''}`;
+  }).join('')}
+  <div class="tools"><button class="btn${v.suppEdit ? ' pri' : ''}" type="button" data-a="sedit">${v.suppEdit ? 'Fertig mit Bearbeiten' : 'Bearbeiten'}</button>${v.suppEdit ? `<button class="btn red" type="button" data-a="sreset">${v.confirm === 'supps' ? 'Sicher? Nochmal tippen' : 'Auf Notion-Stand zurücksetzen'}</button>` : ''}</div></section>`;
 }
 
 export const todayView = v => hero(v, 'Ernährung') + protein(v) + grid(v) + entries(v) + water(v) + supplements(v) + clean(v);
@@ -105,4 +109,20 @@ export function dishesView(v) {
   ${v.edit && g.slot ? `<button class="add" type="button" data-a="dadd" data-slot="${g.slot}" data-days="${g.days}">+ Gericht</button>` : ''}</section>`).join('')}
   ${v.edit ? `<section class="blk"><button class="btn red" type="button" data-a="dreset">${v.confirm ? 'Sicher? Nochmal tippen' : 'Auf Notion-Stand zurücksetzen'}</button></section>` : ''}`;
 }
-export const shopView = v => hero(v, 'Einkauf') + `<p class="note">${esc(v.note || '')}</p>`;
+export function shopView(v) {
+  const need = v.need || {}, n = v.shop.reduce((a, c) => a + c.items.filter(i => need[i.id]).length, 0);
+  const cats = v.shop.map(c => {
+    const items = v.only ? c.items.filter(i => need[i.id]) : c.items, miss = c.items.filter(i => need[i.id]).length;
+    if (!items.length && !v.edit) return '';
+    const row = i => v.edit
+      ? `<li><div class="li"><span class="t">${esc(i.name)}</span><button class="btn" type="button" data-a="idel" data-id="${esc(i.id)}" aria-label="${esc(i.name)} entfernen">×</button></div></li>`
+      : `<li><label><input type="checkbox" data-a="need" data-id="${esc(i.id)}" ${need[i.id] ? 'checked' : ''}>${esc(i.name)}</label></li>`;
+    return `<section class="blk"><div class="bh"><h2>${esc(c.cat)}</h2><p>${miss ? `${miss} fehlen` : ''}</p></div>${items.length ? `<ul class="list">${items.map(row).join('')}</ul>` : ''}
+    ${v.edit ? `<div class="frow"><input class="tx" data-a="inew" data-cat="${esc(c.cat)}" value="${esc((v.drafts || {})[c.cat] || '')}" placeholder="Neuer Artikel" aria-label="Neuer Artikel in ${esc(c.cat)}" autocomplete="off"><button class="btn" type="button" data-a="iadd" data-cat="${esc(c.cat)}" aria-label="Hinzufügen">+</button></div>` : ''}</section>`;
+  }).join('');
+  return hero(v, 'Einkauf') + `<p class="note">${esc(v.note || '')} · Hake ab, was fehlt.</p>
+  ${v.mealprep ? '<div class="card warn" style="margin-top:12px"><b>Heute Mealprep</b><span>Liste durchgehen und abhaken, was fehlt.</span></div>' : ''}
+  <div class="tools"><button class="btn${v.only ? ' pri' : ''}" type="button" data-a="onlyneed" aria-pressed="${!!v.only}">${v.only ? 'Alle Artikel' : `Nur fehlende (${n})`}</button><button class="btn${v.edit ? ' pri' : ''}" type="button" data-a="iedit">${v.edit ? 'Fertig mit Bearbeiten' : 'Bearbeiten'}</button></div>
+  ${cats || (v.only ? '<p class="empty">Nichts fehlt gerade.</p>' : '')}
+  <section class="blk"><div class="tools"><button class="btn red" type="button" data-a="shopclear">${v.confirm === 'shopclear' ? 'Sicher? Nochmal tippen' : 'Liste zurücksetzen'}</button>${v.edit ? `<button class="btn red" type="button" data-a="ireset">${v.confirm === 'shop' ? 'Sicher? Nochmal tippen' : 'Auf Notion-Stand zurücksetzen'}</button>` : ''}</div></section>`;
+}
