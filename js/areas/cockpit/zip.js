@@ -34,9 +34,11 @@ export function zip(files) {
 }
 
 // One file per note, named after its title so [[links]] keep working in Obsidian.
+// Notes from a vault go back to their own path, front matter and text as imported.
 export function notesMarkdown(notes, projects) {
-  const enc = new TextEncoder(), used = new Set();
-  return notes.map(n => {
+  const enc = new TextEncoder(), used = new Set(notes.filter(n => n.path).map(n => n.path.toLowerCase()));
+  return [...notes.filter(n => n.path), ...notes.filter(n => !n.path)].map(n => {
+    if (n.path) return { name: n.path, data: enc.encode(`${n.fm ? `---\n${n.fm}\n---\n` : ''}${n.body}`) };
     const base = n.title.replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Notiz';
     let name = base + '.md';
     for (let i = 2; used.has(name.toLowerCase()); i++) name = `${base} (${i}).md`;

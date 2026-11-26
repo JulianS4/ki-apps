@@ -20,7 +20,7 @@ export const HIDDEN = '•••• €';
 export const money = (c, cur = 'EUR', mask = false) => (mask && !shown ? HIDDEN : fmtMoney(c, cur));
 export const signed = (c, cur) => (c > 0 ? '+' : '') + fmtMoney(c, cur);
 
-const SRC = { manuell: 'manuell eingetragen', csv: 'CSV-Import', import: 'Datei-Import', beispiel: 'Beispieldaten' };
+const SRC = { manuell: 'manuell eingetragen', csv: 'CSV-Import', import: 'Datei-Import', beispiel: 'Beispieldaten', vault: 'Obsidian-Vault' };
 export const srcName = s => SRC[s] || 'manuell eingetragen';
 // "Quelle · Stand": every figure says where it came from and how old it is.
 export function srcLine(src, stand, ctx, { label = 'Stand', warnDays = 0 } = {}) {
@@ -74,7 +74,7 @@ export function edSave(ctx) {
   const c = ed.cur, r = parseItem(c.name, c.draft);
   if (!r.ok) { c.errors = r.errors; return null; }
   const base = { ...(c.id ? db.find(ctx, c.name, c.id) || {} : {}) };
-  for (const f of SCHEMAS[c.name].fields) delete base[f.k];
+  for (const f of SCHEMAS[c.name].fields) if (!f.internal) delete base[f.k];
   const item = db.upsert(ctx, c.name, { ...base, ...r.item, ...(c.id ? { id: c.id } : {}) });
   if (!item) { c.errors = { _: 'Speichern nicht möglich – Speicher voll oder privater Modus?' }; return null; }
   closeEd();
@@ -106,7 +106,7 @@ function fieldHtml(ctx, f, v, err) {
 export function formHtml(ctx, { hide = [] } = {}) {
   const c = ed.cur, s = SCHEMAS[c.name];
   let grp = '';
-  const fields = s.fields.filter(f => !hide.includes(f.k)).map(f => {
+  const fields = s.fields.filter(f => !f.internal && !hide.includes(f.k)).map(f => {
     const h = f.grp && f.grp !== grp ? `<p class="fgh full">${esc(f.grp)}</p>` : '';
     if (f.grp) grp = f.grp;
     return h + fieldHtml(ctx, f, c.draft[f.k], c.errors[f.k]);

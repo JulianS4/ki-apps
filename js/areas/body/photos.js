@@ -10,7 +10,8 @@ function splitKey(k) {
   return m && POSE_IDS.includes(m[2]) ? { day: m[1], pose: m[2] } : null;
 }
 
-export function memPhotos({ failKeys = [] } = {}) {
+export function memPhotos({ failKeys = [] } = {}) { return memBlobs({ failKeys }); }
+export function memBlobs({ failKeys = [] } = {}) {
   const m = new Map();
   return {
     async put(k, blob) { if (failKeys.includes(k)) throw new Error('write failed'); m.set(k, blob); },
@@ -18,18 +19,21 @@ export function memPhotos({ failKeys = [] } = {}) {
     async del(k) { m.delete(k); },
     async keys() { return [...m.keys()]; },
     async size() { let n = 0; for (const b of m.values()) n += b.size; return n; },
+    async clear() { m.clear(); },
   };
 }
 
 const req = r => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
 
 // null when the browser has no IndexedDB; opening errors surface per call.
-export function idbPhotos(idb = globalThis.indexedDB) {
+export const idbPhotos = (idb = globalThis.indexedDB) => idbBlobs('ki-apps-photos', 'photos', idb);
+// Any blob store by key (photos, vault attachments): one database, one object store.
+export function idbBlobs(name, store, idb = globalThis.indexedDB) {
   if (!idb) return null;
   let db = null;
   const open = () => db || (db = new Promise((ok, no) => {
-    const r = idb.open('ki-apps-photos', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('photos');
+    const r = idb.open(name, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(store);
     r.onsuccess = () => {
       // WebKit drops connections when it ends its storage process; open anew then.
       const c = r.result;
@@ -41,12 +45,12 @@ export function idbPhotos(idb = globalThis.indexedDB) {
     r.onblocked = () => { db = null; no(new Error('blocked')); };
   }));
   const once = async (mode, fn) => {
-    const tx = (await open()).transaction('photos', mode);
+    const tx = (await open()).transaction(store, mode);
     const done = mode === 'readwrite'
       ? new Promise((ok, no) => { tx.oncomplete = ok; tx.onerror = () => no(tx.error); tx.onabort = () => no(tx.error || new Error('abort')); })
       : null;
     if (done) done.catch(() => {});
-    const out = await req(fn(tx.objectStore('photos')));
+    const out = await req(fn(tx.objectStore(store)));
     if (done) await done;
     return out;
   };
@@ -58,6 +62,7 @@ export function idbPhotos(idb = globalThis.indexedDB) {
     del: k => run('readwrite', s => s.delete(k)).then(() => undefined),
     keys: () => run('readonly', s => s.getAllKeys()).then(v => v.map(String)),
     size: () => run('readonly', s => s.getAll()).then(all => all.reduce((n, b) => n + ((b && b.size) || 0), 0)),
+    clear: () => run('readwrite', s => s.clear()).then(() => undefined),
   };
 }
 

@@ -1,4 +1,5 @@
 // Cockpit arithmetic: money in whole cents, days as 'YYYY-MM-DD'. No storage, no DOM.
+import { norm, noteLinks } from './md.js';
 export const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 export const isDay = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T12:00:00Z')) && new Date(s + 'T12:00:00Z').toISOString().slice(0, 10) === s;
@@ -277,7 +278,7 @@ export function dedupe(existing, incoming) {
 }
 
 // Notes: case- and umlaut-blind search, [[wiki links]] and backlinks.
-export const norm = v => String(v ?? '').toLowerCase().replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '');
+export { norm, noteLinks };
 export function searchNotes(notes, q) {
   const s = norm(q).trim();
   if (!s) return notes;
@@ -288,12 +289,7 @@ export function searchNotes(notes, q) {
 }
 export function wikiLinks(body) {
   const out = [], seen = new Set();
-  for (const m of String(body || '').matchAll(/\[\[([^[\]]+?)\]\]/g)) { const t = m[1].trim(); if (t && !seen.has(norm(t))) { seen.add(norm(t)); out.push(t); } }
+  for (const m of String(body || '').matchAll(/\[\[([^[\]]+?)\]\]/g)) { const t = m[1].split('|')[0].split('#')[0].trim(); if (t && !seen.has(norm(t))) { seen.add(norm(t)); out.push(t); } }
   return out;
 }
 export const findNote = (notes, title) => notes.find(n => norm(n.title) === norm(title)) || null;
-export function noteLinks(note, notes) {
-  const out = wikiLinks(note.body).map(title => ({ title, id: (findNote(notes, title) || {}).id || null }));
-  const back = notes.filter(n => n.id !== note.id && wikiLinks(n.body).some(t => norm(t) === norm(note.title)));
-  return { out, back };
-}

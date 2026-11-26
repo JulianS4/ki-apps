@@ -18,10 +18,12 @@ export const SCHEMAS = {
   ptask: { key: 'ptasks', title: 'Aufgabe', fields: [F('proj', 'Projekt', 'ref', { ref: 'project', req: 1 }), F('text', 'Aufgabe', 'text', { req: 1, full: 1 }), F('due', 'Fällig am', 'date'), F('done', 'Erledigt', 'bool')] },
   log: { key: 'log', title: 'Log-Eintrag', fields: [F('d', 'Datum', 'date', { req: 1, today: 1 }), F('proj', 'Projekt', 'ref', { ref: 'project', req: 1 }), F('text', 'Aktivität', 'text', { req: 1, full: 1 }), F('min', 'Dauer', 'dur', { hint: 'z. B. 1:30 oder 45 (Minuten)', def: 0, grp: 'Zeit und Geld' }), F('inc', 'Einnahmen', 'money', { pos: 1, def: 0 }), F('exp', 'Ausgaben', 'money', { pos: 1, def: 0 })] },
   agent: { key: 'agents', title: 'Agent', fields: [F('name', 'Name', 'text', REQ), F('job', 'Aufgabe', 'text', { full: 1 }), F('status', 'Status', 'select', { opts: AGENT_STATUS, grp: 'Status' }), F('asOf', 'Status vom', 'date', { today: 1 }), F('last', 'Letzter Lauf', 'text', { hint: 'z. B. 25.11. 07:00' }), F('next', 'Nächster Lauf', 'text'), F('result', 'Letztes Ergebnis', 'text', { full: 1 }), F('issues', 'Fehler / offene Aufgaben', 'long', { full: 1 }), F('runtime', 'Laufzeit', 'text', { grp: 'Aufwand' }), F('cost', 'Kosten', 'money', { pos: 1 })] },
-  note: { key: 'notes', title: 'Notiz', fields: [F('title', 'Titel', 'text', { req: 1, full: 1 }), F('topic', 'Bereich', 'select', { opts: TOPICS }), F('tags', 'Tags', 'tags', { hint: 'mit Komma trennen' }), F('projects', 'Projekte', 'refs', { ref: 'project', full: 1 }), F('body', 'Inhalt', 'long', { full: 1, rows: 10, hint: '[[Titel]] verknüpft eine andere Notiz' })] },
-  import: { key: 'imports', title: 'Import', fields: [F('kind', 'Art', 'select', { opts: [['csv', 'CSV'], ['json', 'Life-OS-Datei']] }), F('file', 'Datei', 'text'), F('at', 'Am', 'date', REQ), F('n', 'Einträge', 'int', { min: 0, max: 1e7, def: 0 }), F('acc', 'Konto', 'text')] },
+  note: { key: 'notes', title: 'Notiz', fields: [F('title', 'Titel', 'text', { req: 1, full: 1 }), F('topic', 'Bereich', 'select', { opts: TOPICS }), F('tags', 'Tags', 'tags', { hint: 'mit Komma trennen' }), F('projects', 'Projekte', 'refs', { ref: 'project', full: 1 }), F('body', 'Inhalt', 'long', { full: 1, rows: 10, max: 100000, hint: '[[Titel]] verknüpft eine andere Notiz' }),
+    // From an Obsidian vault: where the file lives, its front matter as written, aliases, and a fingerprint of what was imported.
+    F('path', 'Datei', 'text', { internal: 1, max: 400 }), F('fm', 'Eigenschaften', 'long', { internal: 1 }), F('aliases', 'Aliase', 'tags', { internal: 1 }), F('h', 'Fingerabdruck', 'text', { internal: 1 })] },
+  import: { key: 'imports', title: 'Import', fields: [F('kind', 'Art', 'select', { opts: [['csv', 'CSV'], ['json', 'Life-OS-Datei'], ['vault', 'Obsidian-Vault']] }), F('file', 'Datei', 'text'), F('at', 'Am', 'date', REQ), F('n', 'Einträge', 'int', { min: 0, max: 1e7, def: 0 }), F('acc', 'Konto', 'text')] },
 };
-export const SOURCES = ['manuell', 'csv', 'import', 'beispiel'];
+export const SOURCES = ['manuell', 'csv', 'import', 'beispiel', 'vault'];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const MAX = { text: 300, long: 20000 };
 const ID = /^[\w-]{1,64}$/; // ids land in attributes and links
@@ -33,7 +35,7 @@ const uniq = arr => arr.filter((t, i) => t && arr.findIndex(x => norm(x) === nor
 // Stored value → valid value or undefined.
 function cleanVal(f, v) {
   switch (f.t) {
-    case 'text': case 'long': return typeof v === 'string' ? v.slice(0, MAX[f.t]) : undefined;
+    case 'text': case 'long': return typeof v === 'string' ? v.slice(0, f.max || MAX[f.t]) : undefined;
     case 'ref': return typeof v === 'string' && v ? v : undefined;
     case 'money': return Number.isInteger(v) && (!f.pos || v >= 0) ? v : undefined;
     case 'int': return Number.isInteger(v) && v >= f.min && v <= f.max ? v : undefined;
@@ -76,7 +78,7 @@ function parseVal(f, s) {
   const empty = str === '' || str == null || (Array.isArray(str) && !str.length);
   if (empty && f.req && f.t !== 'select' && f.t !== 'bool') return { err: f.t === 'ref' ? 'Bitte auswählen' : f.t === 'date' ? 'Datum wählen' : 'Bitte ausfüllen' };
   switch (f.t) {
-    case 'text': case 'long': case 'ref': return { v: String(str ?? '').slice(0, MAX[f.t] || 300) };
+    case 'text': case 'long': case 'ref': return { v: String(str ?? '').slice(0, f.max || MAX[f.t] || 300) };
     case 'select': return { v: f.opts.some(o => o[0] === str) ? str : f.opts[0][0] };
     case 'bool': return { v: !!s };
     case 'money': {
@@ -119,6 +121,7 @@ function parseVal(f, s) {
 export function parseItem(name, draft) {
   const item = {}, errors = {};
   for (const f of SCHEMAS[name].fields) {
+    if (f.internal) continue;
     const r = parseVal(f, draft[f.k]);
     if (r.err) errors[f.k] = r.err;
     else if (r.v !== null) item[f.k] = r.v;
@@ -134,7 +137,7 @@ export function parseItem(name, draft) {
 const plain = c => (c < 0 ? '-' : '') + (Math.abs(c) / 100).toFixed(2).replace('.', ',');
 export function toDraft(name, item = {}) {
   const d = {};
-  for (const f of SCHEMAS[name].fields) {
+  for (const f of SCHEMAS[name].fields.filter(x => !x.internal)) {
     const v = item[f.k];
     if (f.t === 'money') d[f.k] = v == null ? '' : plain(v);
     else if (f.t === 'dur') d[f.k] = v ? `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}` : '';

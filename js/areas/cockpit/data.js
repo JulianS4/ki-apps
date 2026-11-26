@@ -9,7 +9,7 @@ export const SUB_STATUS = [['aktiv', 'aktiv'], ['pausiert', 'pausiert'], ['gekue
 export const PREP = [['offen', 'nicht angefangen'], ['begonnen', 'angefangen'], ['fast', 'fast fertig'], ['fertig', 'vorbereitet']];
 export const PROJ_STATUS = [['aktiv', 'aktiv'], ['pausiert', 'pausiert'], ['idee', 'Idee'], ['abgeschlossen', 'abgeschlossen']];
 export const AGENT_STATUS = [['unbekannt', 'unbekannt'], ['bereit', 'bereit'], ['beschaeftigt', 'beschäftigt'], ['fehlgeschlagen', 'fehlgeschlagen'], ['pausiert', 'pausiert']];
-export const TOPICS = [['business', 'Business & Projekte'], ['ki', 'KI & Agents'], ['ausbildung', 'Arbeit & Ausbildung'], ['finanzen', 'Finanzen'], ['training', 'Training & Erholung'], ['privat', 'Persönlich & Ideen']];
+export const TOPICS = [['business', 'Business & Projekte'], ['ki', 'KI & Agents'], ['ausbildung', 'Arbeit & Ausbildung'], ['finanzen', 'Finanzen'], ['training', 'Training & Erholung'], ['privat', 'Persönlich & Ideen'], ['ohne', 'Ohne Bereich']];
 export const label = (opts, v) => (opts.find(o => o[0] === v) || ['', v || ''])[1];
 
 const cat = (id, name, kind = 'ausgabe') => ({ id, name, kind, src: 'manuell' });

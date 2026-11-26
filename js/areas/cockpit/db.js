@@ -89,7 +89,7 @@ export function importData(ctx, obj, file, today) {
     const byId = new Map(list(ctx, name).map(x => [x.id, x]));
     for (const raw of arr) {
       if (!raw || (raw.src === 'beispiel' && !demo)) continue;
-      const c = cleanItem(name, { ...raw, src: ['manuell', 'csv', 'beispiel'].includes(raw.src) ? raw.src : 'import' });
+      const c = cleanItem(name, { ...raw, src: ['manuell', 'csv', 'beispiel', 'vault'].includes(raw.src) ? raw.src : 'import' });
       if (c) { byId.set(c.id, c); n++; }
     }
     if (!setRaw(ctx, SCHEMAS[name].key, [...byId.values()])) throw new Error(STORAGE_FAILED);
