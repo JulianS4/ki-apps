@@ -229,3 +229,26 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .amp ul li+li{margin-top:2px}
 .amp .more{align-self:flex-start;margin-top:4px;color:inherit;font-weight:700;font-size:14px;text-decoration:none;padding:8px 0}
 .hero+.amp{margin-top:16px}
+/* Ernährung */
+.pnum{margin:0;font-size:15px;color:var(--mut)}
+.pnum b{font-size:30px;font-weight:800;font-stretch:112%;color:var(--ink);font-variant-numeric:tabular-nums}
+.pbar{position:relative;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin:10px 0 6px}
+.pbar i{display:block;height:100%;background:var(--acc);border-radius:4px}
+button.lk{border:0;background:none;padding:6px 0;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
+.dishes{display:grid;grid-template-columns:repeat(auto-fill,minmax(9.5em,1fr));gap:8px}
+.dish{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;min-height:64px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);font:600 15px/1.25 Archivo,sans-serif;cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.dish span{font-size:13px;color:var(--mut);font-weight:500}
+.dish:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.more>.fl,.more>.dishes{margin-left:14px;margin-right:14px}
+.more>.dishes:last-child{margin-bottom:14px}
+.peek{border:2px solid var(--acc)}
+.peek .ing{margin:8px 0 0;font-size:15px}
+.frow{display:flex;gap:8px;margin-top:8px}
+.frow .tx{flex:1}
+.late{display:inline-block;margin-left:6px;font-size:12px;font-weight:700;color:var(--acc);background:var(--acc2);border-radius:6px;padding:1px 6px;vertical-align:middle}
+.rows .mrow{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;min-height:52px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.rows .tt{flex:none;color:var(--mut);font-size:14px;font-variant-numeric:tabular-nums}
+.rows li.ed{flex-wrap:wrap}
+.erow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%}
+.gin{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--mut)}
+.gin input{width:3.5em;border:0;background:none;color:var(--ink);font:700 17px Archivo,sans-serif;outline:0}

@@ -33,3 +33,65 @@ test('summary on a fresh install', () => {
   );
   assert.deepEqual(s.due, { group: 'morgens', done: 0, total: 3 });
 });
+
+test('protein asks for the weight first', () => {
+  const ctx = mk();
+  let html = food.render(TODAY, ctx);
+  assert.match(html, /data-a="weight"/);
+  assert.doesNotMatch(html, /NaN/);
+  food.onChange(change({ a: 'weight' }, { value: '12' }), TODAY, ctx);
+  assert.equal(ctx.store.get('body.weight'), null);
+  food.onChange(change({ a: 'weight' }, { value: '85,0' }), TODAY, ctx);
+  assert.deepEqual(ctx.store.get('body.weight'), { '2026-11-26': 85 });
+  html = food.render(TODAY, ctx);
+  assert.match(html, /0 \/ 170 g/);
+  assert.doesNotMatch(html, /data-a="weight"/);
+});
+
+test('tapping a dish logs it with time and protein', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'dish', id: 'joghurt-bowl' }), TODAY, ctx);
+  const m = day(ctx).meals[0];
+  assert.deepEqual({ name: m.name, g: m.g, t: m.t, slot: m.slot, dish: m.dish }, { name: 'Joghurt Bowl', g: 45, t: '07:30', slot: 'fr', dish: 'joghurt-bowl' });
+  assert.ok(m.id);
+  assert.match(food.render(TODAY, ctx), /45 \/ 170 g/);
+});
+
+test('suggested dishes come first', () => {
+  const html = food.render(TODAY, mk(THU, 85));
+  const a = html.indexOf('data-id="joghurt-bowl"'), b = html.indexOf('data-id="lachspfanne"');
+  assert.ok(a > -1 && b > a);
+});
+
+test('a meal after 19:00 is marked late', () => {
+  const late = mk(at(19, 30), 85);
+  food.onClick(click({ a: 'dish', id: 'bolognese' }), TODAY, late);
+  assert.match(food.render(TODAY, late), /nach 19 Uhr/);
+  const ok = mk(at(18, 59), 85);
+  food.onClick(click({ a: 'dish', id: 'bolognese' }), TODAY, ok);
+  assert.doesNotMatch(food.render(TODAY, ok), /nach 19 Uhr/);
+});
+
+test('aldi opens for its grams', () => {
+  const ctx = mk(at(12, 0), 85);
+  food.onClick(click({ a: 'dish', id: 'aldi' }), TODAY, ctx);
+  assert.equal(day(ctx).meals[0].g, 30);
+  assert.match(food.render(TODAY, ctx), /data-a="mg"/);
+});
+
+test('free grams, editing and deleting an entry', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'quick', g: '20' }), TODAY, ctx);
+  const m = day(ctx).meals[0];
+  assert.deepEqual({ name: m.name, g: m.g, slot: m.slot }, { name: 'Eigene Eingabe', g: 20, slot: 'frei' });
+  food.onInput(input({ a: 'free' }, '35'), TODAY, ctx);
+  food.onClick(click({ a: 'fadd' }), TODAY, ctx);
+  assert.equal(day(ctx).meals[1].g, 35);
+  food.onClick(click({ a: 'medit', id: m.id }), TODAY, ctx);
+  assert.match(food.render(TODAY, ctx), /data-a="mg"/);
+  food.onChange(change({ a: 'mg', id: m.id }, { value: '25' }), TODAY, ctx);
+  assert.equal(day(ctx).meals[0].g, 25);
+  food.onClick(click({ a: 'mdel', id: m.id }), TODAY, ctx);
+  assert.equal(day(ctx).meals.length, 1);
+  assert.match(food.render(TODAY, ctx), /35 \/ 170 g/);
+});
