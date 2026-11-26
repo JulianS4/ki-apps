@@ -96,3 +96,15 @@ test('runMigrations keeps the old fields when recovery cannot be saved', () => {
   assert.equal(store.get('train.sess')['s_2026-11-23_mo'].mob, true);
   assert.ok(store.get('train.sess')['s_2026-11-22_so'].week);
 });
+
+test('backup import merges food days and weights per date', () => {
+  const store = createStore(memBackend());
+  store.set('food.days', { '2026-11-26': { meals: [{ id: 'm1', name: 'Joghurt Bowl', g: 45, slot: 'fr', t: '07:30' }], water: 500 } });
+  store.set('body.weight', { '2026-11-26': 85 });
+  importBackup({ app: 'ki-apps', v: 1, data: {
+    'food.days': { '2026-11-20': { meals: [], water: 3000 } },
+    'body.weight': { '2026-11-20': 86 },
+  } }, store);
+  assert.deepEqual(Object.keys(store.get('food.days')).sort(), ['2026-11-20', '2026-11-26']);
+  assert.deepEqual(store.get('body.weight'), { '2026-11-20': 86, '2026-11-26': 85 });
+});

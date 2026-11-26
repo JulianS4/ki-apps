@@ -17,10 +17,13 @@ function recoveryRoute(sub) {
   return { area: 'recovery', view: REC_VIEWS[p] || 'today' };
 }
 
+const FOOD_VIEWS = { gerichte: 'dishes', einkauf: 'shop' };
+
 export function parseRoute(hash) {
   const h = String(hash || '').replace(/^#/, '');
   if (h === 'einstellungen') return { area: 'settings' };
   if (h === 'recovery' || h.startsWith('recovery/')) return recoveryRoute(h.slice('recovery/'.length));
+  if (h === 'ernaehrung' || h.startsWith('ernaehrung/')) return { area: 'food', view: FOOD_VIEWS[h.slice('ernaehrung/'.length)] || 'today' };
   if (h === 'training' || h.startsWith('training/')) return trainingRoute(h.slice('training/'.length));
   if (DAYS.includes(h) || h === 'verlauf' || (h.startsWith('x-') && h.length > 2)) return trainingRoute(h);
   return { area: 'heute' };
