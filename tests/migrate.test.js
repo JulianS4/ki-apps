@@ -108,3 +108,10 @@ test('backup import merges food days and weights per date', () => {
   assert.deepEqual(Object.keys(store.get('food.days')).sort(), ['2026-11-20', '2026-11-26']);
   assert.deepEqual(store.get('body.weight'), { '2026-11-20': 86, '2026-11-26': 85 });
 });
+
+test('backup import merges routine days per date', () => {
+  const store = createStore(memBackend());
+  store.set('rout.days', { '2026-11-26': { morgen: { toilette: true } } });
+  importBackup({ app: 'ki-apps', v: 1, data: { 'rout.days': { '2026-11-20': { abend: { box: true } } } } }, store);
+  assert.deepEqual(Object.keys(store.get('rout.days')).sort(), ['2026-11-20', '2026-11-26']);
+});

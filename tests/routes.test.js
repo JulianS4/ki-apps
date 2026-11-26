@@ -30,6 +30,10 @@ const cases = [
   ['#ernaehrung/gerichte', { area: 'food', view: 'dishes' }],
   ['#ernaehrung/einkauf', { area: 'food', view: 'shop' }],
   ['#ernaehrung/quatsch', { area: 'food', view: 'today' }],
+  ['#routinen', { area: 'routines', view: 'today' }],
+  ['#routinen/grandpa', { area: 'routines', view: 'grandpa' }],
+  ['#routinen/halterung', { area: 'routines', view: 'holder' }],
+  ['#routinen/quatsch', { area: 'routines', view: 'today' }],
 ];
 for (const [hash, want] of cases) {
   test(`parseRoute(${JSON.stringify(hash)})`, () => assert.deepEqual(parseRoute(hash), want));

@@ -13,7 +13,7 @@ export function buildBackup(store, exportedIso) {
 // Date-keyed maps merge per key (backup wins), so loading an older backup
 // never wipes entries made since. Complaints merge by id. The plan only
 // replaces when it is a full week, everything else is replaced as a whole.
-const PER_KEY = ['train.sess', 'rec.morning', 'rec.mobility', 'rec.weekly', 'rec.blocks', 'rec.flags', 'food.days', 'body.weight'];
+const PER_KEY = ['train.sess', 'rec.morning', 'rec.mobility', 'rec.weekly', 'rec.blocks', 'rec.flags', 'food.days', 'body.weight', 'rout.days'];
 function put(store, key, value) {
   let ok = true;
   if (PER_KEY.includes(key)) {

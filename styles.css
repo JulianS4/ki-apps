@@ -262,3 +262,13 @@ button.lk{border:0;background:none;padding:6px 0;color:inherit;font:inherit;text
 .yrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .yrow span{flex:1;min-width:10em;font-weight:600}
 .more>.pk{margin:0 14px 8px}
+/* Routinen */
+.rlist .t{flex:1}
+.rlist .tt{color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums;margin-right:4px}
+.rlist .sub{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:0 14px 12px 48px;font-size:14px}
+.rlist .sub .note{margin:0}
+.sublink{color:inherit;font-weight:700;text-decoration:none;padding:6px 0}
+.rlist .pk2{flex-basis:100%;margin:0}
+.rlist .pk2>.fl,.rlist .pk2>.list{margin-left:14px;margin-right:14px}
+.rlist .pk2>.list:last-child{margin-bottom:14px}
+.yev{margin-top:12px}

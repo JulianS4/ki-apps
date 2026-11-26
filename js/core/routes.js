@@ -18,11 +18,13 @@ function recoveryRoute(sub) {
 }
 
 const FOOD_VIEWS = { gerichte: 'dishes', einkauf: 'shop' };
+const ROUT_VIEWS = { grandpa: 'grandpa', halterung: 'holder' };
 
 export function parseRoute(hash) {
   const h = String(hash || '').replace(/^#/, '');
   if (h === 'einstellungen') return { area: 'settings' };
   if (h === 'recovery' || h.startsWith('recovery/')) return recoveryRoute(h.slice('recovery/'.length));
+  if (h === 'routinen' || h.startsWith('routinen/')) return { area: 'routines', view: ROUT_VIEWS[h.slice('routinen/'.length)] || 'today' };
   if (h === 'ernaehrung' || h.startsWith('ernaehrung/')) return { area: 'food', view: FOOD_VIEWS[h.slice('ernaehrung/'.length)] || 'today' };
   if (h === 'training' || h.startsWith('training/')) return trainingRoute(h.slice('training/'.length));
   if (DAYS.includes(h) || h === 'verlauf' || (h.startsWith('x-') && h.length > 2)) return trainingRoute(h);
