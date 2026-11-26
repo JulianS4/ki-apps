@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as food from '../js/areas/food/index.js';
+import { todayView } from '../js/areas/food/view.js';
 import { createStore } from '../js/core/store.js';
 import { memBackend } from './helpers.js';
 
@@ -258,4 +259,74 @@ test('editing supplements keeps the shake', () => {
   food.onClick(click({ a: 'sreset' }), TODAY, ctx);
   food.onClick(click({ a: 'sreset' }), TODAY, ctx);
   assert.equal(ctx.store.get('food.supps'), null);
+});
+
+// Hand-edited backups can put anything into the store; nothing may crash.
+test('malformed food data never crashes', () => {
+  const bad = [
+    ['food.supps', [null, { id: 'x', group: 'morgens', shake: 20 }]],
+    ['food.dishes', [null, 5, { id: 'ok', slot: 'fr', days: 'wt', name: 'Ok', g: 10 }]],
+    ['food.shop', [null, { cat: 'A' }, { cat: 'B', items: [null, { id: 'i', name: 'I' }] }]],
+    ['food.need', 'x'],
+    ['food.days', { '2026-11-26': { meals: [null, 5, { id: 'm', name: 'M', g: 'x', t: '08:00' }], broken: 5, supps: 'x', water: -500 } }],
+    ['food.days', []],
+    ['body.weight', { zzz: 70, '2026-11-20': 0.2 }],
+    ['body.weight', 'x'],
+  ];
+  for (const [k, v] of bad) {
+    const ctx = mk(THU);
+    ctx.store.set(k, v);
+    for (const view of ['today', 'dishes', 'shop']) assert.doesNotThrow(() => food.render({ area: 'food', view }, ctx), `${k} ${view}`);
+    assert.doesNotThrow(() => food.summary(ctx), k);
+    assert.doesNotMatch(food.render(TODAY, ctx), /NaN|-0,5/, k);
+    assert.doesNotThrow(() => {
+      food.onChange(change({ a: 'supp', id: 'x' }, { checked: true }), TODAY, ctx);
+      food.onClick(click({ a: 'water' }), TODAY, ctx);
+      food.onClick(click({ a: 'mdel', id: 'm' }), TODAY, ctx);
+      food.onChange(change({ a: 'need', id: 'i' }, { checked: true }), SHOP_V, ctx);
+      food.onChange(change({ a: 'weight' }, { value: '80' }), TODAY, ctx);
+      food.onClick(click({ a: 'iedit' }), SHOP_V, ctx);
+      food.onInput(input({ a: 'inew', cat: 'B' }, 'Neu'), SHOP_V, ctx);
+      food.onClick(click({ a: 'iadd', cat: 'B' }), SHOP_V, ctx);
+    }, k);
+    assert.equal(day(ctx).water, 500, k);
+    assert.equal(ctx.store.get('food.need').i, true, k);
+    assert.equal(ctx.store.get('body.weight')['2026-11-26'], 80, k);
+  }
+});
+
+test('the weight field accepts a German decimal comma', () => {
+  assert.match(food.render(TODAY, mk()), /type="text" inputmode="decimal"[^>]*data-a="weight"/);
+});
+
+test('other dishes stay open while logging', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'more' }), TODAY, ctx);
+  assert.match(food.render(TODAY, ctx), /<details class="ses more" open>/);
+  food.onClick(click({ a: 'dish', id: 'shake' }), TODAY, ctx);
+  assert.match(food.render(TODAY, ctx), /<details class="ses more" open>/);
+  food.onClick(click({ a: 'more' }), TODAY, ctx);
+  assert.match(food.render(TODAY, ctx), /<details class="ses more">/);
+});
+
+test('a held dish from the other list shows its ingredients there', () => {
+  const shake = { id: 'shake', slot: 'dr', days: 'all', name: 'Protein Shake', g: 25, ing: 'statt Milchshakes' };
+  const html = todayView({ day: '2026-11-26', weight: null, protein: 0, slot: 'fr', now: [], rest: [shake], peek: shake, draft: '', meals: [], water: 0, bottle: 500, supps: [], ticked: {}, due: 'morgens', broken: [], streak: 0 });
+  const more = html.slice(html.indexOf('<details class="ses more"'));
+  assert.match(more, /^<details class="ses more" open>/);
+  assert.match(more.slice(0, more.indexOf('</details>')), /class="ex peek"/);
+});
+
+test('yesterday can still be marked clean', () => {
+  const ctx = mk(THU, 85);
+  ctx.store.set('food.days', { '2026-11-23': { meals: [], clean: true }, '2026-11-24': { meals: [], clean: true } });
+  assert.match(food.render(TODAY, ctx), /Gestern sauber gegessen\?/);
+  assert.equal(food.summary(ctx).streak, 0);
+  food.onClick(click({ a: 'yclean' }), TODAY, ctx);
+  assert.equal(day(ctx, '2026-11-25').clean, true);
+  assert.equal(food.summary(ctx).streak, 3);
+  assert.doesNotMatch(food.render(TODAY, ctx), /Gestern sauber gegessen\?/);
+  const other = mk(THU, 85);
+  food.onClick(click({ a: 'ybroke' }), TODAY, other);
+  assert.equal(day(other, '2026-11-25').clean, false);
 });

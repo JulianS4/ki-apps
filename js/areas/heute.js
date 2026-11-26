@@ -70,20 +70,24 @@ function recoveryCards(r) {
   return morning + deload + suggest;
 }
 
+const safe = fn => { try { return fn(); } catch (e) { return null; } };
+
 export function render(route, ctx) {
   const now = ctx.now(), todayStr = ds(now), { now: cur, next } = nowNext(now);
   const nextWhen = (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start;
-  const tr = trainingSummary(ctx.store, now), rec = recoverySummary(ctx), cy = rec.cycle, mob = rec.mobility, fd = foodSummary(ctx);
-  const trLine = tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`;
-  return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1><p class="m">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</p></div></div>
-  ${recoveryCards(rec)}${backupCard(ctx.store, todayStr)}${foodCards(fd)}
+  // Each area is read on its own: bad data in one never blanks the start page.
+  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx));
+  const cy = rec && rec.cycle, mob = rec && rec.mobility;
+  const trLine = tr && (tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`);
+  return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1>${cy ? `<p class="m">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</p>` : ''}</div></div>
+  ${rec ? recoveryCards(rec) : ''}${backupCard(ctx.store, todayStr)}${fd ? foodCards(fd) : ''}
   <section class="blk"><div class="cards">
     ${cur ? `<div class="card now"><p class="k">Jetzt</p><b>${esc(cur.title)}</b><span>bis ${cur.end}</span></div>` : ''}
     <div class="card"><p class="k">Als Nächstes</p><b>${esc(next.title)}</b><span>${nextWhen}</span></div>
   </div></section>
   <section class="blk"><div class="bh"><h2>Bereiche</h2></div><div class="tiles">
-    <a class="tile" href="#training"><span class="k">Training</span><b>${esc(tr.type === 'ruhe' ? 'Ruhetag' : tr.name)}</b><span>${trLine}</span></a>
-    <a class="tile" href="#recovery"><span class="k">Recovery</span><b>Mobility ${mob.routine} · ${mob.name}</b><span>${mob.done ? '✓ erledigt' : 'offen'}</span></a>
-    ${foodTile(fd)}
+    ${tr ? `<a class="tile" href="#training"><span class="k">Training</span><b>${esc(tr.type === 'ruhe' ? 'Ruhetag' : tr.name)}</b><span>${trLine}</span></a>` : ''}
+    ${mob ? `<a class="tile" href="#recovery"><span class="k">Recovery</span><b>Mobility ${mob.routine} · ${mob.name}</b><span>${mob.done ? '✓ erledigt' : 'offen'}</span></a>` : ''}
+    ${fd ? foodTile(fd) : ''}
   </div><p class="note soon">Kommt bald: Routinen · Körper · Arena</p></section>`;
 }

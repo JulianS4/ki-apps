@@ -9,8 +9,11 @@ const noon = day => new Date(day + 'T12:00:00');
 const mins = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 
+// Newest plausible weight (30–250 kg) on a real 'YYYY-MM-DD' key.
 export function latestWeight(weights) {
-  const ok = Object.entries(weights || {}).filter(([, kg]) => isNum(kg) && kg > 0).sort(([a], [b]) => (a < b ? 1 : -1));
+  const ok = Object.entries(weights && typeof weights === 'object' ? weights : {})
+    .filter(([d, kg]) => /^\d{4}-\d{2}-\d{2}$/.test(d) && isNum(kg) && kg >= 30 && kg <= 250)
+    .sort(([a], [b]) => (a < b ? 1 : -1));
   return ok.length ? { date: ok[0][0], kg: ok[0][1] } : null;
 }
 

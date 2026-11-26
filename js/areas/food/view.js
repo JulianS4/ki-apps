@@ -11,7 +11,7 @@ const hero = (v, title) => `<div class="hero" style="grid-template-columns:1fr">
 function protein(v) {
   const w = v.weight, ask = !w || v.weightEdit;
   const form = ask ? `<div class="ex"><h3 class="sq">${w ? 'Gewicht ändern' : 'Wie viel wiegst du?'}</h3><p class="note">Dein Proteinziel ist 2 g pro kg Körpergewicht.</p>
-    <label class="note fl" for="fWeight">Gewicht in kg</label><input id="fWeight" class="tx" type="number" inputmode="decimal" step="0.1" data-a="weight" value="${w ? w.kg : ''}" placeholder="z. B. 85"></div>` : '';
+    <label class="note fl" for="fWeight">Gewicht in kg</label><input id="fWeight" class="tx" type="text" inputmode="decimal" autocomplete="off" data-a="weight" value="${w ? w.kg : ''}" placeholder="z. B. 85"></div>` : '';
   if (!w) return `<section class="blk"><div class="bh"><h2>Protein</h2><p>${num(v.protein)} g heute</p></div>${form}</section>`;
   const pct = Math.min(100, Math.round(num(v.protein) / v.target * 100));
   return `<section class="blk"><div class="bh"><h2>Protein</h2><p>${pct} %</p></div>
@@ -28,9 +28,11 @@ function peekCard(d) {
 
 function grid(v) {
   const groups = SLOT_ORDER.map(s => [s, v.rest.filter(d => d.slot === s)]).filter(([, l]) => l.length);
+  const other = groups.flatMap(([, l]) => l), inRest = !!v.peek && other.some(d => d.id === v.peek.id);
+  // The ingredients card shows where the held dish is, and keeps that list open.
   return `<section class="blk"><div class="bh"><h2>${SLOTS[v.slot]} · jetzt</h2><p>Halten für Zutaten</p></div>
-  ${v.peek ? peekCard(v.peek) : ''}<div class="dishes">${v.now.map(dishBtn).join('')}</div>
-  <details class="ses more"><summary><b>Andere Gerichte</b><span>${v.rest.length}</span></summary>${groups.map(([s, l]) => `<p class="note fl">${SLOTS[s]}</p><div class="dishes">${l.map(dishBtn).join('')}</div>`).join('')}</details>
+  ${v.peek && !inRest ? peekCard(v.peek) : ''}<div class="dishes">${v.now.map(dishBtn).join('')}</div>
+  <details class="ses more"${v.moreOpen || inRest ? ' open' : ''}><summary data-a="more"><b>Andere Gerichte</b><span>${other.length}</span></summary>${inRest ? `<div class="pk">${peekCard(v.peek)}</div>` : ''}${groups.map(([s, l]) => `<p class="note fl">${SLOTS[s]}</p><div class="dishes">${l.map(dishBtn).join('')}</div>`).join('')}</details>
   <div class="ex" style="margin-top:8px"><h3 class="sq">Eigene Eingabe</h3><div class="tools" style="margin-top:8px">${[10, 20, 30].map(g => `<button class="btn" type="button" data-a="quick" data-g="${g}">+${g} g</button>`).join('')}</div>
   <div class="frow"><input class="tx" type="number" inputmode="numeric" min="1" max="300" data-a="free" value="${esc(v.draft)}" placeholder="Gramm Protein" aria-label="Gramm Protein"><button class="btn pri" type="button" data-a="fadd">+ Hinzufügen</button></div></div></section>`;
 }
@@ -66,6 +68,7 @@ function water(v) {
 function clean(v) {
   const n = v.streak, broken = v.broken || [];
   return `<section class="blk"><div class="bh"><h2>Sauber essen</h2><p>${n ? `${n} ${n === 1 ? 'Tag' : 'Tage'} sauber in Folge` : 'Noch keine Serie'}</p></div>
+  ${v.yOpen ? '<div class="ex yrow"><span>Gestern sauber gegessen?</span><button class="btn" type="button" data-a="yclean">Ja</button><button class="btn" type="button" data-a="ybroke">Nein</button></div>' : ''}
   <div class="ex"><button class="btn${v.clean === true ? ' pri' : ''}" type="button" data-a="clean" aria-pressed="${v.clean === true}">${v.clean === true ? '✓ Alles eingehalten' : 'Alles eingehalten'}</button>
   <p class="note fl">Regel gebrochen? Antippen, welche:</p>
   <div class="chips">${RULES.map(([k, l]) => `<button class="chipb${broken.includes(k) ? ' on' : ''}" type="button" data-a="broke" data-k="${k}" aria-pressed="${broken.includes(k)}">${l}</button>`).join('')}</div></div></section>`;

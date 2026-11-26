@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { render } from '../js/areas/heute.js';
+import { render, setFoodSummary, foodSummary as foodSummaryDefault } from '../js/areas/heute.js';
 import { createStore } from '../js/core/store.js';
 import { memBackend } from './helpers.js';
 
@@ -106,4 +106,17 @@ test('mealprep hint on wednesday', () => {
 test('coming-soon line', () => {
   const html = render({ area: 'heute' }, ctx());
   assert.doesNotMatch(html.match(/Kommt bald[^<]*/)[0], /Ernährung/);
+});
+test('one broken area never blanks the start page', () => {
+  const s = createStore(memBackend());
+  s.set('food.supps', [null]);
+  assert.doesNotThrow(() => render({ area: 'heute' }, ctx(s)));
+  const original = foodSummaryDefault;
+  setFoodSummary(() => { throw new Error('boom'); });
+  try {
+    const html = render({ area: 'heute' }, ctx());
+    assert.match(html, /Lower A/);
+  } finally {
+    setFoodSummary(original);
+  }
 });
