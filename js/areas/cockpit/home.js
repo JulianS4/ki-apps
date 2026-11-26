@@ -6,7 +6,7 @@ import { nowNext } from '../../core/schedule.js';
 import * as db from './db.js';
 import { netWorth, nextExams, currentDept, totals, filterTx, periodRange, logStats, dueTasks, daysUntil, gradeAvg, fmtDur, MONTHS } from './logic.js';
 import { PREP, AGENT_STATUS, label } from './data.js';
-import { banner, hero, money, amountsShown, srcLine, pbar, common, target, today, onNavigateCommon, mountCommon, csvNote } from './ui.js';
+import { banner, hero, money, amountsShown, srcLine, pbar, common, target, today, onNavigateCommon, mountCommon, csvNote, newBtn, formIf } from './ui.js';
 import { icon } from './nav.js';
 import { trainingSummary, recoverySummary, bodySummary } from '../heute.js';
 
@@ -46,7 +46,7 @@ function figures(ctx, t) {
   const acc = db.list(ctx, 'account'), nw = netWorth(acc), r = periodRange('monat', t), tx = filterTx(db.list(ctx, 'tx'), { range: r }), m = totals(tx, db.list(ctx, 'cat')), l = logStats(db.list(ctx, 'log'), { range: r }), mon = MONTHS[+t.slice(5, 7) - 1];
   const fig = (href, k, b, sub) => `<a class="fig" href="${href}"><span class="k">${k}</span><b>${b}</b><span class="sub">${sub}</span></a>`;
   return `<div class="figs">
-    ${acc.length ? fig('#finanzen', 'Gesamtvermögen', money(nw.total, 'EUR', true), `${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'} · ältester Stand ${dshort(nw.oldest)}`) : fig('#finanzen', 'Gesamtvermögen', '–', 'Noch kein Konto eingetragen')}
+    ${acc.length ? fig('#finanzen', 'Gesamtvermögen', money(nw.total, 'EUR', true), `${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'}${nw.oldest ? ` · ältester Stand ${dshort(nw.oldest)}` : ' · kein Euro-Konto'}`) : fig('#finanzen', 'Gesamtvermögen', '–', 'Noch kein Konto eingetragen')}
     ${fig('#finanzen', `Ausgaben ${mon}`, money(m.exp, 'EUR', true), `Einnahmen ${money(m.inc, 'EUR', true)} · aus ${tx.length} Buchungen`)}
     ${fig('#business-log', `Arbeitsstunden ${mon}`, fmtDur(l.min), `Business Log · Gewinn ${money(l.profit, 'EUR', true)} · ${l.n} Einträge`)}
   </div>${csvNote(ctx, tx)}
@@ -76,7 +76,7 @@ function accountsSec(ctx) {
   const acc = db.list(ctx, 'account'), nw = netWorth(acc);
   const body = acc.length ? `<ul class="crows">${acc.map(a => `<li><div class="nm"><b>${esc(a.name)}</b>${srcLine(a.src, a.asOf, ctx, { warnDays: 30 })}</div><span class="vr">${money(a.bal, a.cur, true)}</span></li>`).join('')}</ul>${nw.skipped.length ? `<p class="note">Nicht eingerechnet (andere Währung): ${esc(nw.skipped.join(', '))}</p>` : ''}`
     : '<p class="note">Noch kein Konto eingetragen.</p>';
-  return section('accounts', 'finance', 'Konten', acc.length ? `${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'} · ältester Stand ${dshort(nw.oldest)}` : 'Noch kein Konto', body + '<a class="sublink" href="#finanzen">Zu den Finanzen ›</a>');
+  return section('accounts', 'finance', 'Konten', acc.length ? `${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'}${nw.oldest ? ` · ältester Stand ${dshort(nw.oldest)}` : ''}` : 'Noch kein Konto', body + '<a class="sublink" href="#finanzen">Zu den Finanzen ›</a>');
 }
 
 function healthSec(ctx) {
@@ -98,7 +98,7 @@ const greet = h => (h < 11 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Aben
 export function render(route, ctx) {
   const t = today(ctx), now = ctx.now(), items = agenda(ctx, t);
   const emptyAll = !db.isDemo(ctx) && !['account', 'tx', 'exam', 'log', 'note', 'agent', 'dept'].some(n => db.list(ctx, n).length);
-  const intro = emptyAll ? `<section class="ccard intro"><b>Life OS ist noch leer.</b><p>Trag Konten, Klassenarbeiten oder Business-Einträge ein – oder sieh dir alles erst mit Beispieldaten an. Deine echten Einträge bleiben davon getrennt.</p><div class="tools"><button class="btn pri" type="button" data-a="demostart">Beispieldaten ansehen</button><a class="btn" href="#finanzen">Konto hinzufügen</a></div></section>` : '';
+  const intro = emptyAll ? `<section class="ccard intro"><b>Life OS ist noch leer.</b><p>Trag Konten, Klassenarbeiten oder Business-Einträge ein – oder sieh dir alles erst mit Beispieldaten an. Deine echten Einträge bleiben davon getrennt.</p><div class="tools"><button class="btn pri" type="button" data-a="demostart">Beispieldaten ansehen</button>${newBtn('account', 'Konto hinzufügen')}</div></section>${formIf(ctx, 'account')}` : '';
   const dateLine = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return `${banner(ctx)}${hero(dateLine, greet(now.getHours()), items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.')}${intro}
   <section class="blk"><div class="bh"><h2>Jetzt wichtig</h2></div>${agendaHtml(items)}</section>

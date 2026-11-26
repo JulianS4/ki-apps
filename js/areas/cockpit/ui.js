@@ -9,7 +9,7 @@ import { fmtMoney, daysUntil } from './logic.js';
 export const FAMILY = ['cockpit', 'finance', 'school', 'projects', 'agents', 'notes', 'integrations'];
 
 export const today = ctx => ds(ctx.now());
-export const banner = ctx => (db.isDemo(ctx) ? '<div class="demo" role="note"><b>Beispieldaten</b><span>Alles hier ist erfunden. Deine echten Einträge sind unberührt.</span><button class="btn" type="button" data-a="demoend">Beispiele beenden</button></div>' : '');
+export const banner = ctx => (db.isDemo(ctx) ? '<div class="demo" role="note"><b>Beispieldaten</b><span>Finanzen, Ausbildung, Projekte, Business Log, Agents und Wissen zeigen erfundene Einträge. Deine echten Einträge sind unberührt.</span><button class="btn" type="button" data-a="demoend">Beispiele beenden</button></div>' : '');
 // Page header: optional eyebrow, the title, one line of orientation.
 export const hero = (k, h1, m = '') => `<div class="hero" style="grid-template-columns:1fr"><div>${k ? `<p class="k">${k}</p>` : ''}<h1>${h1}</h1>${m ? `<p class="m">${m}</p>` : ''}</div></div>`;
 

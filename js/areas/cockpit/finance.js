@@ -26,7 +26,7 @@ const kv = rows => `<div class="kv2">${rows.map(([k, v]) => `<div><span>${k}</sp
 const width = () => (typeof document !== 'undefined' && document.getElementById('main') ? document.getElementById('main').clientWidth : 600);
 const addTx = ctx => (db.list(ctx, 'account').length
   ? `${newBtn('tx', 'Ausgabe hinzufügen', { dir: 'aus', ...(flt.acc ? { acc: flt.acc } : {}) }, 'btn pri')}${newBtn('tx', 'Einnahme hinzufügen', { dir: 'ein', ...(flt.acc ? { acc: flt.acc } : {}) })}`
-  : '<a class="btn pri" href="#finanzen">Zuerst ein Konto hinzufügen</a>');
+  : newBtn('account', 'Zuerst ein Konto hinzufügen', null, 'btn pri'));
 
 function flowChart(ctx, t) {
   const r = rangeOf('flow', t), bks = buckets(r), all = db.list(ctx, 'tx'), f = flowSeries(all, db.list(ctx, 'cat'), bks), inR = filterTx(all, { range: r });
@@ -101,7 +101,7 @@ function txView(ctx, t) {
     : empty(all.length ? 'Keine Buchungen für diese Auswahl.' : 'Noch keine Buchungen. Trag sie einzeln ein oder importiere eine CSV-Datei aus dem Online-Banking.');
   return `<section class="blk">${periodPicker('tx', t)}${filters(ctx)}
   ${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}${csvNote(ctx, tx)}
-  ${formIf(ctx, 'tx')}${list}</section>${csvBox(ctx)}`;
+  ${formIf(ctx, 'account')}${formIf(ctx, 'tx')}${list}</section>${csvBox(ctx)}`;
 }
 
 function costs(ctx, t) {
@@ -197,7 +197,8 @@ export function onInput(e) { edInput(e.target); }
 export function onChange(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a;
   if (edInput(t)) return undefined;
-  if (chartChange(t)) { blurActive(); return ctx.rerender(); }
+  // a date field may still be typed in: the shell redraws once it loses focus
+  if (chartChange(t)) return ctx.rerender();
   if (a === 'flt') { flt[t.dataset.k] = t.value; return ctx.rerender(); }
   if (a === 'bud') {
     const v = String(t.value).trim(), c = v ? parseMoney(v) : null;

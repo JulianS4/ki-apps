@@ -53,7 +53,9 @@ const ctx = {
 // The top bar: the app name on phones, or the way back from a Training &
 // Erholung page; an area may add its own tabs on the right.
 function header(route, area) {
-  const left = route.area === 'arena' && arenaOnly(ctx.store) ? '<span class="brand">Arena</span>'
+  const solo = arenaOnly(ctx.store);
+  const left = route.area === 'arena' && solo ? '<span class="brand">Arena</span>'
+    : route.area === 'settings' && solo ? '<a class="home" href="#arena" aria-label="Zurück zur Arena">‹</a><span class="brand">Einstellungen</span>'
     : TITLES[route.area] ? `<a class="home" href="#heute" aria-label="Zurück zu Training &amp; Erholung">‹</a><span class="brand">${TITLES[route.area]}</span>`
       : '<a class="brand m" href="#uebersicht">Life OS</a>';
   const right = area.header ? area.header(route, ctx) : '';
@@ -76,6 +78,8 @@ function render() {
   $('#top').innerHTML = header(route, area);
   $('#main').innerHTML = area.render(route, ctx);
   if (area.mount) area.mount($('#main'), route, ctx);
+  const h1 = $('#main h1');
+  document.title = h1 && h1.textContent.trim() ? `${h1.textContent.trim()} · Life OS` : 'Life OS';
 }
 
 for (const type of ['click', 'input', 'change']) {
@@ -105,7 +109,10 @@ addEventListener('hashchange', e => {
   // The area being left hears about it too, so it can stop a running timer.
   if (left !== area && left.onNavigate) left.onNavigate(next, ctx);
   if (area.onNavigate) area.onNavigate(next, ctx);
+  const fromNav = document.activeElement && document.activeElement.closest && document.activeElement.closest('#side, #bnav, #more');
   render();
+  // Keyboard and screen-reader users land in the new page, not on <body>.
+  if (fromNav || document.activeElement === document.body) $('#main').focus({ preventScroll: true });
   // Coming back from an exercise's progress page keeps your place.
   scrollTo(0, parseRoute(o).view === 'ex' && next.view !== 'ex' && pos[n] != null ? pos[n] : 0);
 });

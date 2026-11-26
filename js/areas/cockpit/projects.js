@@ -60,6 +60,7 @@ function logView(ctx, t) {
     id: 'log', q: meas[2], qs: `${esc(r.label)} · aus ${inR.length} Log-Einträgen`, buckets: bks, series, hidden: st.hidden, stacked: true, width: width(),
     fmt, axisFmt: meas[0] === 'min' ? v => `${Math.round(v / 60)} h` : v => fmtEuro0(v / 100), div: meas[0] === 'min' ? 60 : 100,
     missing: bks.map(b => !inR.some(e => inRange(e, b))),
+    foot: inR.length && bks.some(b => !inR.some(e => inRange(e, b))) ? '<p class="note miss">„–“ = keine Einträge in diesem Abschnitt.</p>' : '',
   });
   BARS = c.data ? { log: c.data } : {};
   const measSeg = `<div class="seg" role="group" aria-label="Messgröße">${MEASURES.map(([v, l]) => `<button type="button" data-a="meas" data-chart="log" data-v="${v}" aria-pressed="${v === meas[0]}"${v === meas[0] ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`;
@@ -90,7 +91,7 @@ export function onInput(e) { edInput(e.target); }
 export function onChange(e, route, ctx) {
   const t = e.target;
   if (edInput(t) || tick(t, ctx)) return;
-  if (chartChange(t)) { blurActive(); ctx.rerender(); return; }
+  if (chartChange(t)) { ctx.rerender(); return; }
   if (t.dataset && t.dataset.a === 'lproj') { lproj = t.value; ctx.rerender(); }
 }
 export function onNavigate(next) { onNavigateCommon(); if (!next || next.area !== 'projects') { lproj = ''; resetCharts(['log', 'proj']); } }

@@ -4,7 +4,7 @@ import { today, dfmt } from '../core/dates.js';
 import { runMigrations } from '../core/migrate.js';
 import { photoStore } from './body/index.js';
 import { exportPhotos, importPhotos, mergeIndex } from './body/photos.js';
-import { conn as arenaConn, setupArena, joinArena, leaveArena, inviteLink } from './arena/index.js';
+import { conn as arenaConn, setupArena, joinArena, leaveArena, inviteLink, arenaOnly } from './arena/index.js';
 import { PLAYERS } from './arena/data.js';
 import { esc } from '../core/html.js';
 import * as integ from './cockpit/integrations.js';
@@ -91,14 +91,14 @@ const INVALID = 'Keine gültige Backup-Datei';
 
 export function render(route, ctx) {
   const n = Object.keys(ctx.store.get('train.sess', {}) || {}).length, last = ctx.store.get('meta.lastBackup');
-  return `${banner(ctx)}<div class="hero" style="grid-template-columns:1fr"><div><h1>Einstellungen</h1><p class="m">Backup, Daten, Integrationen und Einrichtung – alles an einem Ort.</p></div></div>
+  return `${banner(ctx)}<div class="hero" style="grid-template-columns:1fr"><div><h1>Einstellungen</h1><p class="m">${arenaOnly(ctx.store) ? 'Backup, Arena und Einrichtung.' : 'Backup, Daten, Integrationen und Einrichtung – alles an einem Ort.'}</p></div></div>
   <section class="blk prose"><div class="bh"><h2>Backup</h2><p>${n} Trainingseinheiten · ${last ? 'letztes ' + dfmt(last) : 'noch keins'}</p></div>
   <div class="ex" style="--c:var(--k-core)"><p>Alles liegt nur auf diesem Gerät, ohne Konto und ohne Cloud. Speicher ab und zu ein Backup, z. B. in die Dateien-App oder iCloud Drive.</p>
   <p class="note">Umzug aus der alten Hybrid-Training-App: dort „Backup speichern“, hier „Backup laden“.</p>${arenaConn(ctx) ? '<p class="note">Das Backup enthält auch deinen Arena-Zugang.</p>' : ''}
   <p class="note"><label class="wph"><input type="checkbox" id="withPhotos"${withPhotos ? ' checked' : ''}> mit Fotos</label> <span id="photoSize"></span></p>
   <div class="tools"><button class="btn pri" data-a="export" type="button">Backup speichern</button><label class="btn" for="imp" style="display:inline-flex;align-items:center">Backup laden<input id="imp" type="file" accept="application/json,.json" style="display:none"></label></div>
   <p class="note" id="impMsg" aria-live="polite"></p></div></section>
-  ${integ.sections(ctx)}
+  ${arenaOnly(ctx.store) ? '' : integ.sections(ctx)}
   ${arenaSection(ctx)}
   <section class="blk prose"><div class="bh"><h2>Einrichtung</h2></div><details class="dsc"><summary><span class="tx2"><b>Apple Health einrichten</b><small>einmalig · 3 Minuten</small></span></summary>
   <div class="dbody"><p>Das Training schickt Krafteinheiten über einen Kurzbefehl an Apple Health. Google Health holt sie sich von dort, wenn die Verbindung in der Google-Health-App unter <b>Partner-Apps → Apple Health</b> aktiv ist.</p>

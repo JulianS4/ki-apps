@@ -32,7 +32,7 @@ function bodyRoute(sub) {
 }
 
 // Cockpit: one area per section, sub-pages as views.
-const FIN_VIEWS = { konten: 'accounts', buchungen: 'tx', kosten: 'costs', budget: 'budget', abos: 'subs' };
+const FIN_VIEWS = { konten: 'accounts', buchungen: 'tx', ausgaben: 'costs', kosten: 'costs', budget: 'budget', abos: 'subs' };
 function sub(h, base) { return h === base ? '' : h.startsWith(base + '/') ? h.slice(base.length + 1) : null; }
 function cockpitRoute(h) {
   let s;

@@ -22,7 +22,7 @@ export function periodPicker(id, today) {
   const s = chartState(id), r = rangeOf(id, today);
   const seg = `<div class="seg" role="group" aria-label="Zeitraum">${PICK.map(([v, l]) => `<button type="button" data-a="per" data-chart="${id}" data-v="${v}" aria-pressed="${s.per === v}"${s.per === v ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`;
   const free = s.per === 'frei' ? `<div class="cust"><label class="sr" for="${id}-from">Von</label><input class="tx" id="${id}-from" type="date" data-a="pdate" data-chart="${id}" data-k="from" value="${esc(s.from)}"><span>bis</span><label class="sr" for="${id}-to">Bis</label><input class="tx" id="${id}-to" type="date" data-a="pdate" data-chart="${id}" data-k="to" value="${esc(s.to)}"></div>` : '';
-  const warn = s.per === 'frei' && !r.ok ? '<p class="err" role="alert">Zeitraum unvollständig oder „von“ liegt nach „bis“ – gezeigt wird der aktuelle Monat.</p>' : '';
+  const warn = s.per === 'frei' && !r.ok ? '<p class="err" role="alert">Zeitraum unvollständig, „von“ liegt nach „bis“ oder er ist länger als 10 Jahre – gezeigt wird der aktuelle Monat.</p>' : '';
   return `<div class="per">${seg}${free}</div>${warn}<p class="note">${esc(r.label)}</p>`;
 }
 // Clicks and changes the charts own; true when handled (the caller redraws).

@@ -51,7 +51,7 @@ export function periodRange(kind, today, custom) {
   if (kind === 'woche') { const from = addDaysUtc(today, -((wday(today) + 6) % 7)), to = addDaysUtc(from, 6); return { from, to, label: `Woche ${dm(from)}–${dm(to)}` }; }
   if (kind === 'frei') {
     const f = custom && custom.from, t = custom && custom.to;
-    return isDay(f) && isDay(t) && f <= t ? { from: f, to: t, label: `${dmy(f)}–${dmy(t)}` } : null;
+    return isDay(f) && isDay(t) && f <= t && daysUntil(f, t) <= 3660 ? { from: f, to: t, label: `${dmy(f)}–${dmy(t)}` } : null;
   }
   const month = (yy, mm) => ({ from: first(yy, mm), to: `${yy}-${pad(mm)}-${pad(lastDay(yy, mm))}`, label: `${MONTHS[mm - 1]} ${yy}` });
   if (kind === 'vormonat') { const p = addMonths(first(y, m), -1); return month(...parts(p).slice(0, 2)); }
