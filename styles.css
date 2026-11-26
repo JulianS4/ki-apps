@@ -313,3 +313,22 @@ textarea.tx{padding:10px 12px;min-height:80px;resize:vertical}
 .pcmp figcaption{font-size:13px;color:var(--mut);text-align:center;margin-top:4px}
 .wph{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600;color:var(--ink)}
 .wph input{width:22px;height:22px;accent-color:var(--acc)}
+/* Arena */
+.ascore{margin:4px 0 12px;font-size:26px;font-weight:800;font-stretch:112%;font-variant-numeric:tabular-nums}
+.atask{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 14px}
+.atask .at{flex:1 1 140px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.atask .at .note{margin:0}
+.atask>.note{margin:0}
+.atask .sub{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px}
+.atask .li{flex:1 1 100%;padding:0}
+.ayn{display:flex;gap:6px}
+.ayn .btn{min-width:64px}
+.aval{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--mut)}
+.list .aval .tx{width:6em;min-height:44px;height:auto;flex:none}
+.awk{width:100%;border-collapse:collapse;background:var(--card);border-radius:16px;overflow:hidden;font-variant-numeric:tabular-nums}
+.awk th,.awk td{padding:10px 14px;text-align:right;border-top:1px solid var(--line)}
+.awk th:first-child{text-align:left;font-weight:600}
+.awk thead th{border-top:0;color:var(--mut);font-size:13px}
+.awk tfoot th,.awk tfoot td{font-weight:800}
+.alead{font-weight:700;margin:10px 2px}
+.ahist li{padding:12px 14px}

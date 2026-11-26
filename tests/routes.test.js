@@ -47,3 +47,10 @@ test('body routes', () => {
   assert.deepEqual(parseRoute('#koerper/messung?quatsch'), { area: 'body', view: 'entry', date: null });
   assert.deepEqual(parseRoute('#koerper/xyz'), { area: 'body', view: 'overview' });
 });
+
+test('arena routes', () => {
+  assert.deepEqual(parseRoute('#arena'), { area: 'arena', view: 'today' });
+  assert.deepEqual(parseRoute('#arena/woche'), { area: 'arena', view: 'week' });
+  assert.deepEqual(parseRoute('#arena/verlauf'), { area: 'arena', view: 'history' });
+  assert.deepEqual(parseRoute('#arena/einladung?abc_-1'), { area: 'arena', view: 'invite', token: 'abc_-1' });
+});

@@ -19,6 +19,12 @@ function recoveryRoute(sub) {
 
 const FOOD_VIEWS = { gerichte: 'dishes', einkauf: 'shop' };
 const ROUT_VIEWS = { grandpa: 'grandpa', halterung: 'holder' };
+const ARENA_VIEWS = { woche: 'week', verlauf: 'history' };
+function arenaRoute(sub) {
+  const [p, q] = sub.split('?');
+  if (p === 'einladung') return { area: 'arena', view: 'invite', token: q || '' };
+  return { area: 'arena', view: ARENA_VIEWS[p] || 'today' };
+}
 const BODY_VIEWS = { verlauf: 'history', fotos: 'photos', messung: 'entry' };
 function bodyRoute(sub) {
   const [p, q] = sub.split('?'), view = BODY_VIEWS[p] || 'overview';
@@ -30,6 +36,7 @@ export function parseRoute(hash) {
   if (h === 'einstellungen') return { area: 'settings' };
   if (h === 'recovery' || h.startsWith('recovery/')) return recoveryRoute(h.slice('recovery/'.length));
   if (h === 'routinen' || h.startsWith('routinen/')) return { area: 'routines', view: ROUT_VIEWS[h.slice('routinen/'.length)] || 'today' };
+  if (h === 'arena' || h.startsWith('arena/')) return arenaRoute(h.slice('arena/'.length));
   if (h === 'koerper' || h.startsWith('koerper/')) return bodyRoute(h.slice('koerper/'.length));
   if (h === 'ernaehrung' || h.startsWith('ernaehrung/')) return { area: 'food', view: FOOD_VIEWS[h.slice('ernaehrung/'.length)] || 'today' };
   if (h === 'training' || h.startsWith('training/')) return trainingRoute(h.slice('training/'.length));

@@ -1,0 +1,180 @@
+// Arena area: Julian vs. Uygar, live over Firebase. The views read an
+// in-memory model that the subscriptions fill; the connection stays open
+// while the app runs, so the Heute tile can show the last known score.
+import { ds, dayIdx } from '../../core/dates.js';
+import { TASKS, PLAYERS } from './data.js';
+import { cleanConn, cleanTasks, berlinDay, plusDays, mondayOf, weekDays, isoWeek, editable, dayPoints, weekSums, history, totalsSince, suggest, randomId } from './logic.js';
+import { firebaseNet } from './net.js';
+import { emptyView, loadingView, offlineView, deniedView, configView, todayView, weekView, historyView } from './view.js';
+import { hoursInBed } from '../recovery/logic.js';
+import { summary as foodSummary } from '../food/index.js';
+import { DEF } from '../training/plan-default.js';
+import { totals } from '../training/logic.js';
+
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isNum = v => typeof v === 'number' && Number.isFinite(v);
+const isDay = d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const safe = fn => { try { return fn(); } catch (e) { return null; } };
+const MSG = { offline: 'Gerade kein Netz – wird gesendet, sobald du online bist.', denied: 'Speichern abgelehnt – Einladung prüfen.', config: 'Die Firebase-Konfiguration passt nicht.' };
+
+export const conn = ctx => cleanConn(ctx.store.get('arena.conn'));
+const today = ctx => berlinDay(ctx.now());
+
+// ---------------- connection and model ----------------
+let factory = firebaseNet, net = null, netId = null, model = null, readyP = null;
+export function setNetFactory(fn) { factory = fn; disconnect(); }
+function disconnect() {
+  if (net) net.close();
+  net = null; netId = null; model = null; readyP = null;
+}
+
+function saveCache(ctx) {
+  const t = today(ctx), s = { day: t, julian: 0, uygar: 0 };
+  for (const d of model.days) if (d.date === t && isNum(d.total)) s[d.player] += d.total;
+  ctx.store.set('arena.cache', s);
+}
+export function cacheSummary(ctx) {
+  const c = ctx.store.get('arena.cache');
+  return isObj(c) && isDay(c.day) && isNum(c.julian) && isNum(c.uygar) ? { day: c.day, julian: c.julian, uygar: c.uygar } : null;
+}
+
+function connect(ctx) {
+  const c = conn(ctx);
+  if (!c) { disconnect(); return null; }
+  const id = c.code + ':' + c.player;
+  if (net && netId === id) return model;
+  disconnect();
+  const n = factory(c), m = { tasks: [], days: [], start: null, loaded: false, error: null };
+  net = n; netId = id; model = m;
+  const live = () => n === net;
+  readyP = n.ready.then(() => n.info()).then(info => {
+    if (!live()) return;
+    m.start = info.start;
+    n.watchTasks(t => { if (!live()) return; m.tasks = cleanTasks(t); m.loaded = true; saveCache(ctx); ctx.rerender(); });
+    n.watchDays(info.start, '9999-12-31', d => { if (!live()) return; m.days = (Array.isArray(d) ? d : []).filter(x => isObj(x) && x.player in PLAYERS && isDay(x.date)); saveCache(ctx); ctx.rerender(); });
+  }).catch(e => { if (live()) { m.error = (e && e.message) || 'offline'; ctx.rerender(); } });
+  return m;
+}
+// Tests and the setup flow wait for the connection; errors stay in the model.
+export const ready = ctx => { connect(ctx); return readyP ? readyP.catch(() => {}) : Promise.resolve(); };
+
+// ---------------- screen state ----------------
+let shown = null, edit = false, confirm = false, week = null, err = '';
+export function onNavigate() { shown = null; edit = false; confirm = false; week = null; err = ''; }
+
+export function header(route) {
+  const v = route.view, tab = (h, l, on) => `<a href="${h}"${on ? ' class="on"' : ''}>${l}</a>`;
+  return `<nav class="tabs">${tab('#arena', 'Heute', v === 'today')}${tab('#arena/woche', 'Woche', v === 'week')}${tab('#arena/verlauf', 'Verlauf', v === 'history')}</nav>`;
+}
+
+const mine = (ctx, d) => model.days.find(x => x.player === conn(ctx).player && x.date === d);
+const scoresOn = d => {
+  const s = { julian: 0, uygar: 0 };
+  for (const x of model.days) if (x.date === d && isNum(x.total)) s[x.player] += x.total;
+  return s;
+};
+const shownDay = ctx => (isDay(shown) ? shown : today(ctx));
+
+// Julian's suggestions read his own local data; nothing of it goes online.
+function suggestions(ctx) {
+  const now = ctx.now(), local = ds(now), m = (ctx.store.get('rec.morning') || {})[local];
+  const sleepH = isObj(m) && HHMM.test(m.bed) && HHMM.test(m.wake) ? hoursInBed(m.bed, m.wake) : undefined;
+  const f = safe(() => foodSummary(ctx)) || {};
+  const sets = safe(() => {
+    const plan = ctx.store.get('train.plan') || DEF, day = plan.days[dayIdx(now)];
+    return totals(day, (ctx.store.get('train.sess') || {})['s_' + local + '_' + day.id]).o;
+  });
+  const s = suggest({ sleepH, clean: f.clean, water: f.water, sets });
+  return { health: s.health ? `${String(Math.round(sleepH * 10) / 10).replace('.', ',')} h Schlaf, sauber, ${String(f.water / 1000).replace('.', ',')} L` : '', training: s.training ? 'Training eingetragen' : '' };
+}
+
+function todayVM(ctx) {
+  const c = conn(ctx), t = today(ctx), d = shownDay(ctx), doc = mine(ctx, d), values = doc && isObj(doc.values) ? doc.values : {};
+  const sug = c.player === 'julian' && d === t ? suggestions(ctx) : {};
+  const pts = dayPoints(model.tasks, values).points;
+  return {
+    day: d, isToday: d === t, switchTo: d === t ? plusDays(t, -1) : t, locked: !editable(d, t, model.start),
+    scores: scoresOn(d), pending: net.status().pending, error: err, edit, confirm, other: c.player === 'julian' ? 'Uygar' : 'Julian',
+    tasks: model.tasks.filter(x => !x.archived).map(x => ({ ...x, value: values[x.id], points: pts[x.id] || 0, suggest: values[x.id] === undefined ? sug[x.id] || '' : '' })),
+  };
+}
+function weekVM(ctx) {
+  const t = today(ctx), cur = mondayOf(t), m = isDay(week) && week <= cur ? week : cur;
+  const by = {};
+  for (const x of model.days) by[x.player + '_' + x.date] = x.total;
+  return {
+    kw: isoWeek(m).week, sums: weekSums(model.days, m), prev: plusDays(m, -7), next: m < cur ? plusDays(m, 7) : null,
+    days: weekDays(m).map(date => ({ date, julian: by['julian_' + date], uygar: by['uygar_' + date] })),
+  };
+}
+
+export function render(route, ctx) {
+  if (!conn(ctx)) return emptyView();
+  const m = connect(ctx);
+  if (!m.loaded) return m.error === 'denied' ? deniedView() : m.error === 'config' ? configView() : m.error ? offlineView() : loadingView();
+  if (route.view === 'week') return weekView(weekVM(ctx));
+  if (route.view === 'history') {
+    const t = today(ctx);
+    return historyView({ weeks: history(m.days, m.start, t), totals: totalsSince(m.days, t) });
+  }
+  return todayView(todayVM(ctx));
+}
+
+export function mount() { /* the connection is opened by render */ }
+
+// The whole day is written each time, points included.
+function setValue(ctx, id, value) {
+  const c = conn(ctx), t = today(ctx), d = shownDay(ctx);
+  if (!c || !model || !model.loaded || !editable(d, t, model.start)) return;
+  const doc = mine(ctx, d), values = { ...(doc && isObj(doc.values) ? doc.values : {}) };
+  if (value === null) delete values[id]; else values[id] = value;
+  const { points, total } = dayPoints(model.tasks, values), next = { player: c.player, date: d, values, points, total };
+  model.days = [...model.days.filter(x => !(x.player === c.player && x.date === d)), next];
+  err = '';
+  net.putDay({ date: d, values, points, total }).catch(e => { err = MSG[e && e.message] || MSG.offline; ctx.rerender(); });
+  saveCache(ctx);
+  ctx.rerender();
+}
+function putTask(ctx, task) {
+  if (!net || !model || !model.loaded) return;
+  model.tasks = cleanTasks([...model.tasks.filter(x => x.id !== task.id), task]);
+  net.putTask(task).catch(e => { err = MSG[e && e.message] || MSG.offline; ctx.rerender(); });
+}
+
+export function onClick(e, route, ctx) {
+  const t = e.target.closest('[data-a]');
+  if (!t || !conn(ctx) || !model) return;
+  const a = t.dataset.a, id = t.dataset.t, task = model.tasks.find(x => x.id === id);
+  if ((a === 'yes' || a === 'no' || a === 'take') && task && task.kind === 'yes') setValue(ctx, id, a !== 'no');
+  if (a === 'day' && isDay(t.dataset.d)) { shown = t.dataset.d; edit = false; ctx.rerender(); }
+  if (a === 'wk' && isDay(t.dataset.d)) { week = mondayOf(t.dataset.d); ctx.rerender(); }
+  if (a === 'tedit') { edit = !edit; confirm = false; ctx.rerender(); }
+  if (a === 'tadd') {
+    putTask(ctx, { id: 't' + randomId(6), name: 'Neue Aufgabe', kind: 'yes', order: Math.max(0, ...model.tasks.map(x => x.order)) + 1, archived: false });
+    ctx.rerender();
+  }
+  if (a === 'tarch' && task) { putTask(ctx, { ...task, archived: true }); ctx.rerender(); }
+  if (a === 'treset') {
+    // Two taps: the first only asks. Notion's five come back, the rest is archived.
+    if (!confirm) { confirm = true; ctx.rerender(); return; }
+    confirm = false;
+    edit = false;
+    for (const x of model.tasks) if (!TASKS.some(d => d.id === x.id) && !x.archived) putTask(ctx, { ...x, archived: true });
+    for (const d of TASKS) putTask(ctx, { ...d });
+    ctx.rerender();
+  }
+}
+
+export function onChange(e, route, ctx) {
+  const t = e.target, a = t.dataset && t.dataset.a;
+  if (!conn(ctx) || !model) return;
+  const task = model.tasks.find(x => x.id === t.dataset.t), s = String(t.value ?? '').trim().replace(',', '.');
+  if (a === 'val' && task && task.kind === 'value') {
+    if (s === '') setValue(ctx, task.id, null);
+    else if (/^\d+(\.\d+)?$/.test(s)) setValue(ctx, task.id, +s);
+    else ctx.rerender();
+  }
+  if (a === 'tn' && task && String(t.value).trim()) { putTask(ctx, { ...task, name: String(t.value).trim().slice(0, 60) }); ctx.rerender(); }
+  if (a === 'tg' && task && task.kind === 'value' && /^\d+(\.\d+)?$/.test(s) && +s > 0) { putTask(ctx, { ...task, goal: +s }); ctx.rerender(); }
+}
