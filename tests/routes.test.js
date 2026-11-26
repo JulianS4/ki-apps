@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { parseRoute } from '../js/core/routes.js';
 
 const cases = [
-  ['', { area: 'heute' }],
-  ['#', { area: 'heute' }],
+  ['', { area: 'cockpit' }],
+  ['#', { area: 'cockpit' }],
   ['#heute', { area: 'heute' }],
   ['#training', { area: 'training', view: 'day', day: null }],
   ['#training/mo', { area: 'training', view: 'day', day: 'mo' }],
@@ -14,8 +14,8 @@ const cases = [
   ['#mo', { area: 'training', view: 'day', day: 'mo' }],
   ['#verlauf', { area: 'training', view: 'hist' }],
   ['#x-pistol', { area: 'training', view: 'ex', ex: 'pistol' }],
-  ['#mehr', { area: 'heute' }],
-  ['#quatsch', { area: 'heute' }],
+  ['#mehr', { area: 'cockpit' }],
+  ['#quatsch', { area: 'cockpit' }],
   ['#training/zz', { area: 'training', view: 'day', day: null }],
   ['#recovery', { area: 'recovery', view: 'today' }],
   ['#recovery/woche', { area: 'recovery', view: 'week' }],

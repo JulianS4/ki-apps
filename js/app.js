@@ -1,4 +1,4 @@
-// KI-Apps shell: routing, shared context, delegated events, offline cache.
+// Life OS shell: routing, navigation, shared context, delegated events, offline cache.
 import { createStore, pickBackend } from './core/store.js';
 import { parseRoute } from './core/routes.js';
 import { runMigrations } from './core/migrate.js';
@@ -18,7 +18,8 @@ import * as projects from './areas/cockpit/projects.js';
 import * as agents from './areas/cockpit/agents.js';
 import * as notes from './areas/cockpit/notes.js';
 import * as integrations from './areas/cockpit/integrations.js';
-import { FAMILY, cnav } from './areas/cockpit/ui.js';
+import { FAMILY } from './areas/cockpit/ui.js';
+import { navKey, sideNav, bottomNav, moreList } from './areas/cockpit/nav.js';
 
 const $ = s => document.querySelector(s);
 
@@ -27,7 +28,7 @@ const $ = s => document.querySelector(s);
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
 const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations };
-const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Körper', arena: 'Arena', settings: 'Einstellungen' };
+const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Körper', arena: 'Arena' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
 
@@ -49,14 +50,13 @@ const ctx = {
   reloadAll: () => Object.values(AREAS).forEach(a => a.reload && a.reload(ctx)),
 };
 
+// The top bar: the app name on phones, or the way back from a Training &
+// Erholung page; an area may add its own tabs on the right.
 function header(route, area) {
-  // Cockpit pages share one navigation row under the brand.
-  if (FAMILY.includes(route.area)) return `<div class="lead"><a class="brand" href="#cockpit">Cockpit</a></div><a class="home" href="#heute">KI-Apps ›</a>${cnav(route.area)}`;
-  const left = route.area === 'arena' && arenaOnly(ctx.store) ? '<span class="brand">Arena</span>' : route.area === 'heute'
-    ? '<a class="brand" href="#heute">KI-Apps</a>'
-    : `<a class="home" href="#heute">‹ Heute</a><span class="brand">${TITLES[route.area]}</span>`;
-  const right = area.header ? area.header(route, ctx)
-    : route.area === 'heute' ? '<nav class="tabs"><a href="#cockpit">Cockpit</a><a href="#einstellungen">Einstellungen</a></nav>' : '';
+  const left = route.area === 'arena' && arenaOnly(ctx.store) ? '<span class="brand">Arena</span>'
+    : TITLES[route.area] ? `<a class="home" href="#heute" aria-label="Zurück zu Training &amp; Erholung">‹</a><span class="brand">${TITLES[route.area]}</span>`
+      : '<a class="brand m" href="#uebersicht">Life OS</a>';
+  const right = area.header ? area.header(route, ctx) : '';
   return `<div class="lead">${left}</div>${right}`;
 }
 
@@ -68,11 +68,12 @@ function render() {
   // Uygar sees only the arena (and settings) until he shows everything.
   if (arenaOnly(ctx.store) && route.area !== 'arena' && route.area !== 'settings') { location.replace('#arena'); return; }
   current = { route, area };
-  const cx = FAMILY.includes(route.area);
-  document.body.classList.toggle('cx', cx);
+  const key = navKey(route);
+  document.body.classList.toggle('wide', FAMILY.includes(route.area) || route.area === 'settings' || route.area === 'heute');
+  document.body.classList.toggle('solo', arenaOnly(ctx.store));
+  $('#side').innerHTML = sideNav(key);
+  $('#bnav').innerHTML = bottomNav(key);
   $('#top').innerHTML = header(route, area);
-  const nav = cx && $('#top .cnav'), on = nav && nav.querySelector('.on');
-  if (on) nav.scrollLeft = on.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   $('#main').innerHTML = area.render(route, ctx);
   if (area.mount) area.mount($('#main'), route, ctx);
 }
@@ -82,6 +83,19 @@ for (const type of ['click', 'input', 'change']) {
   $('#main').addEventListener(type, e => { if (current && current.area[name]) current.area[name](e, current.route, ctx); });
 }
 $('#main').addEventListener('focusout', () => setTimeout(() => { if (needs) render(); }, 0));
+
+// "Mehr" on the phone: every area in a dialog (Escape and the backdrop close it).
+const more = $('#more');
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('[data-skip]')) { $('#main').focus(); return; }
+  const t = e.target.closest && e.target.closest('[data-nav]');
+  if (t && t.dataset.nav === 'more') {
+    more.innerHTML = moreList(navKey(parseRoute(location.hash)));
+    more.showModal();
+    t.setAttribute('aria-expanded', 'true');
+  } else if ((t && t.dataset.nav === 'close') || e.target === more || (e.target.closest && e.target.closest('#more a'))) more.close();
+});
+more.addEventListener('close', () => { const b = $('#bnav [data-nav="more"]'); if (b) b.setAttribute('aria-expanded', 'false'); });
 
 addEventListener('hashchange', e => {
   const o = new URL(e.oldURL).hash, n = location.hash;
@@ -105,12 +119,11 @@ addEventListener('resize', () => {
 // Home-screen apps resume without reloading: redraw so "Heute" and the
 // training day follow the clock instead of showing this morning's state.
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
-setInterval(() => { if (!document.hidden && current && current.route.area === 'heute') render(); }, 60000);
+setInterval(() => { if (!document.hidden && current && (current.route.area === 'heute' || current.route.area === 'cockpit')) render(); }, 60000);
 
 runMigrations(ctx.store);
 if (training.init) training.init(ctx);
 if (recovery.init) recovery.init(ctx);
 render();
-ctx.setStatus(!persistent ? 'Speichern nicht möglich – privater Modus? Einträge gehen beim Schließen verloren.'
-  : ctx.store.keys().length ? 'Gespeichert auf diesem Gerät' : 'Bereit · Daten bleiben auf diesem Gerät');
+if (!persistent) ctx.setStatus('Speichern nicht möglich – privater Modus? Einträge gehen beim Schließen verloren.');
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

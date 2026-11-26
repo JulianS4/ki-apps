@@ -37,7 +37,7 @@ test('routes reach every cockpit page', () => {
   assert.deepEqual(parseRoute('#projekte/log'), { area: 'projects', view: 'log' });
   assert.deepEqual(parseRoute('#wissen/n-abc'), { area: 'notes', view: 'note', id: 'abc' });
   assert.deepEqual(parseRoute('#agents'), { area: 'agents' });
-  assert.deepEqual(parseRoute('#integrationen'), { area: 'integrations' });
+  assert.deepEqual(parseRoute('#integrationen'), { area: 'settings' });
 });
 
 test('a new entry is typed into the form and saved; missing fields are named', () => {

@@ -36,9 +36,11 @@ const FIN_VIEWS = { konten: 'accounts', buchungen: 'tx', kosten: 'costs', budget
 function sub(h, base) { return h === base ? '' : h.startsWith(base + '/') ? h.slice(base.length + 1) : null; }
 function cockpitRoute(h) {
   let s;
-  if (h === 'cockpit') return { area: 'cockpit' };
+  if (h === 'cockpit' || h === 'uebersicht' || h === '') return { area: 'cockpit' };
+  if (h === 'heute') return { area: 'heute' };
+  if (h === 'business-log') return { area: 'projects', view: 'log' };
   if (h === 'agents') return { area: 'agents' };
-  if (h === 'integrationen') return { area: 'integrations' };
+  if (h === 'integrationen') return { area: 'settings' };
   if ((s = sub(h, 'finanzen')) !== null) return { area: 'finance', view: FIN_VIEWS[s] || 'overview' };
   if ((s = sub(h, 'ausbildung')) !== null) {
     const [p, q] = s.split('?');
@@ -66,5 +68,5 @@ export function parseRoute(hash) {
   if (h === 'ernaehrung' || h.startsWith('ernaehrung/')) return { area: 'food', view: FOOD_VIEWS[h.slice('ernaehrung/'.length)] || 'today' };
   if (h === 'training' || h.startsWith('training/')) return trainingRoute(h.slice('training/'.length));
   if (DAYS.includes(h) || h === 'verlauf' || (h.startsWith('x-') && h.length > 2)) return trainingRoute(h);
-  return { area: 'heute' };
+  return { area: 'cockpit' };
 }
