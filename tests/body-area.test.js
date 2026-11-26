@@ -4,6 +4,7 @@ import * as body from '../js/areas/body/index.js';
 import * as food from '../js/areas/food/index.js';
 import { createStore } from '../js/core/store.js';
 import { memBackend } from './helpers.js';
+import { memPhotos } from '../js/areas/body/photos.js';
 
 const at = (h, m, d = 26, mo = 10) => new Date(2026, mo, d, h, m);
 const OV = { area: 'body', view: 'overview' }, HIST = { area: 'body', view: 'history' }, PH = { area: 'body', view: 'photos' };
@@ -127,4 +128,71 @@ test('history draws a chart from two weights, one value stays a number', () => {
   assert.match(html, /class="goal"/);
   assert.match(html, /Körperfett 14,5 %/);
   assert.equal((html.match(/<svg/g) || []).length, 1);
+});
+
+
+const small = async () => new Blob(['small'], { type: 'image/jpeg' });
+const pick = (ctx, pose) => body.onChange({ target: { dataset: { a: 'pfile', pose }, files: [new Blob(['big'])] } }, PH, ctx);
+
+test('a photo is indexed only after the store has it', async () => {
+  const ctx = mk(), s = memPhotos();
+  body.setPhotoStore(s);
+  body.setResizer(small);
+  await pick(ctx, 'vorne');
+  assert.deepEqual(ctx.store.get('body.photos'), { '2026-11-26': { vorne: true } });
+  assert.ok(await s.get('2026-11-26:vorne'));
+});
+
+test('a failed save shows a message and indexes nothing', async () => {
+  const ctx = mk();
+  body.setPhotoStore(memPhotos({ failKeys: ['2026-11-26:vorne'] }));
+  body.setResizer(small);
+  await pick(ctx, 'vorne');
+  assert.equal(ctx.store.get('body.photos'), null);
+  assert.match(ctx.status, /Foto konnte nicht gespeichert werden/);
+  body.setResizer(async () => { throw new Error('HEIC'); });
+  body.setPhotoStore(memPhotos());
+  await pick(ctx, 'hinten');
+  assert.equal(ctx.store.get('body.photos'), null);
+});
+
+test('compare shows the oldest and newest day side by side', () => {
+  const ctx = mk();
+  body.setPhotoStore(memPhotos());
+  ctx.store.set('body.photos', { '2026-08-01': { vorne: true }, '2026-09-01': { vorne: true }, '2026-11-02': { vorne: true, seitlich: true } });
+  let html = body.render(PH, ctx);
+  assert.match(html, /data-photo="2026-08-01:vorne"/);
+  assert.match(html, /data-photo="2026-11-02:vorne"/);
+  body.onChange({ target: { dataset: { a: 'pa' }, value: '2026-09-01' } }, PH, ctx);
+  body.onClick(click({ a: 'ppose', pose: 'seitlich' }), PH, ctx);
+  html = body.render(PH, ctx);
+  assert.match(html, /data-photo="2026-11-02:seitlich"/);
+  assert.match(html, /kein Foto/);
+});
+
+test('one photo day stands alone with a hint', () => {
+  const ctx = mk();
+  body.setPhotoStore(memPhotos());
+  ctx.store.set('body.photos', { '2026-11-02': { vorne: true } });
+  assert.match(body.render(PH, ctx), /Vergleich ab zwei Terminen/);
+});
+
+test('deleting a photo day takes two taps and removes the images', async () => {
+  const ctx = mk(), s = memPhotos();
+  body.setPhotoStore(s);
+  await s.put('2026-11-02:vorne', await small());
+  ctx.store.set('body.photos', { '2026-11-02': { vorne: true } });
+  await body.onClick(click({ a: 'pdel', d: '2026-11-02' }), PH, ctx);
+  assert.match(body.render(PH, ctx), /Sicher\? Nochmal tippen/);
+  await body.onClick(click({ a: 'pdel', d: '2026-11-02' }), PH, ctx);
+  assert.deepEqual(ctx.store.get('body.photos'), {});
+  assert.equal(await s.get('2026-11-02:vorne'), null);
+});
+
+test('without a photo store the tab says so', () => {
+  const ctx = mk();
+  body.setPhotoStore(null);
+  ctx.store.set('body.weight', { '2026-11-20': 92 });
+  assert.match(body.render(PH, ctx), /Fotos sind auf diesem Gerät nicht verfügbar/);
+  assert.match(body.render(OV, ctx), /92 kg/);
 });

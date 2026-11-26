@@ -1,7 +1,7 @@
 // Körper views as HTML strings. Pure: everything comes in through `v`.
 import { esc } from '../../core/html.js';
 import { dfmt } from '../../core/dates.js';
-import { FIELDS, MEASURES, GOALS } from './data.js';
+import { FIELDS, MEASURES, GOALS, POSES } from './data.js';
 import { fmtNum, fmtTime } from './logic.js';
 
 const hero = (k, title) => `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">${k}</p><h1>${title}</h1></div></div>`;
@@ -77,4 +77,30 @@ export function historyView(v) {
     ${rows ? `<ul class="list">${rows}</ul>` : '<p class="note">Noch keine Messung. <a href="#koerper/messung">Messung eintragen ›</a></p>'}</section>`;
 }
 
-export const photosPlaceholder = () => hero('Körper', 'Fotos') + '<p class="note">Fotos folgen.</p>';
+// Photos: new ones per pose, the before/after view, and the list of days.
+export function photosView(v) {
+  if (!v.available) return hero('Körper', 'Fotos') + '<p class="note">Fotos sind auf diesem Gerät nicht verfügbar. Werte, Verlauf und Quartals-Check funktionieren weiter.</p>';
+  const year = d => `${dfmt(d)} ${d.slice(0, 4)}`;
+  const img = (d, p) => (v.idx[d] && v.idx[d][p] ? `<img data-photo="${d}:${p}" alt="${p} ${dfmt(d)}">` : '<div class="pmiss">kein Foto</div>');
+  const slots = POSES.map(p => `<div class="pslot">${v.idx[v.day] && v.idx[v.day][p.id] ? img(v.day, p.id) : '<div class="pmiss">+ Foto</div>'}<span>${p.label}</span>
+    <input type="file" accept="image/*" data-a="pfile" data-pose="${p.id}" aria-label="Foto ${p.label}"></div>`).join('');
+  const opts = sel => v.days.map(d => `<option value="${d}"${d === sel ? ' selected' : ''}>${year(d)}</option>`).join('');
+  const poses = `<div class="tools">${POSES.map(p => `<button class="btn${p.id === v.pose ? ' pri' : ''}" type="button" data-a="ppose" data-pose="${p.id}">${p.label}</button>`).join('')}</div>`;
+  const fig = d => `<figure>${img(d, v.pose)}<figcaption>${year(d)}</figcaption></figure>`;
+  let cmp = '<p class="note">Noch keine Fotos.</p>';
+  if (v.days.length === 1) cmp = `${poses}<div class="pcmp one">${fig(v.days[0])}</div><p class="note">Vergleich ab zwei Terminen.</p>`;
+  if (v.days.length > 1) {
+    cmp = `<div class="psel"><select class="tx" data-a="pa" aria-label="Vorher">${opts(v.a)}</select><span>↔</span><select class="tx" data-a="pb" aria-label="Nachher">${opts(v.b)}</select></div>
+    ${poses}<div class="pcmp">${fig(v.a)}${fig(v.b)}</div>`;
+  }
+  const list = v.days.slice().reverse().map(d => {
+    const sure = v.confirm === d;
+    return `<li><div class="li"><span class="t"><b>${year(d)}</b> <small class="note">${POSES.filter(p => v.idx[d][p.id]).map(p => p.label).join(' · ')}</small></span>
+    <button class="btn${sure ? ' red' : ''}" type="button" data-a="pdel" data-d="${d}" aria-label="Fotos vom ${dfmt(d)} löschen">${sure ? 'Sicher? Nochmal tippen' : '×'}</button></div></li>`;
+  }).join('');
+  return hero('Körper', 'Fotos') + `<section class="blk"><div class="bh"><h2>Neue Fotos</h2></div><div class="ex">
+  <label class="bf" for="pDay">Datum<input id="pDay" class="tx" type="date" data-a="pdate" value="${v.day}" max="${v.today}"></label>
+  <div class="pslots">${slots}</div><p class="note">Tippen öffnet Kamera oder Mediathek. Die Fotos bleiben auf diesem Gerät.</p></div></section>
+  <section class="blk"><div class="bh"><h2>Vergleich</h2></div>${cmp}</section>
+  ${list ? `<section class="blk"><div class="bh"><h2>Foto-Termine</h2><p>${v.days.length}</p></div><ul class="list">${list}</ul></section>` : ''}`;
+}

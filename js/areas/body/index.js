@@ -4,9 +4,10 @@
 import { ds, dfmt } from '../../core/dates.js';
 import { esc } from '../../core/html.js';
 import { bindChart } from '../training/chart.js';
-import { FIELDS, QUARTER_ITEMS, GOALS } from './data.js';
-import { checkForm, cleanWeights, cleanLog, cleanTicks, measureDays, series, quarterOf, quarterStatus, fmtNum, fmtTime } from './logic.js';
-import { overviewView, entryView, historyView, photosPlaceholder, dayLine, fmtValue } from './view.js';
+import { FIELDS, QUARTER_ITEMS, GOALS, POSES } from './data.js';
+import { checkForm, cleanWeights, cleanLog, cleanTicks, cleanPhotos, measureDays, series, quarterOf, quarterStatus, fmtNum, fmtTime } from './logic.js';
+import { overviewView, entryView, historyView, photosView, dayLine, fmtValue } from './view.js';
+import { idbPhotos, resizeImage } from './photos.js';
 import { lineChart } from './chart.js';
 
 export const dayOf = ctx => ds(ctx.now());
@@ -17,11 +18,29 @@ function put(ctx, k, v) {
 const data = ctx => ({ weights: ctx.store.get('body.weight'), log: ctx.store.get('body.log'), photos: ctx.store.get('body.photos'), ticks: ctx.store.get('body.quarter') });
 const last = pts => pts[pts.length - 1] || null;
 
-// Screen-only state: the form being filled, its error and the delete question.
-let draft = null, err = '', confirm = null;
+// Screen-only state: the form being filled, its error and the delete question
+// (a date for a measurement day, "p:" + date for a photo day), and the photo
+// screen: day for new photos, the two compared days, the pose.
+let draft = null, err = '', confirm = null, pday = null, pa = null, pb = null, pose = 'vorne', urls = [];
+
+// Photo store: tests set one; the app opens IndexedDB once. null = not available.
+let photos, resize = resizeImage;
+export const setPhotoStore = s => { photos = s; };
+export const setResizer = fn => { resize = fn; };
+export function photoStore() {
+  if (photos === undefined) { try { photos = idbPhotos(); } catch (e) { photos = null; } }
+  return photos;
+}
+function freeUrls() {
+  for (const u of urls) URL.revokeObjectURL(u);
+  urls = [];
+}
 
 export function reload() { /* state is read from the store on every render */ }
-export function onNavigate() { draft = null; err = ''; confirm = null; }
+export function onNavigate() {
+  draft = null; err = ''; confirm = null; pday = null; pa = null; pb = null; pose = 'vorne';
+  freeUrls();
+}
 
 export function header(route) {
   const v = route.view, tab = (h, l, on) => `<a href="${h}"${on ? ' class="on"' : ''}>${l}</a>`;
@@ -100,15 +119,71 @@ function historyVM(ctx) {
   return { days: measureDays(w, l).map(date => ({ date, line: dayLine(w[date], l[date] || {}) })), confirm, charts: charts(ctx) };
 }
 
+const photoDay = ctx => (isDay(pday) && pday <= dayOf(ctx) ? pday : dayOf(ctx));
+function photosVM(ctx) {
+  const idx = cleanPhotos(ctx.store.get('body.photos')), days = Object.keys(idx).sort(), day = photoDay(ctx);
+  return {
+    available: !!photoStore(), day, today: dayOf(ctx), idx, days, pose,
+    a: days.includes(pa) ? pa : days[0] || null, b: days.includes(pb) ? pb : days[days.length - 1] || null,
+    confirm: confirm && confirm.startsWith('p:') ? confirm.slice(2) : null,
+  };
+}
+
+// Shrink, store, and only then index: a failed save leaves no ghost entry.
+async function savePhoto(ctx, p, file) {
+  const s = photoStore(), d = photoDay(ctx);
+  if (!s || !file) return;
+  try {
+    await s.put(`${d}:${p}`, await resize(file));
+  } catch (e) {
+    if (ctx.setStatus) ctx.setStatus('Foto konnte nicht gespeichert werden');
+    if (ctx.toast) ctx.toast('Foto konnte nicht gespeichert werden', 'Bitte nochmal versuchen.');
+    return;
+  }
+  const idx = cleanPhotos(ctx.store.get('body.photos'));
+  idx[d] = { ...(idx[d] || {}), [p]: true };
+  put(ctx, 'body.photos', idx);
+  ctx.rerender();
+}
+async function deletePhotos(ctx, d) {
+  const s = photoStore();
+  if (s) for (const p of POSES) { try { await s.del(`${d}:${p.id}`); } catch (e) { /* gone from the index anyway */ } }
+  const idx = cleanPhotos(ctx.store.get('body.photos'));
+  delete idx[d];
+  put(ctx, 'body.photos', idx);
+  ctx.rerender();
+}
+// Images come from the store after drawing; a missing one says so.
+async function loadImages(root) {
+  freeUrls();
+  const s = photoStore();
+  for (const img of root.querySelectorAll('img[data-photo]')) {
+    let blob = null;
+    try { blob = s ? await s.get(img.dataset.photo) : null; } catch (e) { blob = null; }
+    if (!img.isConnected) continue;
+    if (blob) {
+      const u = URL.createObjectURL(blob);
+      urls.push(u);
+      img.src = u;
+    } else {
+      const m = document.createElement('div');
+      m.className = 'pmiss';
+      m.textContent = 'Foto nicht auf diesem Gerät';
+      img.replaceWith(m);
+    }
+  }
+}
+
 export function render(route, ctx) {
   if (route.view === 'entry') return entryView({ ...draftFor(ctx, route), err, today: dayOf(ctx) });
   if (route.view === 'history') return historyView(historyVM(ctx));
-  if (route.view === 'photos') return photosPlaceholder();
+  if (route.view === 'photos') return photosView(photosVM(ctx));
   return overviewView(overviewVM(ctx));
 }
 
 export function mount(root, route) {
   if (route.view === 'history' && root) root.querySelectorAll('.bchart').forEach((el, i) => bindChart(el, CH[i]));
+  if (route.view === 'photos' && root) loadImages(root);
 }
 
 export function onClick(e, route, ctx) {
@@ -127,6 +202,13 @@ export function onClick(e, route, ctx) {
     put(ctx, 'body.log', l);
     ctx.rerender();
   }
+  if (a === 'ppose' && POSES.some(p => p.id === t.dataset.pose)) { pose = t.dataset.pose; ctx.rerender(); }
+  if (a === 'pdel' && isDay(t.dataset.d)) {
+    if (confirm !== 'p:' + t.dataset.d) { confirm = 'p:' + t.dataset.d; ctx.rerender(); return undefined; }
+    confirm = null;
+    return deletePhotos(ctx, t.dataset.d);
+  }
+  return undefined;
 }
 
 // Typing: saved in the draft as you go, without redrawing.
@@ -138,6 +220,9 @@ export function onInput(e, route, ctx) {
 export function onChange(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a;
   if (a === 'bdate' && isDay(t.value) && t.value <= dayOf(ctx)) ctx.go('#koerper/messung?' + t.value);
+  if (a === 'pdate' && isDay(t.value) && t.value <= dayOf(ctx)) { pday = t.value; ctx.rerender(); }
+  if ((a === 'pa' || a === 'pb') && isDay(t.value)) { if (a === 'pa') pa = t.value; else pb = t.value; ctx.rerender(); }
+  if (a === 'pfile' && POSES.some(p => p.id === t.dataset.pose)) return savePhoto(ctx, t.dataset.pose, t.files && t.files[0]);
   if (a === 'qtick' && QUARTER_ITEMS.some(i => i.id === t.dataset.id)) {
     const q = quarterOf(dayOf(ctx)), all = cleanTicks(ctx.store.get('body.quarter')), x = { ...(all[q] || {}) };
     if (t.checked) x[t.dataset.id] = true; else delete x[t.dataset.id];
