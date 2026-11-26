@@ -640,3 +640,13 @@ details.dsc .dbody .crows li:first-child{border-top:1px solid var(--line)}
 .cform .fg .err{font-size:13px;font-weight:600}
 .cform .fg [aria-invalid="true"]{border-color:var(--err);border-width:2px}
 @media(prefers-reduced-motion:no-preference){.btn,.seg button,.legend button,.side a,.bnav a{transition:background-color .15s,border-color .15s,color .15s}}
+
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.cform .fgh{margin:6px 0 -4px;font-size:13px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+details.tbld{margin-top:8px}
+details.tbld summary{cursor:pointer;min-height:40px;display:flex;align-items:center;color:var(--mut);font-weight:600;font-size:14px}
+a.back{color:var(--mut);font-weight:600;font-size:15px;margin-top:8px}
+.hero .m b{color:var(--ink)}
+.ichart text.miss{fill:var(--mut);font-weight:700}
+.chips .chipb{min-height:40px}
+.crows .ed{color:var(--acc);font-weight:600}

@@ -79,7 +79,7 @@ export function exportData(ctx, iso) {
 
 // Merges a ki-cockpit file by id. Examples never enter real data.
 export function importData(ctx, obj, file, today) {
-  if (!obj || obj.app !== 'ki-cockpit' || !obj.data || typeof obj.data !== 'object') throw new Error('Keine gültige Cockpit-Datei');
+  if (!obj || obj.app !== 'ki-cockpit' || !obj.data || typeof obj.data !== 'object') throw new Error('Keine gültige Life-OS-Datei');
   const demo = isDemo(ctx);
   if (obj.demo === true && !demo) throw new Error('Diese Datei stammt aus dem Beispielmodus und wird nicht übernommen.');
   let n = 0;

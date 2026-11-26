@@ -13,7 +13,7 @@ export function inviteView(v) {
     <div class="tools"><button class="btn red" type="button" data-a="areplace">Ersetzen</button><button class="btn" type="button" data-a="agoto">Abbrechen</button></div></section>`;
   }
   if (!v.ok) return hero('Einladung', 'Arena') + '<section class="blk"><p class="note">Diese Einladung ist ungültig oder unvollständig.</p></section>';
-  const hint = v.standalone ? '' : `<div class="card warn"><b>Läuft KI-Apps bei dir als App auf dem Home-Bildschirm?</b>
+  const hint = v.standalone ? '' : `<div class="card warn"><b>Läuft Life OS bei dir als App auf dem Home-Bildschirm?</b>
     <span>Dann öffne sie und füge diesen Link dort unter Einstellungen → Einladung einfügen ein. Safari und die App haben getrennten Speicher.</span>
     <div class="tools" style="margin-top:8px"><button class="btn" type="button" data-a="acopy">Link kopieren</button></div></div>`;
   return hero('Einladung', `Du bist ${esc(v.name)}`) + `<section class="blk"><p class="note">Die Arena ist auf diesem Gerät eingerichtet.</p>

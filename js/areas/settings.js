@@ -7,6 +7,8 @@ import { exportPhotos, importPhotos, mergeIndex } from './body/photos.js';
 import { conn as arenaConn, setupArena, joinArena, leaveArena, inviteLink } from './arena/index.js';
 import { PLAYERS } from './arena/data.js';
 import { esc } from '../core/html.js';
+import * as integ from './cockpit/integrations.js';
+import { banner } from './cockpit/ui.js';
 
 const SC_NAME = 'Training loggen';
 
@@ -21,7 +23,7 @@ function prepare(ctx) {
     .then(r => { if (run === gen) { prepared = r; pending = null; } });
   return pending;
 }
-export function onNavigate() { gen++; prepared = null; pending = null; amsg = ''; aconfirm = null; }
+export function onNavigate(next, ctx) { gen++; prepared = null; pending = null; amsg = ''; aconfirm = null; integ.onNavigate(next, ctx); }
 
 // Arena: set up (Julian), paste an invite (Uygar, or a second device), share links.
 let adraft = { cfg: '', inv: '' }, amsg = '', aconfirm = null;
@@ -65,7 +67,7 @@ function arenaClick(t, ctx) {
   if (a === 'ashare' || a === 'acopy2') {
     const link = inviteLink(ctx, t.dataset.p);
     if (!link || typeof navigator === 'undefined') return undefined;
-    if (a === 'ashare' && navigator.share) return navigator.share({ title: 'KI-Apps Arena', url: link }).catch(() => {});
+    if (a === 'ashare' && navigator.share) return navigator.share({ title: 'Life OS Arena', url: link }).catch(() => {});
     if (!navigator.clipboard) return say('Kopieren ging nicht – den Link im Feld markieren und kopieren.');
     return navigator.clipboard.writeText(link).then(() => say('Link kopiert ✓'), () => say('Kopieren ging nicht – den Link im Feld markieren und kopieren.'));
   }
@@ -89,16 +91,17 @@ const INVALID = 'Keine gültige Backup-Datei';
 
 export function render(route, ctx) {
   const n = Object.keys(ctx.store.get('train.sess', {}) || {}).length, last = ctx.store.get('meta.lastBackup');
-  return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Daten & Einrichtung</p><h1>Einstellungen</h1></div></div>
+  return `${banner(ctx)}<div class="hero" style="grid-template-columns:1fr"><div><h1>Einstellungen</h1><p class="m">Backup, Daten, Integrationen und Einrichtung – alles an einem Ort.</p></div></div>
   <section class="blk prose"><div class="bh"><h2>Backup</h2><p>${n} Trainingseinheiten · ${last ? 'letztes ' + dfmt(last) : 'noch keins'}</p></div>
   <div class="ex" style="--c:var(--k-core)"><p>Alles liegt nur auf diesem Gerät, ohne Konto und ohne Cloud. Speicher ab und zu ein Backup, z. B. in die Dateien-App oder iCloud Drive.</p>
   <p class="note">Umzug aus der alten Hybrid-Training-App: dort „Backup speichern“, hier „Backup laden“.</p>${arenaConn(ctx) ? '<p class="note">Das Backup enthält auch deinen Arena-Zugang.</p>' : ''}
   <p class="note"><label class="wph"><input type="checkbox" id="withPhotos"${withPhotos ? ' checked' : ''}> mit Fotos</label> <span id="photoSize"></span></p>
   <div class="tools"><button class="btn pri" data-a="export" type="button">Backup speichern</button><label class="btn" for="imp" style="display:inline-flex;align-items:center">Backup laden<input id="imp" type="file" accept="application/json,.json" style="display:none"></label></div>
   <p class="note" id="impMsg" aria-live="polite"></p></div></section>
+  ${integ.sections(ctx)}
   ${arenaSection(ctx)}
-  <section class="blk prose"><div class="bh"><h2>Apple Health einrichten</h2><p>einmalig · 3 min</p></div>
-  <div class="ex" style="--c:var(--k-push)"><p>Das Training schickt Krafteinheiten über einen Kurzbefehl an Apple Health. Google Health holt sie sich von dort, wenn die Verbindung in der Google-Health-App unter <b>Partner-Apps → Apple Health</b> aktiv ist.</p>
+  <section class="blk prose"><div class="bh"><h2>Einrichtung</h2></div><details class="dsc"><summary><span class="tx2"><b>Apple Health einrichten</b><small>einmalig · 3 Minuten</small></span></summary>
+  <div class="dbody"><p>Das Training schickt Krafteinheiten über einen Kurzbefehl an Apple Health. Google Health holt sie sich von dort, wenn die Verbindung in der Google-Health-App unter <b>Partner-Apps → Apple Health</b> aktiv ist.</p>
   <ol class="steps">
    <li>App <b>Kurzbefehle</b> öffnen → <b>+</b> → Name exakt <code>${SC_NAME}</code></li>
    <li>Aktion <b>„Wörterbuch abrufen“</b> hinzufügen, Eingabe: <b>Kurzbefehleingabe</b></li>
@@ -108,9 +111,9 @@ export function render(route, ctx) {
    <li>Kommt beim Test nichts an: in den Kurzbefehl-Details das Empfangen von <b>Text</b> als Eingabe aktivieren</li>
    <li>Einmal testen: Health fragt nach Schreib-Erlaubnis für Trainings → <b>Erlauben</b></li>
   </ol>
-  <p class="note">Nur Krafttraining und Athlete Day werden gesendet. Läufe kommen schon über Strava bzw. Google Health.</p></div></section>
-  <section class="blk prose"><div class="bh"><h2>Als App installieren</h2></div>
-  <div class="ex" style="--c:var(--k-pull)"><p>In <b>Safari</b> öffnen → <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. Danach startet KI-Apps im Vollbild und funktioniert auch offline.</p></div></section>`;
+  <p class="note">Nur Krafttraining und Athlete Day werden gesendet. Läufe kommen schon über Strava bzw. Google Health.</p></div></details>
+  <details class="dsc"><summary><span class="tx2"><b>Als App installieren</b><small>auf den Home-Bildschirm</small></span></summary>
+  <div class="dbody"><p>In <b>Safari</b> öffnen → <b>Teilen</b> → <b>Zum Home-Bildschirm</b>. Danach startet Life OS im Vollbild und funktioniert auch offline.</p></div></details></section>`;
 }
 
 // The size of the stored photos, so "mit Fotos" is a choice with numbers.
@@ -125,6 +128,7 @@ export function mount(root, route, ctx) {
 // Nothing waits between the tap and the download.
 export function onClick(e, route, ctx) {
   const at = e.target.closest('[data-a]');
+  if (at && at.dataset && integ.ACTIONS.includes(at.dataset.a)) return integ.onClick(e, route, ctx);
   if (at && at.dataset && at.dataset.a && at.dataset.a !== 'export') return arenaClick(at, ctx);
   const t = e.target.closest('[data-a="export"]');
   if (!t) return;
@@ -146,7 +150,7 @@ export function onClick(e, route, ctx) {
   try {
     const u = URL.createObjectURL(new Blob([data], { type: 'application/json' })), l = document.createElement('a');
     l.href = u;
-    l.download = `ki-apps-backup-${today()}.json`;
+    l.download = `life-os-backup-${today()}.json`;
     document.body.appendChild(l);
     l.click();
     l.remove();
@@ -159,6 +163,7 @@ export function onClick(e, route, ctx) {
 
 export function onChange(e, route, ctx) {
   const t = e.target;
+  if (t.id === 'jsonf') return integ.onChange(e, route, ctx);
   if (t.id === 'withPhotos') {
     withPhotos = !!t.checked;
     if (withPhotos) return prepare(ctx);

@@ -1,4 +1,4 @@
-// Shared cockpit view pieces: navigation, example banner, money display,
+// Shared Life OS view pieces: example banner, page header, money display,
 // source lines, bars, and the one form editor all cockpit areas use.
 import { esc } from '../../core/html.js';
 import { ds, dshort, dfmt } from '../../core/dates.js';
@@ -6,10 +6,7 @@ import { SCHEMAS, parseItem, toDraft } from './schema.js';
 import * as db from './db.js';
 import { fmtMoney, daysUntil } from './logic.js';
 
-export const NAV = [['cockpit', '#cockpit', 'Cockpit'], ['finance', '#finanzen', 'Finanzen'], ['school', '#ausbildung', 'Ausbildung'], ['projects', '#projekte', 'Projekte'],
-  ['agents', '#agents', 'KI-Agents'], ['notes', '#wissen', 'Wissen'], ['heute', '#heute', 'Training & Erholung'], ['integrations', '#integrationen', 'Einstellungen']];
 export const FAMILY = ['cockpit', 'finance', 'school', 'projects', 'agents', 'notes', 'integrations'];
-export const cnav = area => `<nav class="cnav" aria-label="Cockpit-Bereiche">${NAV.map(([a, h, l]) => `<a href="${h}"${a === area ? ' class="on" aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`;
 
 export const today = ctx => ds(ctx.now());
 export const banner = ctx => (db.isDemo(ctx) ? '<div class="demo" role="note"><b>Beispieldaten</b><span>Alles hier ist erfunden. Deine echten Einträge sind unberührt.</span><button class="btn" type="button" data-a="demoend">Beispiele beenden</button></div>' : '');

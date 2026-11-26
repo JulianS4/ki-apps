@@ -124,7 +124,7 @@ test('export and import round-trip, import merges by id and is logged', () => {
   assert.equal(r.n, 1 + out.data.cats.length + out.data.projects.length);
   assert.deepEqual(db.list(other, 'exam').map(e => e.id).sort(), ['e1', 'e2']);
   assert.deepEqual(db.list(other, 'import').map(i => [i.kind, i.file, i.at]), [['json', 'cockpit.json', '2026-11-26']]);
-  assert.throws(() => db.importData(other, { app: 'x' }, 'f', '2026-11-26'), /Cockpit-Datei/);
+  assert.throws(() => db.importData(other, { app: 'x' }, 'f', '2026-11-26'), /Life-OS-Datei/);
 });
 
 test('wipe deletes the real cockpit data and nothing else', () => {
