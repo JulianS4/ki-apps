@@ -95,3 +95,59 @@ test('free grams, editing and deleting an entry', () => {
   assert.equal(day(ctx).meals.length, 1);
   assert.match(food.render(TODAY, ctx), /35 \/ 170 g/);
 });
+
+test('water adds the bottle size', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'waterminus' }), TODAY, ctx);
+  assert.equal(day(ctx).water || 0, 0);
+  food.onClick(click({ a: 'water' }), TODAY, ctx);
+  food.onClick(click({ a: 'water' }), TODAY, ctx);
+  assert.equal(day(ctx).water, 1000);
+  assert.match(food.render(TODAY, ctx), /1,0 \/ 3,5 L/);
+  food.onClick(click({ a: 'waterminus' }), TODAY, ctx);
+  assert.equal(day(ctx).water, 500);
+  food.onChange(change({ a: 'bottle' }, { value: '750' }), TODAY, ctx);
+  food.onClick(click({ a: 'water' }), TODAY, ctx);
+  assert.equal(day(ctx).water, 1250);
+  assert.match(food.render(TODAY, ctx), /1,25 \/ 3,5 L/);
+});
+
+test('clean day and broken rules', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'clean' }), TODAY, ctx);
+  assert.equal(day(ctx).clean, true);
+  assert.match(food.render(TODAY, ctx), /1 Tag sauber/);
+  food.onClick(click({ a: 'broke', k: 'kaffee' }), TODAY, ctx);
+  assert.equal(day(ctx).clean, false);
+  assert.deepEqual(day(ctx).broken, ['kaffee']);
+  food.onClick(click({ a: 'broke', k: 'kaffee' }), TODAY, ctx);
+  assert.equal(day(ctx).clean, undefined);
+  food.onClick(click({ a: 'clean' }), TODAY, ctx);
+  food.onClick(click({ a: 'clean' }), TODAY, ctx);
+  assert.equal(day(ctx).clean, undefined);
+});
+
+test('creatine tick adds exactly one shake', () => {
+  const ctx = mk(THU, 85);
+  const tick = checked => food.onChange(change({ a: 'supp', id: 'kreatin' }, { checked }), TODAY, ctx);
+  tick(true);
+  tick(true);
+  const shakes = day(ctx).meals.filter(m => m.supp === 'kreatin');
+  assert.equal(shakes.length, 1);
+  assert.equal(shakes[0].g, 25);
+  assert.equal(day(ctx).supps.kreatin, true);
+  tick(false);
+  assert.equal(day(ctx).meals.filter(m => m.supp === 'kreatin').length, 0);
+  assert.equal(day(ctx).supps.kreatin, undefined);
+  assert.equal(food.summary(ctx).protein, 0);
+});
+
+test('due supplements come first', () => {
+  const morning = food.render(TODAY, mk(THU, 85));
+  assert.ok(morning.indexOf('Morgens') > -1 && morning.indexOf('Morgens') < morning.indexOf('Mittags'));
+  const evening = food.render(TODAY, mk(at(18, 0), 85));
+  assert.ok(evening.indexOf('Abends') > -1 && evening.indexOf('Abends') < evening.indexOf('Morgens'));
+  const ctx = mk(THU, 85);
+  food.onChange(change({ a: 'supp', id: 'omega' }, { checked: true }), TODAY, ctx);
+  assert.deepEqual(food.summary(ctx).due, { group: 'morgens', done: 1, total: 3 });
+});

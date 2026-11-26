@@ -1,7 +1,7 @@
 // Nutrition area: protein from tapped dishes, water, the clean-day rule,
 // supplements and the shopping list. All state lives in the store (food.*).
 import { ds } from '../../core/dates.js';
-import { DISHES, SUPPS, SHOP, WATER, SHOP_NOTE } from './data.js';
+import { DISHES, SUPPS, SHOP, WATER, SHOP_NOTE, RULES } from './data.js';
 import {
   latestWeight, proteinTarget, foodTotals, cleanStreak, dueGroup, snackHint, dinnerHint, mealprepDay,
   suggestions, slotAt,
@@ -68,8 +68,14 @@ function todayVM(ctx) {
     day: d, weight: w, target: w ? proteinTarget(w.kg) : null, protein: foodTotals(e).protein, weightEdit,
     slot: slotAt(t), now: s.now, rest: s.rest, peek: peek && all.find(x => x.id === peek), draft,
     meals: e.meals, editing,
+    water: foodTotals(e).water, bottle: bottle(ctx),
+    clean: e.clean, broken: e.broken, streak: cleanStreak(map(ctx, 'food.days'), d),
+    supps: supps(ctx), ticked: e.supps || {}, due: dueGroup(t),
   };
 }
+
+const bottle = ctx => { const b = (ctx.store.get('food.settings') || {}).bottle; return WATER.bottles.includes(b) ? b : WATER.bottle; };
+const RULE_KEYS = RULES.map(([k]) => k);
 
 export function header(route) {
   const v = route.view, tab = (h, l, on) => `<a href="${h}"${on ? ' class="on"' : ''}>${l}</a>`;
@@ -123,6 +129,25 @@ export function onClick(e, route, ctx) {
   if (a === 'mdel') { editDay(ctx, x => { x.meals = x.meals.filter(m => m.id !== id); }); editing = null; ctx.rerender(); }
   if (a === 'peekx') { peek = null; ctx.rerender(); }
   if (a === 'wedit') { weightEdit = true; ctx.rerender(); }
+  if (a === 'water' || a === 'waterminus') {
+    const b = bottle(ctx);
+    editDay(ctx, x => { x.water = Math.max(0, foodTotals(x).water + (a === 'water' ? b : -b)); });
+    ctx.rerender();
+  }
+  // "Alles eingehalten" toggles; a broken rule toggles itself and makes the day not clean.
+  if (a === 'clean') {
+    editDay(ctx, x => { if (x.clean === true) delete x.clean; else x.clean = true; x.broken = []; });
+    ctx.rerender();
+  }
+  if (a === 'broke' && RULE_KEYS.includes(t.dataset.k)) {
+    const k = t.dataset.k;
+    editDay(ctx, x => {
+      const b = Array.isArray(x.broken) ? x.broken : [];
+      x.broken = b.includes(k) ? b.filter(r => r !== k) : [...b, k];
+      if (x.broken.length) x.clean = false; else delete x.clean;
+    });
+    ctx.rerender();
+  }
 }
 
 export function onChange(e, route, ctx) {
@@ -134,6 +159,31 @@ export function onChange(e, route, ctx) {
       w[dayOf(ctx)] = kg;
       put(ctx, 'body.weight', w);
       weightEdit = false;
+    }
+    ctx.rerender();
+  }
+  if (a === 'bottle') {
+    const b = +t.value;
+    if (WATER.bottles.includes(b)) put(ctx, 'food.settings', { ...(ctx.store.get('food.settings') || {}), bottle: b });
+    ctx.rerender();
+  }
+  // A supplement that brings protein ("Kreatin + Protein") logs exactly one shake.
+  if (a === 'supp') {
+    const s = supps(ctx).find(x => x.id === t.dataset.id);
+    if (s) {
+      editDay(ctx, x => {
+        const ticked = { ...x.supps };
+        if (t.checked) {
+          ticked[s.id] = true;
+          if (s.shake && !x.meals.some(m => m.supp === s.id)) {
+            x.meals = [...x.meals, { id: uid(), t: timeOf(ctx), name: `Protein Shake (${s.name.split(' ')[0]})`, g: s.shake, slot: 'dr', supp: s.id }];
+          }
+        } else {
+          delete ticked[s.id];
+          x.meals = x.meals.filter(m => m.supp !== s.id);
+        }
+        x.supps = ticked;
+      });
     }
     ctx.rerender();
   }

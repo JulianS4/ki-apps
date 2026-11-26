@@ -1,7 +1,7 @@
 // Nutrition views as HTML strings. Pure: everything comes in through `v`.
 import { esc } from '../../core/html.js';
 import { dfmt } from '../../core/dates.js';
-import { SLOTS, SLOT_ORDER, FOOD_NOTE, LAST_MEAL } from './data.js';
+import { SLOTS, SLOT_ORDER, FOOD_NOTE, LAST_MEAL, WATER, RULES, SUPP_GROUPS, SUPP_LABELS } from './data.js';
 import { isLate } from './logic.js';
 
 export const dec = n => String(Math.round(n * 10) / 10).replace('.', ',');
@@ -50,6 +50,38 @@ function entries(v) {
   <p class="note">${esc(FOOD_NOTE)} · Letzte Mahlzeit ${LAST_MEAL}</p></section>`;
 }
 
-export const todayView = v => hero(v, 'Ernährung') + protein(v) + grid(v) + entries(v);
+// Litres with up to two decimals: 1000 → '1,0', 1250 → '1,25'.
+export const litres = ml => { const v = Math.round(num(ml) / 10) / 100; return Number.isInteger(v) ? v + ',0' : String(v).replace('.', ','); };
+
+function water(v) {
+  const w = num(v.water), status = w >= WATER.full ? 'Volles Ziel ✓' : w >= WATER.goal ? 'Ziel erreicht ✓' : `noch ${litres(WATER.goal - w)} L`;
+  return `<section class="blk"><div class="bh"><h2>Wasser</h2><p>${status}</p></div>
+  <div class="ex"><p class="pnum"><b>${litres(w)} / ${litres(WATER.goal)} L</b></p>
+  <div class="pbar wbar" aria-hidden="true"><i style="width:${Math.min(100, w / WATER.full * 100)}%"></i><s style="left:${WATER.goal / WATER.full * 100}%"></s></div>
+  <p class="note">Ziel ${litres(WATER.goal)} L · volles Ziel ${litres(WATER.full)} L</p>
+  <div class="frow"><button class="btn pri" type="button" data-a="water">+ ${litres(v.bottle)} L</button><button class="btn" type="button" data-a="waterminus" aria-label="${litres(v.bottle)} L weniger">−</button>
+  <label class="dsel"><select data-a="bottle" aria-label="Flaschengröße">${WATER.bottles.map(b => `<option value="${b}"${b === v.bottle ? ' selected' : ''}>Flasche ${litres(b)} L</option>`).join('')}</select></label></div></div></section>`;
+}
+
+function clean(v) {
+  const n = v.streak, broken = v.broken || [];
+  return `<section class="blk"><div class="bh"><h2>Sauber essen</h2><p>${n ? `${n} ${n === 1 ? 'Tag' : 'Tage'} sauber in Folge` : 'Noch keine Serie'}</p></div>
+  <div class="ex"><button class="btn${v.clean === true ? ' pri' : ''}" type="button" data-a="clean" aria-pressed="${v.clean === true}">${v.clean === true ? '✓ Alles eingehalten' : 'Alles eingehalten'}</button>
+  <p class="note fl">Regel gebrochen? Antippen, welche:</p>
+  <div class="chips">${RULES.map(([k, l]) => `<button class="chipb${broken.includes(k) ? ' on' : ''}" type="button" data-a="broke" data-k="${k}" aria-pressed="${broken.includes(k)}">${l}</button>`).join('')}</div></div></section>`;
+}
+
+function supplements(v) {
+  const order = [v.due, ...SUPP_GROUPS.filter(g => g !== v.due)], ticked = v.ticked || {};
+  const all = v.supps.filter(s => SUPP_GROUPS.includes(s.group)), done = all.filter(s => ticked[s.id]).length;
+  return `<section class="blk"><div class="bh"><h2>Supplements</h2><p>${done}/${all.length} heute</p></div>${order.map(g => {
+    const items = all.filter(s => s.group === g);
+    if (!items.length) return '';
+    return `<p class="note fl"><b>${SUPP_LABELS[g]}</b>${g === v.due ? ' <span class="late now">jetzt</span>' : ''} · ${items.filter(s => ticked[s.id]).length}/${items.length}</p>
+    <ul class="list">${items.map(s => `<li><label><input type="checkbox" data-a="supp" data-id="${esc(s.id)}" ${ticked[s.id] ? 'checked' : ''}><span>${esc(s.name)}${s.hint ? ` <small class="note">· ${esc(s.hint)}</small>` : ''}${s.shake ? ` <small class="note">· +${num(s.shake)} g Protein</small>` : ''}</span></label></li>`).join('')}</ul>`;
+  }).join('')}</section>`;
+}
+
+export const todayView = v => hero(v, 'Ernährung') + protein(v) + grid(v) + entries(v) + water(v) + supplements(v) + clean(v);
 export const dishesView = v => hero(v, 'Gerichte');
 export const shopView = v => hero(v, 'Einkauf') + `<p class="note">${esc(v.note || '')}</p>`;
