@@ -52,11 +52,43 @@ export function editDay(ctx, fn, d = dayOf(ctx)) {
 
 export const weight = ctx => latestWeight(map(ctx, 'body.weight'));
 
+// "500 ml trinken" in the morning routine counts half a litre of water.
+export function routineWater(ctx, d = dayOf(ctx)) {
+  const r = map(ctx, 'rout.days')[d];
+  return isObj(r) && isObj(r.morgen) && r.morgen.wasser === true ? 500 : 0;
+}
+
+// Tick or untick one supplement in a day entry; one that brings protein
+// ("Kreatin + Protein") logs exactly one shake.
+function applySupp(ctx, x, s, on) {
+  const ticked = { ...x.supps };
+  if (on) {
+    ticked[s.id] = true;
+    if (s.shake && !x.meals.some(m => m.supp === s.id)) {
+      x.meals = [...x.meals, { id: uid(), t: timeOf(ctx), name: `Protein Shake (${str(s.name).trim().split(/\s+/)[0] || 'Supplement'})`, g: s.shake, slot: 'dr', supp: s.id }];
+    }
+  } else {
+    delete ticked[s.id];
+    x.meals = x.meals.filter(m => m.supp !== s.id);
+  }
+  x.supps = ticked;
+}
+
+// Used by Routinen: the evening routine's "Supplements" step is the evening group.
+export function setSuppGroup(ctx, group, on, d = dayOf(ctx)) {
+  const list = supps(ctx).filter(s => s.group === group);
+  editDay(ctx, x => { for (const s of list) applySupp(ctx, x, s, on); }, d);
+}
+export function groupDone(ctx, group, d = dayOf(ctx)) {
+  const list = supps(ctx).filter(s => s.group === group), ticked = dayEntry(ctx, d).supps || {};
+  return list.length > 0 && list.every(s => ticked[s.id] === true);
+}
+
 export function summary(ctx) {
   const d = dayOf(ctx), t = timeOf(ctx), e = dayEntry(ctx, d), tot = foodTotals(e), w = weight(ctx);
   const group = dueGroup(t), ids = supps(ctx).filter(s => s.group === group).map(s => s.id), ticked = e.supps || {};
   return {
-    protein: tot.protein, target: w ? proteinTarget(w.kg) : null, water: tot.water, waterGoal: WATER.goal,
+    protein: tot.protein, target: w ? proteinTarget(w.kg) : null, water: tot.water + routineWater(ctx, d), waterGoal: WATER.goal,
     clean: e.clean, streak: cleanStreak(map(ctx, 'food.days'), d),
     due: { group, done: ids.filter(id => ticked[id]).length, total: ids.length },
     snack: snackHint(d, t, e.meals), dinner: dinnerHint(d, t, e.meals), mealprep: mealprepDay(d),
@@ -100,7 +132,7 @@ function todayVM(ctx) {
     day: d, weight: w, target: w ? proteinTarget(w.kg) : null, protein: foodTotals(e).protein, weightEdit,
     slot: slotAt(t), now: s.now, rest: s.rest, peek: peek && all.find(x => x.id === peek), draft,
     meals: e.meals, editing, moreOpen, yOpen: !isObj(map(ctx, 'food.days')[addDays(d, -1)]) || typeof map(ctx, 'food.days')[addDays(d, -1)].clean !== 'boolean',
-    water: foodTotals(e).water, bottle: bottle(ctx),
+    water: foodTotals(e).water + routineWater(ctx, d), fromRoutine: routineWater(ctx, d), bottle: bottle(ctx),
     clean: e.clean, broken: e.broken, streak: cleanStreak(map(ctx, 'food.days'), d),
     supps: supps(ctx), ticked: e.supps || {}, due: dueGroup(t), suppEdit: suppEditing, confirm,
   };
@@ -254,21 +286,7 @@ export function onChange(e, route, ctx) {
   // A supplement that brings protein ("Kreatin + Protein") logs exactly one shake.
   if (a === 'supp') {
     const s = supps(ctx).find(x => x.id === t.dataset.id);
-    if (s) {
-      editDay(ctx, x => {
-        const ticked = { ...x.supps };
-        if (t.checked) {
-          ticked[s.id] = true;
-          if (s.shake && !x.meals.some(m => m.supp === s.id)) {
-            x.meals = [...x.meals, { id: uid(), t: timeOf(ctx), name: `Protein Shake (${str(s.name).trim().split(/\s+/)[0] || 'Supplement'})`, g: s.shake, slot: 'dr', supp: s.id }];
-          }
-        } else {
-          delete ticked[s.id];
-          x.meals = x.meals.filter(m => m.supp !== s.id);
-        }
-        x.supps = ticked;
-      });
-    }
+    if (s) editDay(ctx, x => applySupp(ctx, x, s, t.checked));
     ctx.rerender();
   }
   if (a === 'need' && t.dataset.id) {

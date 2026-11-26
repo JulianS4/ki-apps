@@ -60,7 +60,7 @@ function water(v) {
   return `<section class="blk"><div class="bh"><h2>Wasser</h2><p>${status}</p></div>
   <div class="ex"><p class="pnum"><b>${litres(w)} / ${litres(WATER.goal)} L</b></p>
   <div class="pbar wbar" aria-hidden="true"><i style="width:${Math.min(100, w / WATER.full * 100)}%"></i><s style="left:${WATER.goal / WATER.full * 100}%"></s></div>
-  <p class="note">Ziel ${litres(WATER.goal)} L · volles Ziel ${litres(WATER.full)} L</p>
+  <p class="note">Ziel ${litres(WATER.goal)} L · volles Ziel ${litres(WATER.full)} L${v.fromRoutine ? ` · inkl. ${litres(v.fromRoutine)} L aus der Morgenroutine` : ''}</p>
   <div class="frow"><button class="btn pri" type="button" data-a="water">+ ${litres(v.bottle)} L</button><button class="btn" type="button" data-a="waterminus" aria-label="${litres(v.bottle)} L weniger">−</button>
   <label class="dsel"><select data-a="bottle" aria-label="Flaschengröße">${WATER.bottles.map(b => `<option value="${b}"${b === v.bottle ? ' selected' : ''}>Flasche ${litres(b)} L</option>`).join('')}</select></label></div></div></section>`;
 }
