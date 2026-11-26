@@ -5,9 +5,10 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const validPlan = p => isObj(p) && Array.isArray(p.days) && p.days.length === 7;
 
 // The photo index only travels with the photos themselves (settings adds them).
+// Cockpit examples (demo.*) never leave the device or enter it.
 export function buildBackup(store, exportedIso, { photos = false } = {}) {
   const data = {};
-  for (const k of store.keys()) if (k !== 'meta.lastBackup' && (photos || k !== 'body.photos')) data[k] = store.get(k);
+  for (const k of store.keys()) if (k !== 'meta.lastBackup' && !k.startsWith('demo.') && (photos || k !== 'body.photos')) data[k] = store.get(k);
   return { app: 'ki-apps', v: 1, exported: exportedIso, data };
 }
 
@@ -27,7 +28,7 @@ function put(store, key, value) {
     }
   } else if (key === 'train.plan') {
     if (validPlan(value)) ok = store.set(key, value);
-  } else if (key === 'body.photos') {
+  } else if (key === 'body.photos' || key.startsWith('demo.')) {
     // Never taken over directly: importPhotos indexes the images it wrote.
   } else if (key !== 'meta.lastBackup') {
     ok = store.set(key, value);
