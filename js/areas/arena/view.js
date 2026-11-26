@@ -7,6 +7,11 @@ const hero = (k, title) => `<div class="hero" style="grid-template-columns:1fr">
 const score = s => `<h2 class="ascore">Julian ${fmt1(s.julian)} : ${fmt1(s.uygar)} Uygar</h2>`;
 
 export function inviteView(v) {
+  if (v.conflict) {
+    return hero('Einladung', 'Arena') + `<section class="blk"><p class="note">Auf diesem Gerät bist du schon ${esc(v.currentName)} in einer Arena. Mit diesem Link wirst du hier ${esc(v.name)}.</p>
+    ${v.dropsKeys ? '<p class="note">Dabei gehen auf diesem Gerät die Schlüssel für die Einladungen verloren.</p>' : ''}
+    <div class="tools"><button class="btn red" type="button" data-a="areplace">Ersetzen</button><button class="btn" type="button" data-a="agoto">Abbrechen</button></div></section>`;
+  }
   if (!v.ok) return hero('Einladung', 'Arena') + '<section class="blk"><p class="note">Diese Einladung ist ungültig oder unvollständig.</p></section>';
   const hint = v.standalone ? '' : `<div class="card warn"><b>Läuft KI-Apps bei dir als App auf dem Home-Bildschirm?</b>
     <span>Dann öffne sie und füge diesen Link dort unter Einstellungen → Einladung einfügen ein. Safari und die App haben getrennten Speicher.</span>
@@ -15,12 +20,16 @@ export function inviteView(v) {
   <div class="tools"><button class="btn pri" type="button" data-a="agoto">Zur Arena</button></div>${hint}</section>`;
 }
 
-export const emptyView = () => hero('Julian · Uygar', 'Arena')
-  + '<section class="blk"><p class="note">Noch keine Arena auf diesem Gerät.</p><div class="tools"><a class="btn pri" href="#einstellungen">Zu den Einstellungen</a></div></section>';
+export const emptyView = (v = {}) => hero('Julian · Uygar', 'Arena') + `<section class="blk"><p class="note">Noch keine Arena auf diesem Gerät.</p>
+  <p class="note fl"><b>Einladung einfügen</b> · den ganzen Link</p>
+  <textarea class="tx" data-a="ainv" rows="3" placeholder="https://…#arena/einladung?…">${esc(v.draft || '')}</textarea>
+  <div class="tools"><button class="btn pri" type="button" data-a="ajoin">Einladung einfügen</button><a class="btn" href="#einstellungen">Arena einrichten</a></div>
+  ${v.msg ? `<p class="err" role="alert">${esc(v.msg)}</p>` : ''}</section>`;
 export const loadingView = () => hero('Julian · Uygar', 'Arena') + '<p class="note">Arena wird geladen …</p>';
-export const offlineView = () => hero('Julian · Uygar', 'Arena') + '<section class="blk"><p class="note">Arena braucht beim ersten Mal Netz. Sobald du online bist, geht es weiter.</p></section>';
-export const deniedView = () => hero('Julian · Uygar', 'Arena') + '<section class="blk"><p class="note">Kein Zugriff auf diese Arena – Einladung prüfen.</p><div class="tools"><a class="btn" href="#einstellungen">Einstellungen</a></div></section>';
-export const configView = () => hero('Julian · Uygar', 'Arena') + '<section class="blk"><p class="note">Die Firebase-Konfiguration passt nicht – in den Einstellungen prüfen.</p><div class="tools"><a class="btn" href="#einstellungen">Einstellungen</a></div></section>';
+const retry = '<button class="btn" type="button" data-a="aretry">Nochmal versuchen</button>';
+export const offlineView = () => hero('Julian · Uygar', 'Arena') + `<section class="blk"><p class="note">Arena braucht beim ersten Mal Netz. Sobald du online bist, geht es weiter.</p><div class="tools">${retry}</div></section>`;
+export const deniedView = () => hero('Julian · Uygar', 'Arena') + `<section class="blk"><p class="note">Kein Zugriff auf diese Arena – Einladung prüfen.</p><div class="tools">${retry}<a class="btn" href="#einstellungen">Einstellungen</a></div></section>`;
+export const configView = () => hero('Julian · Uygar', 'Arena') + `<section class="blk"><p class="note">Die Firebase-Konfiguration passt nicht – in den Einstellungen prüfen.</p><div class="tools">${retry}<a class="btn" href="#einstellungen">Einstellungen</a></div></section>`;
 
 function taskRow(t, v) {
   const lock = v.locked ? ' disabled' : '';
@@ -35,11 +44,12 @@ function taskRow(t, v) {
 function editRows(v) {
   return v.tasks.map(t => `<li class="atask"><div class="li"><input class="tx" data-a="tn" data-t="${esc(t.id)}" value="${esc(t.name)}" aria-label="Name" autocomplete="off">
     <button class="btn" type="button" data-a="tarch" data-t="${esc(t.id)}" aria-label="${esc(t.name)} archivieren">Archivieren</button></div>
-    ${t.kind === 'value' ? `<label class="aval">Ziel <input class="tx" data-a="tg" data-t="${esc(t.id)}" inputmode="decimal" value="${String(t.goal).replace('.', ',')}" autocomplete="off"><span>${esc(t.unit)}</span></label>` : ''}</li>`).join('');
+    <div class="li"><select class="tx" data-a="tk" data-t="${esc(t.id)}" aria-label="Art"><option value="yes"${t.kind === 'yes' ? ' selected' : ''}>Ja/Nein</option><option value="value"${t.kind === 'value' ? ' selected' : ''}>Wert</option></select>
+    ${t.kind === 'value' ? `<label class="aval">Ziel <input class="tx" data-a="tg" data-t="${esc(t.id)}" inputmode="decimal" value="${String(t.goal).replace('.', ',')}" autocomplete="off"></label><input class="tx aunit" data-a="tu" data-t="${esc(t.id)}" value="${esc(t.unit)}" aria-label="Einheit" placeholder="Einheit" autocomplete="off">` : ''}</div></li>`).join('');
 }
 
 export function todayView(v) {
-  const head = hero(v.isToday ? `Heute · ${dfmt(v.day)}` : `Gestern · ${dfmt(v.day)}`, 'Arena') + score(v.scores);
+  const head = hero(v.isToday ? `Heute · ${dfmt(v.day)}` : v.isYesterday ? `Gestern · ${dfmt(v.day)}` : dfmt(v.day), 'Arena') + score(v.scores);
   const notes = (v.pending ? '<p class="note">wird gesendet</p>' : '') + (v.error ? `<p class="err" role="alert">${esc(v.error)}</p>` : '')
     + (v.locked ? '<p class="note">Dieser Tag ist abgeschlossen und nur lesbar.</p>' : '');
   if (v.edit) {
@@ -52,8 +62,9 @@ export function todayView(v) {
 }
 
 export function weekView(v) {
-  const rows = v.days.map(d => `<tr><th>${dfmt(d.date)}</th><td>${d.julian == null ? '–' : fmt1(d.julian)}</td><td>${d.uygar == null ? '–' : fmt1(d.uygar)}</td></tr>`).join('');
-  const lead = v.sums.leader ? `${v.sums.leader === 'julian' ? 'Julian' : 'Uygar'} führt mit ${fmt1(v.sums.diff)}` : 'Gleichstand';
+  const rows = v.days.map(d => `<tr><th>${d.open ? `<button class="lnk" type="button" data-a="open" data-d="${d.date}">${dfmt(d.date)} ›</button>` : dfmt(d.date)}</th><td>${d.julian == null ? '–' : fmt1(d.julian)}</td><td>${d.uygar == null ? '–' : fmt1(d.uygar)}</td></tr>`).join('');
+  const who = v.sums.leader === 'julian' ? 'Julian' : 'Uygar';
+  const lead = !v.sums.leader ? 'Gleichstand' : fmt1(v.sums.diff) === '0' ? `${who} führt knapp` : `${who} führt mit ${fmt1(v.sums.diff)}`;
   return hero(`KW ${v.kw}`, 'Woche') + `<section class="blk"><table class="awk"><thead><tr><th></th><th>Julian</th><th>Uygar</th></tr></thead><tbody>${rows}</tbody>
   <tfoot><tr><th>Summe</th><td>${fmt1(v.sums.julian)}</td><td>${fmt1(v.sums.uygar)}</td></tr></tfoot></table>
   <p class="alead">${lead}</p>

@@ -97,3 +97,11 @@ test('stored access is checked on read', () => {
   assert.deepEqual(cleanConn(j).keys, j.keys);
   assert.equal('keys' in cleanConn(conn({ keys: { julian: 'x' } })), false);
 });
+
+// ---- final review fixes ----
+test('equal points are a tie even with rounding leftovers', () => {
+  const days = [{ player: 'julian', date: '2026-11-23', total: 0.7 + 0.2 }, { player: 'uygar', date: '2026-11-23', total: 0.9 }];
+  assert.equal(weekSums(days, '2026-11-23').leader, null);
+  assert.equal(weekSums(days, '2026-11-23').diff, 0);
+  assert.equal(history(days, '2026-11-23', '2026-12-01')[1].winner, null);
+});

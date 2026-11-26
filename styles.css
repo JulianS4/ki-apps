@@ -335,3 +335,9 @@ textarea.tx{padding:10px 12px;min-height:80px;resize:vertical}
 .wph+span,.prose textarea.tx{font-size:16px}
 .prose textarea.tx{width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,monospace;font-size:14px}
 .prose input.tx[readonly]{width:100%;box-sizing:border-box;font-size:13px;color:var(--mut)}
+.blk textarea.tx{width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px}
+.awk .lnk{background:none;border:0;padding:6px 0;color:inherit;font:inherit;font-weight:600;cursor:pointer;min-height:36px}
+.atask select.tx{width:auto;min-height:44px}
+.list .atask .aunit{width:7em;min-height:44px;flex:none}
+.atask .li{flex-wrap:wrap}
+.atask .li select.tx{flex:1 1 100%}

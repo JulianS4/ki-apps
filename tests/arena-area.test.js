@@ -113,3 +113,65 @@ test('the running week leads, finished weeks have a winner', async () => {
   assert.match(html, /KW 48[^<]*Julian führt/);
   assert.doesNotMatch(html, /KW 48[^<]*Sieger/);
 });
+
+// ---- final review fixes ----
+test('start week: days before the start day can be filled in and stay', async () => {
+  const { server, ctx } = await setup();
+  arena.onClick(click({ a: 'day', d: '2026-11-25' }), TODAY, ctx);
+  arena.onClick(click({ a: 'yes', t: 'skills' }), TODAY, ctx);
+  assert.equal(server.day('julian', '2026-11-25').values.skills, true);
+  assert.match(arena.render(TODAY, ctx), /Julian 1 : 0 Uygar/);
+  assert.match(arena.render(WEEK, ctx), /data-a="open" data-d="2026-11-23"/);
+  arena.onClick(click({ a: 'open', d: '2026-11-23' }), WEEK, ctx);
+  arena.onNavigate(TODAY, ctx);
+  assert.match(arena.render(TODAY, ctx), /23\.11\./);
+  arena.onClick(click({ a: 'yes', t: 'health' }), TODAY, ctx);
+  assert.equal(server.day('julian', '2026-11-23').values.health, true);
+  assert.match(arena.render(WEEK, ctx), /Julian führt mit 2/);
+});
+
+test('a failed first start tries again', async () => {
+  const { server, ctx } = await setup({ offline: true });
+  assert.match(arena.render(TODAY, ctx), /Nochmal versuchen/);
+  server.offline = false;
+  await memNet(server, { cfg: CFG, code: CODE, player: 'julian', key: KEYS.julian }).create({ start: '2026-11-26', tasks: TASKS, keys: KEYS });
+  arena.onClick(click({ a: 'aretry' }), TODAY, ctx);
+  await arena.ready(ctx);
+  assert.match(arena.render(TODAY, ctx), /Julian 0 : 0 Uygar/);
+});
+
+test('a failed start also retries on its own after a while', async () => {
+  const { server, ctx } = await setup({ offline: true });
+  server.offline = false;
+  await memNet(server, { cfg: CFG, code: CODE, player: 'julian', key: KEYS.julian }).create({ start: '2026-11-26', tasks: TASKS, keys: KEYS });
+  const t0 = ctx.now();
+  ctx.now = () => new Date(+t0 + 10000);
+  arena.render(TODAY, ctx);
+  await arena.ready(ctx);
+  assert.match(arena.render(TODAY, ctx), /Julian 0 : 0 Uygar/);
+});
+
+test('task kind and unit can be changed', async () => {
+  const { ctx } = await setup();
+  arena.onClick(click({ a: 'tedit' }), TODAY, ctx);
+  arena.onClick(click({ a: 'tadd' }), TODAY, ctx);
+  const id = arena.render(TODAY, ctx).match(/data-a="tn" data-t="([^"]+)" value="Neue Aufgabe"/)[1];
+  arena.onChange(change({ a: 'tk', t: id }, 'value'), TODAY, ctx);
+  arena.onChange(change({ a: 'tu', t: id }, 'min'), TODAY, ctx);
+  arena.onChange(change({ a: 'tg', t: id }, '30'), TODAY, ctx);
+  arena.onClick(click({ a: 'tedit' }), TODAY, ctx);
+  assert.match(arena.render(TODAY, ctx), new RegExp(`data-a="val" data-t="${id}"[\\s\\S]*?<span>min</span>`));
+});
+
+test('the empty arena page takes an invite too', async () => {
+  const server = memServer();
+  await memNet(server, { cfg: CFG, code: CODE, player: 'julian', key: KEYS.julian }).create({ start: '2026-11-26', tasks: TASKS, keys: KEYS });
+  arena.setNetFactory(c => memNet(server, c));
+  const store = createStore(memBackend()), ctx = { store, now: () => new Date('2026-11-26T09:00:00+01:00'), setStatus() {}, toast() {}, rerender() {}, go() {} };
+  arena.onNavigate(TODAY, ctx);
+  assert.match(arena.render(TODAY, ctx), /data-a="ajoin"/);
+  const { encodeInvite } = await import('../js/areas/arena/logic.js');
+  arena.onInput({ target: { dataset: { a: 'ainv' }, value: '#arena/einladung?' + encodeInvite({ cfg: CFG, code: CODE, player: 'uygar', key: KEYS.uygar }) } }, TODAY, ctx);
+  arena.onClick(click({ a: 'ajoin' }), TODAY, ctx);
+  assert.equal(store.get('arena.conn').player, 'uygar');
+});

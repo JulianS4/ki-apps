@@ -101,10 +101,11 @@ export function memNet(server, conn) {
 }
 
 // ---------------- Firebase ----------------
+let loader = () => Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'].map(f => import(SDK_BASE + f)))
+  .then(([app, auth, fs]) => ({ A: app, Au: auth, F: fs }));
 let sdk = null;
-const loadSdk = () => sdk || (sdk = Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'].map(f => import(SDK_BASE + f)))
-  .then(([app, auth, fs]) => ({ A: app, Au: auth, F: fs }))
-  .catch(e => { sdk = null; throw e; }));
+export const setSdkLoader = fn => { loader = fn; sdk = null; };
+const loadSdk = () => sdk || (sdk = Promise.resolve().then(loader).catch(e => { sdk = null; throw e; }));
 
 function why(e) {
   const c = String((e && (e.code || e.message)) || '');
@@ -113,7 +114,6 @@ function why(e) {
   return 'offline';
 }
 const fail = e => new Error(why(e));
-const wait = ms => new Promise((_, no) => setTimeout(() => no(new Error('offline')), ms));
 
 export function firebaseNet(conn) {
   let base = null, claimP = null, pending = false;
@@ -124,7 +124,10 @@ export function firebaseNet(conn) {
     const { A, Au, F } = await loadSdk();
     const name = 'arena-' + conn.code.slice(0, 8);
     const app = A.getApps().find(x => x.name === name) || A.initializeApp(conn.cfg, name);
-    const auth = Au.getAuth(app);
+    // No popup/redirect helper: on iOS getAuth() would load an extra Google
+    // script and iframe up front, which also slows sign-in in a dead zone.
+    let auth;
+    try { auth = Au.initializeAuth(app, { persistence: [Au.indexedDBLocalPersistence, Au.browserLocalPersistence] }); } catch (e) { auth = Au.getAuth(app); }
     const user = await new Promise(ok => { const off = Au.onAuthStateChanged(auth, u => { off(); ok(u); }); });
     if (!user) await Au.signInAnonymously(auth);
     let db;
@@ -147,14 +150,17 @@ export function firebaseNet(conn) {
       return claimP || (claimP = (async () => {
         const b = await boot();
         const sent = claimDoc(b).catch(e => { throw fail(e); });
+        sent.catch(() => {});
+        let tm;
+        const timeout = new Promise((_, no) => { tm = setTimeout(() => no(new Error('offline')), 8000); });
         try {
-          await Promise.race([sent, wait(8000)]);
+          await Promise.race([sent, timeout]);
         } catch (e) {
-          if (e.message !== 'offline') { claimP = null; throw e; }
+          if (e.message !== 'offline') throw e;
           const cached = await b.F.getDocsFromCache(b.F.collection(b.db, 'arenas', conn.code, 'tasks')).catch(() => null);
-          if (!cached || cached.empty) { claimP = null; throw e; }
-        }
-      })());
+          if (!cached || cached.empty) throw e;
+        } finally { clearTimeout(tm); }
+      })().catch(e => { claimP = null; throw e; }));
     },
     async info() {
       const b = await boot();

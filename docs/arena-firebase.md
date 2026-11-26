@@ -61,5 +61,7 @@ Vorab nachsehen:
 | 6 | create | `arenas/CODE/days/uygar_2026-11-26`, Daten `{ "player": "uygar", "date": "2026-11-26", "values": {}, "points": {}, "total": 0 }` | JULIAN_UID | **abgelehnt** |
 | 7 | create | `arenas/CODE/days/julian_2026-11-26`, gleiche Daten mit `"player": "julian"` | JULIAN_UID | erlaubt |
 | 8 | get | `arenas/CODE/days/julian_2026-11-26` | JULIAN_UID | erlaubt |
+| 9 | update | `arenas/CODE/keys/uygar`, Daten `{ "key": "neu-neu-neu-neu-neu-neu-neu-neu-neu-1" }` | JULIAN_UID | **abgelehnt** |
+| 10 | create | `arenas/CODE/tasks/x`, Daten `{ "id": "x", "name": "X", "kind": "yes", "order": 9, "archived": false }` | FREMDE_UID | **abgelehnt** |
 
 Weicht eine Zeile ab: nichts an Uygar schicken und Bescheid geben.

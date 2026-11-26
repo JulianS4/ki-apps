@@ -66,8 +66,9 @@ const cleanDays = days => (Array.isArray(days) ? days : []).filter(d => isObj(d)
 export function weekSums(days, monday) {
   const wk = new Set(weekDays(monday)), sum = { julian: 0, uygar: 0 };
   for (const d of cleanDays(days)) if (wk.has(d.date)) sum[d.player] += d.total;
-  const leader = sum.julian > sum.uygar ? 'julian' : sum.uygar > sum.julian ? 'uygar' : null;
-  return { julian: sum.julian, uygar: sum.uygar, leader, diff: Math.abs(sum.julian - sum.uygar) };
+  // Equal points are a tie, even when 0,7 + 0,2 sums to 0.8999999999999999.
+  const d = sum.julian - sum.uygar, tie = Math.abs(d) < 1e-9;
+  return { julian: sum.julian, uygar: sum.uygar, leader: tie ? null : d > 0 ? 'julian' : 'uygar', diff: tie ? 0 : Math.abs(d) };
 }
 // Weeks from the start week to the current one, newest first.
 export function history(days, start, today) {

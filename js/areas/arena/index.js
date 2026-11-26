@@ -16,6 +16,7 @@ const isNum = v => typeof v === 'number' && Number.isFinite(v);
 const isDay = d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const safe = fn => { try { return fn(); } catch (e) { return null; } };
+const RETRY_MS = 5000;
 const MSG = { offline: 'Gerade kein Netz – wird gesendet, sobald du online bist.', denied: 'Speichern abgelehnt – Einladung prüfen.', config: 'Die Firebase-Konfiguration passt nicht.' };
 
 export const conn = ctx => cleanConn(ctx.store.get('arena.conn'));
@@ -43,7 +44,8 @@ function connect(ctx) {
   const c = conn(ctx);
   if (!c) { disconnect(); return null; }
   const id = c.code + ':' + c.player;
-  if (net && netId === id) return model;
+  // A failed first start tries again after a pause (or at once via the button).
+  if (net && netId === id && !(model.error && !model.loaded && +ctx.now() - model.failedAt >= RETRY_MS)) return model;
   disconnect();
   const n = factory(c), m = { tasks: [], days: [], start: null, loaded: false, error: null };
   net = n; netId = id; model = m;
@@ -52,8 +54,8 @@ function connect(ctx) {
     if (!live()) return;
     m.start = info.start;
     n.watchTasks(t => { if (!live()) return; m.tasks = cleanTasks(t); m.loaded = true; saveCache(ctx); ctx.rerender(); });
-    n.watchDays(info.start, '9999-12-31', d => { if (!live()) return; m.days = (Array.isArray(d) ? d : []).filter(x => isObj(x) && x.player in PLAYERS && isDay(x.date)); saveCache(ctx); ctx.rerender(); });
-  }).catch(e => { if (live()) { m.error = (e && e.message) || 'offline'; ctx.rerender(); } });
+    n.watchDays(mondayOf(info.start), '9999-12-31', d => { if (!live()) return; m.days = (Array.isArray(d) ? d : []).filter(x => isObj(x) && x.player in PLAYERS && isDay(x.date)); saveCache(ctx); ctx.rerender(); });
+  }).catch(e => { if (live()) { m.error = (e && e.message) || 'offline'; m.failedAt = +ctx.now(); ctx.rerender(); } });
   return m;
 }
 // Tests and the setup flow wait for the connection; errors stay in the model.
@@ -94,9 +96,14 @@ export async function setupArena(ctx, text) {
   disconnect();
   return { ok: true };
 }
-export function joinArena(ctx, text) {
+// An invite for another arena or player never silently replaces the access
+// on this device (with Julian's keys); that needs `force`.
+export function joinArena(ctx, text, { force = false } = {}) {
   const c = decodeInvite(text);
   if (!c) return { ok: false };
+  const cur = conn(ctx);
+  if (cur && cur.code === c.code && cur.player === c.player) return { ok: true, player: c.player };
+  if (cur && !force) return { ok: false, conflict: true, current: cur.player, player: c.player, dropsKeys: !!cur.keys };
   ctx.store.set('arena.conn', c);
   ctx.store.remove('arena.cache');
   disconnect();
@@ -111,8 +118,9 @@ const standalone = () => typeof navigator !== 'undefined' && (navigator.standalo
   || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches));
 
 // ---------------- screen state ----------------
-let shown = null, edit = false, confirm = false, week = null, err = '', invite = null;
-export function onNavigate() { shown = null; edit = false; confirm = false; week = null; err = ''; }
+let shown = null, openDay = null, edit = false, confirm = false, week = null, err = '', invite = null, joinDraft = '', joinMsg = '';
+// A day opened from the week view survives the one navigation back to Heute.
+export function onNavigate() { shown = openDay; openDay = null; edit = false; confirm = false; week = null; err = ''; invite = null; joinMsg = ''; }
 
 export function header(route, ctx) {
   const v = route.view, tab = (h, l, on) => `<a href="${h}"${on ? ' class="on"' : ''}>${l}</a>`;
@@ -146,7 +154,7 @@ function todayVM(ctx) {
   const sug = c.player === 'julian' && d === t ? suggestions(ctx) : {};
   const pts = dayPoints(model.tasks, values).points;
   return {
-    day: d, isToday: d === t, switchTo: d === t ? plusDays(t, -1) : t, locked: !editable(d, t, model.start),
+    day: d, isToday: d === t, isYesterday: d === plusDays(t, -1), switchTo: d === t ? plusDays(t, -1) : t, locked: !editable(d, t, model.start),
     scores: scoresOn(d), pending: net.status().pending, error: err, edit, confirm, other: c.player === 'julian' ? 'Uygar' : 'Julian',
     tasks: model.tasks.filter(x => !x.archived).map(x => ({ ...x, value: values[x.id], points: pts[x.id] || 0, suggest: values[x.id] === undefined ? sug[x.id] || '' : '' })),
   };
@@ -156,8 +164,9 @@ function weekVM(ctx) {
   const by = {};
   for (const x of model.days) by[x.player + '_' + x.date] = x.total;
   return {
+    start: model.start, today: t,
     kw: isoWeek(m).week, sums: weekSums(model.days, m), prev: plusDays(m, -7), next: m < cur ? plusDays(m, 7) : null,
-    days: weekDays(m).map(date => ({ date, julian: by['julian_' + date], uygar: by['uygar_' + date] })),
+    days: weekDays(m).map(date => ({ date, julian: by['julian_' + date], uygar: by['uygar_' + date], open: editable(date, t, model.start) })),
   };
 }
 
@@ -168,9 +177,9 @@ export function render(route, ctx) {
       const link = typeof location !== 'undefined' && location.href ? location.href : `#arena/einladung?${route.token}`;
       invite = { token: route.token, link, ...joinArena(ctx, route.token) };
     }
-    return inviteView({ ...invite, name: PLAYERS[invite.player], standalone: standalone() });
+    return inviteView({ ...invite, name: PLAYERS[invite.player], currentName: PLAYERS[invite.current], standalone: standalone() });
   }
-  if (!conn(ctx)) return emptyView();
+  if (!conn(ctx)) return emptyView({ draft: joinDraft, msg: joinMsg });
   const m = connect(ctx);
   if (!m.loaded) return m.error === 'denied' ? deniedView() : m.error === 'config' ? configView() : m.error ? offlineView() : loadingView();
   if (route.view === 'week') return weekView(weekVM(ctx));
@@ -214,11 +223,25 @@ export function onClick(e, route, ctx) {
     return;
   }
   if (t.dataset.a === 'agoto') { invite = null; ctx.go('#arena'); ctx.rerender(); return; }
+  if (t.dataset.a === 'areplace' && invite) {
+    invite = { ...invite, ...joinArena(ctx, invite.token, { force: true }), conflict: false };
+    ctx.rerender();
+    return;
+  }
+  if (t.dataset.a === 'ajoin') {
+    const r = joinArena(ctx, joinDraft);
+    if (r.ok) joinDraft = '';
+    joinMsg = r.ok ? '' : 'Diese Einladung ist ungültig oder unvollständig.';
+    ctx.rerender();
+    return;
+  }
+  if (t.dataset.a === 'aretry') { disconnect(); ctx.rerender(); return; }
   if (!conn(ctx) || !model) return;
   const a = t.dataset.a, id = t.dataset.t, task = model.tasks.find(x => x.id === id);
   if ((a === 'yes' || a === 'no' || a === 'take') && task && task.kind === 'yes') setValue(ctx, id, a !== 'no');
   if (a === 'day' && isDay(t.dataset.d)) { shown = t.dataset.d; edit = false; ctx.rerender(); }
   if (a === 'wk' && isDay(t.dataset.d)) { week = mondayOf(t.dataset.d); ctx.rerender(); }
+  if (a === 'open' && isDay(t.dataset.d) && model.loaded && editable(t.dataset.d, today(ctx), model.start)) { openDay = t.dataset.d; ctx.go('#arena'); }
   if (a === 'tedit') { edit = !edit; confirm = false; ctx.rerender(); }
   if (a === 'tadd') {
     putTask(ctx, { id: 't' + randomId(6), name: 'Neue Aufgabe', kind: 'yes', order: Math.max(0, ...model.tasks.map(x => x.order)) + 1, archived: false });
@@ -247,4 +270,15 @@ export function onChange(e, route, ctx) {
   }
   if (a === 'tn' && task && String(t.value).trim()) { putTask(ctx, { ...task, name: String(t.value).trim().slice(0, 60) }); ctx.rerender(); }
   if (a === 'tg' && task && task.kind === 'value' && /^\d+(\.\d+)?$/.test(s) && +s > 0) { putTask(ctx, { ...task, goal: +s }); ctx.rerender(); }
+  if (a === 'tk' && task && (t.value === 'yes' || t.value === 'value') && t.value !== task.kind) {
+    const { goal, unit, ...rest } = task;
+    putTask(ctx, t.value === 'value' ? { ...rest, kind: 'value', goal: goal || 1, unit: unit || '' } : { ...rest, kind: 'yes' });
+    ctx.rerender();
+  }
+  if (a === 'tu' && task && task.kind === 'value') { putTask(ctx, { ...task, unit: String(t.value ?? '').trim().slice(0, 10) }); ctx.rerender(); }
+}
+
+export function onInput(e) {
+  const t = e.target;
+  if (t.dataset && t.dataset.a === 'ainv') joinDraft = t.value;
 }

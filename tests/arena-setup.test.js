@@ -59,3 +59,21 @@ test('the invite data leaves the address once the access is stored', () => {
     assert.equal(u.store.get('arena.conn').player, 'uygar');
   });
 });
+
+// ---- final review fixes ----
+test('an invite for another access asks before replacing it', async () => {
+  globalThis.history = { replaceState() {} };
+  const server = memServer();
+  arena.setNetFactory(c => memNet(server, c));
+  const j = mk();
+  await arena.setupArena(j, SNIPPET);
+  const token = arena.inviteLink(j, 'uygar').split('?')[1], route = { area: 'arena', view: 'invite', token };
+  arena.onNavigate(route, j);
+  assert.match(arena.render(route, j), /schon Julian/);
+  assert.equal(j.store.get('arena.conn').player, 'julian');
+  assert.ok(j.store.get('arena.conn').keys);
+  arena.onClick({ target: { closest: () => ({ dataset: { a: 'areplace' } }) } }, route, j);
+  assert.equal(j.store.get('arena.conn').player, 'uygar');
+  const own = arena.inviteLink(mk(), 'julian');
+  assert.equal(own, null);
+});
