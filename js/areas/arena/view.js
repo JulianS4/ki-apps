@@ -62,7 +62,9 @@ export function weekView(v) {
 
 export function historyView(v) {
   const name = p => (p === 'julian' ? 'Julian' : 'Uygar');
-  const rows = v.weeks.map(w => `<li><span class="t">KW ${w.week} · Julian ${fmt1(w.julian)} : ${fmt1(w.uygar)} Uygar · ${w.winner ? `Sieger ${name(w.winner)}` : 'Unentschieden'}</span></li>`).join('');
+  // The running week has a leader, not yet a winner.
+  const result = w => (w.monday === v.current ? (w.winner ? `${name(w.winner)} führt` : 'läuft') : w.winner ? `Sieger ${name(w.winner)}` : 'Unentschieden');
+  const rows = v.weeks.map(w => `<li><span class="t">KW ${w.week} · Julian ${fmt1(w.julian)} : ${fmt1(w.uygar)} Uygar · ${result(w)}</span></li>`).join('');
   return hero('Seit dem Start', 'Verlauf') + `<section class="blk"><h2 class="ascore">Julian ${fmt1(v.totals.julian)} : ${fmt1(v.totals.uygar)} Uygar</h2>
   <p class="note">Gewonnene Wochen: Julian ${v.totals.wins.julian} · Uygar ${v.totals.wins.uygar}</p>
   <ul class="list ahist">${rows}</ul></section>`;

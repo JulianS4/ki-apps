@@ -44,3 +44,18 @@ test('arena-only mode for Uygar until he shows all areas', () => {
   ctx.store.set('app.full', true);
   assert.equal(arena.arenaOnly(ctx.store), false);
 });
+
+test('the invite data leaves the address once the access is stored', () => {
+  let replaced = null;
+  globalThis.history = { replaceState: (a, b, url) => { replaced = url; } };
+  const server = memServer();
+  arena.setNetFactory(c => memNet(server, c));
+  const j = mk();
+  return arena.setupArena(j, SNIPPET).then(() => {
+    const token = arena.inviteLink(j, 'uygar').split('?')[1], u = mk(), route = { area: 'arena', view: 'invite', token };
+    assert.match(arena.render(route, u), /Du bist Uygar/);
+    arena.mount(null, route, u);
+    assert.equal(replaced, '#arena');
+    assert.equal(u.store.get('arena.conn').player, 'uygar');
+  });
+});

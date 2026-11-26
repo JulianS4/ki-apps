@@ -105,3 +105,11 @@ test('without access, offline or denied there is a clear message', async () => {
   assert.ok(!(off instanceof Error));
   assert.match(arena.render(TODAY, off.ctx), /Arena braucht beim ersten Mal Netz/);
 });
+
+test('the running week leads, finished weeks have a winner', async () => {
+  const { server, ctx } = await setup({ now: new Date('2026-11-27T09:00:00+01:00') });
+  server.putDayAs('julian', { player: 'julian', date: '2026-11-26', values: {}, points: {}, total: 2 });
+  const html = arena.render(HIST, ctx);
+  assert.match(html, /KW 48[^<]*Julian führt/);
+  assert.doesNotMatch(html, /KW 48[^<]*Sieger/);
+});

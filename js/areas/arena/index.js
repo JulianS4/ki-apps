@@ -176,13 +176,15 @@ export function render(route, ctx) {
   if (route.view === 'week') return weekView(weekVM(ctx));
   if (route.view === 'history') {
     const t = today(ctx);
-    return historyView({ weeks: history(m.days, m.start, t), totals: totalsSince(m.days, t) });
+    return historyView({ weeks: history(m.days, m.start, t), totals: totalsSince(m.days, t), current: mondayOf(t) });
   }
   return todayView(todayVM(ctx));
 }
 
 export function mount(root, route) {
-  if (route.view === 'invite' && invite && invite.ok && typeof history !== 'undefined' && history.replaceState) history.replaceState(null, '', '#arena');
+  // globalThis: `history` in this module is the arena's week history.
+  const h = globalThis.history;
+  if (route.view === 'invite' && invite && invite.ok && h && h.replaceState) h.replaceState(null, '', '#arena');
 }
 
 // The whole day is written each time, points included.
