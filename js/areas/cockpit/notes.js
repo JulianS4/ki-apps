@@ -4,9 +4,10 @@ import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
 import { searchNotes, noteLinks, findNote } from './logic.js';
 import { TOPICS, label } from './data.js';
-import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon, blurActive } from './ui.js';
+import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon, blurActive, today } from './ui.js';
+import { zip, notesMarkdown } from './zip.js';
 
-let q = '', topic = '';
+let q = '', topic = '', msg = '';
 const UN = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
 const unesc = s => s.replace(/&(amp|lt|gt|quot|#39);/g, m => UN[m]);
 const plain = s => s.replace(/\[\[([^[\]]+?)\]\]/g, '$1').replace(/\s+/g, ' ').trim();
@@ -20,10 +21,11 @@ function results(ctx) {
 
 function listView(ctx) {
   const all = db.list(ctx, 'note'), tags = [...new Set(all.flatMap(n => n.tags))].sort((a, b) => a.localeCompare(b, 'de'));
-  return `${hero('Wissen', 'Notizen', `${all.length} ${all.length === 1 ? 'Notiz' : 'Notizen'} · durchsuchbar, verknüpfbar, exportierbar`)}
+  return `${hero('', 'Wissen', `${all.length} ${all.length === 1 ? 'Notiz' : 'Notizen'} · durchsuchen, mit [[Titel]] verknüpfen, als Markdown mitnehmen.`)}
+  <div class="pact">${newBtn('note', 'Notiz anlegen', topic ? { topic } : null, 'btn pri')}<button class="btn" type="button" data-a="mdexport">Als Markdown exportieren</button></div>${msg ? `<p class="note ok" role="status">${esc(msg)}</p>` : ''}
   <section class="blk"><input class="tx search" type="search" data-a="q" value="${esc(q)}" placeholder="Suchen … (#tag für Tags)" aria-label="Notizen durchsuchen">
   ${seg('ntopic', [['', 'Alle'], ...TOPICS], topic)}
-  ${formIf(ctx, 'note')}<div class="tools">${newBtn('note', 'Notiz', topic ? { topic } : null)}<a class="btn" href="#integrationen">Export ›</a></div>
+  ${formIf(ctx, 'note')}
   <div id="nres" aria-live="polite">${results(ctx)}</div></section>
   ${tags.length ? `<section class="blk"><div class="bh"><h2>Tags</h2></div><div class="chips">${tags.map(t => `<button class="chipb${q === '#' + t ? ' on' : ''}" type="button" data-a="tagq" data-v="${esc(t)}">#${esc(t)}</button>`).join('')}</div></section>` : ''}`;
 }
@@ -39,9 +41,10 @@ function noteView(ctx, id) {
   const notes = db.list(ctx, 'note'), n = notes.find(x => x.id === id);
   if (!n) return `${hero('Wissen', 'Notiz nicht gefunden')}<p><a class="back" href="#wissen">‹ Zu den Notizen</a></p>`;
   const { out, back } = noteLinks(n, notes), ps = db.list(ctx, 'project').filter(p => n.projects.includes(p.id));
-  return `${hero(esc(label(TOPICS, n.topic)), esc(n.title), `${n.created ? 'erstellt ' + dfmt(n.created) : ''}${n.upd ? ' · geändert ' + dfmt(n.upd) : ''}${n.src === 'beispiel' ? ' · Beispiel' : ''}`)}<a class="back" href="#wissen">‹ Notizen</a>
+  return `<a class="back" href="#wissen">‹ Wissen</a>${hero(esc(label(TOPICS, n.topic)), esc(n.title), `${n.created ? 'erstellt ' + dfmt(n.created) : ''}${n.upd ? ' · geändert ' + dfmt(n.upd) : ''}${n.src === 'beispiel' ? ' · Beispiel' : ''}`)}
+  <div class="pact">${editBtn('note', n.id, 'Notiz bearbeiten').replace('class="ed"', 'class="btn"')}</div>
   ${formIf(ctx, 'note')}
-  <section class="blk"><article class="ex nbody">${n.body ? bodyHtml(n.body, notes) : '<p class="note">Noch kein Inhalt.</p>'}</article><div class="tools">${editBtn('note', n.id)}</div></section>
+  <section class="blk"><article class="ex nbody">${n.body ? bodyHtml(n.body, notes) : '<p class="note">Noch kein Inhalt.</p>'}</article></section>
   ${n.tags.length || ps.length ? `<section class="blk"><div class="chips">${n.tags.map(t => `<a class="chipb" href="#wissen" data-a="tagq" data-v="${esc(t)}">#${esc(t)}</a>`).join('')}${ps.map(p => `<a class="chipb on" href="#projekte/p-${esc(p.id)}">${esc(p.name)}</a>`).join('')}</div></section>` : ''}
   ${out.length ? `<section class="blk"><div class="bh"><h2>Verlinkt</h2></div><ul class="crows card-l">${out.map(l => `<li>${l.id ? `<a class="nm" href="#wissen/n-${esc(l.id)}"><b>${esc(l.title)}</b></a>` : `<div class="nm"><b>${esc(l.title)}</b><small>gibt es noch nicht</small></div>`}</li>`).join('')}</ul></section>` : ''}
   <section class="blk"><div class="bh"><h2>Verweise hierher</h2><p>${back.length}</p></div>${back.length ? `<ul class="crows card-l">${back.map(b => `<li><a class="nm" href="#wissen/n-${esc(b.id)}"><b>${esc(b.title)}</b><small>${esc(label(TOPICS, b.topic))}</small></a></li>`).join('')}</ul>` : '<p class="note">Keine andere Notiz verweist hierher.</p>'}</section>`;
@@ -57,7 +60,11 @@ export function onClick(e, route, ctx) {
     openEd(ctx, 'note', null, { title: t.dataset.t, topic: cur ? cur.topic : 'privat' });
   } else if (a === 'tagq') { q = q === '#' + t.dataset.v ? '' : '#' + t.dataset.v; if (route.view === 'note') ctx.go('#wissen'); }
   else if (a === 'ntopic') topic = t.dataset.v;
-  else return;
+  else if (a === 'mdexport') {
+    const notes = db.list(ctx, 'note');
+    if (!notes.length) msg = 'Noch keine Notizen zum Exportieren.';
+    else { download(`life-os-notizen-${today(ctx)}.zip`, new Blob([zip(notesMarkdown(notes, db.list(ctx, 'project')))], { type: 'application/zip' })); msg = `${notes.length} Notizen als Markdown exportiert.`; }
+  } else return;
   blurActive();
   ctx.rerender();
 }
@@ -72,5 +79,9 @@ export function onInput(e, route, ctx) {
   }
 }
 export function onChange(e) { edInput(e.target); }
-export function onNavigate(next) { onNavigateCommon(); if (!next || next.area !== 'notes') { q = ''; topic = ''; } }
+export function onNavigate(next) { onNavigateCommon(); msg = ''; if (!next || next.area !== 'notes') { q = ''; topic = ''; } }
+function download(name, blob) {
+  if (typeof document === 'undefined') return;
+  try { const u = URL.createObjectURL(blob), l = document.createElement('a'); l.href = u; l.download = name; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); } catch (e) { /* blocked */ }
+}
 export function mount() { mountCommon(); }

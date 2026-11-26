@@ -20,27 +20,31 @@ function overview(ctx, t) {
   const tasks = db.list(ctx, 'stask'), open = tasks.filter(x => !x.done).sort((a, b) => ((a.due || '9') < (b.due || '9') ? -1 : 1)), avg = gradeAvg(exams);
   const rest = exams.filter(e => !next.includes(e)).sort((a, b) => (a.d < b.d ? 1 : -1));
   const subjects = [...new Set([...exams.map(e => e.subj), ...tasks.map(x => x.subj)])].sort((a, b) => a.localeCompare(b, 'de'));
-  return `${hero('Ausbildung', cur ? esc(cur.name) : 'Ausbildung', cur ? `aktuelle Abteilung · seit ${dfmt(cur.from)}${cur.to ? ` · bis ${dfmt(cur.to)}` : ''}` : 'Keine aktuelle Abteilung eingetragen')}
+  return `${hero('', 'Ausbildung', cur ? `Aktuelle Abteilung: <b>${esc(cur.name)}</b> · seit ${dfmt(cur.from)}${cur.to ? ` · bis ${dfmt(cur.to)}` : ''}` : 'Keine aktuelle Abteilung eingetragen.')}
+  <div class="pact">${newBtn('exam', 'Klassenarbeit hinzufügen', null, 'btn pri')}${newBtn('stask', 'Aufgabe hinzufügen')}${newBtn('dept', 'Abteilung hinzufügen')}</div>
+  ${formIf(ctx, 'exam')}${formIf(ctx, 'stask')}${formIf(ctx, 'dept')}
   <section class="blk hl"><div class="bh"><h2>Nächste Klassenarbeiten</h2><p>${next.length ? srcLine(next[0].src, next.map(e => e.upd).filter(Boolean).sort().pop(), ctx, { label: 'aktualisiert' }) : ''}</p></div>
   ${next.length ? `<ul class="crows card-l">${next.map(e => examRow(e, t, true)).join('')}</ul>` : empty('Keine anstehenden Klassenarbeiten eingetragen.')}</section>
-  <section class="blk"><div class="bh"><h2>Alle Klassenarbeiten</h2>${avg ? `<p>Schnitt <b>${fmtGrade(avg)}</b></p>` : ''}</div>${formIf(ctx, 'exam')}<div class="tools">${newBtn('exam', 'Klassenarbeit')}</div>
-  ${rest.length ? `<ul class="crows card-l">${rest.map(e => examRow(e, t, false)).join('')}</ul>` : ''}</section>
+  <section class="blk"><div class="bh"><h2>Alle Klassenarbeiten</h2>${avg ? `<p>Schnitt <b>${fmtGrade(avg)}</b></p>` : ''}</div>
+  ${rest.length ? `<ul class="crows card-l">${rest.map(e => examRow(e, t, false)).join('')}</ul>` : '<p class="note">Weitere und vergangene Klassenarbeiten erscheinen hier, mit Note.</p>'}</section>
   ${subjects.length ? `<section class="blk"><div class="bh"><h2>Fächer</h2><p>Aufgaben und Lernnotizen</p></div><div class="chips">${subjects.map(s => `<a class="chipb" href="${subjHref(s)}">${esc(s)}${open.some(x => x.subj === s) ? ` · ${open.filter(x => x.subj === s).length}` : ''}</a>`).join('')}</div></section>` : ''}
-  <section class="blk"><div class="bh"><h2>Offene Aufgaben</h2><p>${open.length}</p></div>${formIf(ctx, 'stask')}<div class="tools">${newBtn('stask', 'Aufgabe')}</div>
-  ${open.length ? `<ul class="list">${open.map(taskRow).join('')}</ul>` : ''}</section>
-  <section class="blk"><div class="bh"><h2>Abteilungen</h2><p>Abschnitte der Ausbildung</p></div>${formIf(ctx, 'dept')}<div class="tools">${newBtn('dept', 'Abteilung')}</div>
+  <section class="blk"><div class="bh"><h2>Offene Aufgaben</h2><p>${open.length}</p></div>
+  ${open.length ? `<ul class="list">${open.map(taskRow).join('')}</ul>` : '<p class="note">Keine offenen Aufgaben.</p>'}</section>
+  <section class="blk"><div class="bh"><h2>Abteilungen</h2><p>Abschnitte der Ausbildung</p></div>
   ${depts.length ? `<ul class="crows card-l">${depts.map(d => `<li${d === cur ? ' class="now"' : ''}><div class="nm"><b>${esc(d.name)}${d === cur ? ' <span class="pill hot">jetzt</span>' : ''}</b><small>${dfmt(d.from)} – ${d.to ? dfmt(d.to) : 'offen'}${d.note ? ' · ' + esc(d.note) : ''}</small></div>${editBtn('dept', d.id)}</li>`).join('')}</ul>` : ''}</section>`;
 }
 
 function subject(ctx, t, subj) {
   const n = norm(subj), exams = db.list(ctx, 'exam').filter(e => norm(e.subj) === n).sort((a, b) => (a.d < b.d ? -1 : 1));
   const tasks = db.list(ctx, 'stask').filter(x => norm(x.subj) === n), notes = db.list(ctx, 'note').filter(x => x.tags.some(g => norm(g) === tagOf(subj)));
-  return `${hero('Fach', esc(subj))}<a class="back" href="#ausbildung">‹ Ausbildung</a>
-  <section class="blk"><div class="bh"><h2>Klassenarbeiten</h2></div>${formIf(ctx, 'exam')}${exams.length ? `<ul class="crows card-l">${exams.map(e => examRow(e, t, e.d >= t)).join('')}</ul>` : ''}<div class="tools">${newBtn('exam', 'Klassenarbeit', { subj })}</div></section>
-  <section class="blk"><div class="bh"><h2>Aufgaben</h2></div>${formIf(ctx, 'stask')}${tasks.length ? `<ul class="list">${tasks.map(taskRow).join('')}</ul>` : ''}<div class="tools">${newBtn('stask', 'Aufgabe', { subj })}</div></section>
-  <section class="blk"><div class="bh"><h2>Lernnotizen</h2><p>Notizen mit Tag #${esc(tagOf(subj))}</p></div>${formIf(ctx, 'note')}
+  return `<a class="back" href="#ausbildung">‹ Ausbildung</a>${hero('Fach', esc(subj), 'Klassenarbeiten, Aufgaben und Lernnotizen zu diesem Fach.')}
+  <div class="pact">${newBtn('exam', 'Klassenarbeit hinzufügen', { subj }, 'btn pri')}${newBtn('stask', 'Aufgabe hinzufügen', { subj })}${newBtn('note', 'Lernnotiz anlegen', { topic: 'ausbildung', tags: tagOf(subj) })}</div>
+  ${formIf(ctx, 'exam')}${formIf(ctx, 'stask')}${formIf(ctx, 'note')}
+  <section class="blk"><div class="bh"><h2>Klassenarbeiten</h2></div>${exams.length ? `<ul class="crows card-l">${exams.map(e => examRow(e, t, e.d >= t)).join('')}</ul>` : '<p class="note">Keine Klassenarbeiten in diesem Fach.</p>'}</section>
+  <section class="blk"><div class="bh"><h2>Aufgaben</h2></div>${tasks.length ? `<ul class="list">${tasks.map(taskRow).join('')}</ul>` : '<p class="note">Keine Aufgaben in diesem Fach.</p>'}</section>
+  <section class="blk"><div class="bh"><h2>Lernnotizen</h2><p>Notizen mit Tag #${esc(tagOf(subj))}</p></div>
   ${notes.length ? `<ul class="crows card-l">${notes.map(x => `<li><a class="nm" href="#wissen/n-${esc(x.id)}"><b>${esc(x.title)}</b><small>${esc(x.body.slice(0, 90))}</small></a></li>`).join('')}</ul>` : ''}
-  <div class="tools">${newBtn('note', 'Lernnotiz', { topic: 'ausbildung', tags: tagOf(subj) })}</div></section>`;
+  ${notes.length ? '' : '<p class="note">Noch keine Lernnotizen. Notizen mit diesem Tag erscheinen hier.</p>'}</section>`;
 }
 
 export function render(route, ctx) {

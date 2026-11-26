@@ -15,9 +15,10 @@ export function render(route, ctx) {
   <div class="kv2">${row('Letzter Lauf', a.last)}${row('Nächster Lauf', a.next)}${row('Laufzeit', a.runtime)}${a.cost != null ? row('Kosten', fmtMoney(a.cost)) : ''}</div>
   ${a.result ? `<p class="note">Ergebnis: ${esc(a.result)}</p>` : ''}${a.issues ? `<p class="note err pre">${esc(a.issues)}</p>` : ''}
   <p class="foot"><span class="src">nicht verbunden · Status manuell</span> ${srcLine(a.src, a.asOf, ctx, { warnDays: 7 })}</p>${editBtn('agent', a.id)}</section>`).join('');
-  return `${banner(ctx)}${hero('KI-Agents', 'Agents', 'Status, letzte Läufe und offene Fehler')}
+  return `${banner(ctx)}${hero('', 'KI-Agents', 'Status, letzte Läufe und offene Fehler – von dir gepflegt, kein System verbunden.')}
+  <div class="pact">${newBtn('agent', 'Agent hinzufügen', null, 'btn pri')}</div>
   <div class="ex info"><p>Noch ist kein Agent-System angebunden. Was hier steht, trägst du selbst ein – mit Datum, damit klar ist, wie aktuell der Status ist. Sobald ein System eine Schnittstelle bietet, kann es hier andocken.</p></div>
-  <section class="blk">${formIf(ctx, 'agent')}<div class="tools">${newBtn('agent', 'Agent')}</div>
+  <section class="blk">${formIf(ctx, 'agent')}
   ${ags.length ? `<div class="cgrid">${cards}</div>` : empty('Noch keine Agents eingetragen.')}</section>`;
 }
 export function onClick(e, route, ctx) { const t = target(e); if (t) common(t, ctx); }

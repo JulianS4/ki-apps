@@ -292,16 +292,13 @@ test('settings: honest integration status, last import, export and a guarded wip
   assert.equal(db.list(ctx, 'exam').length, 0);
 });
 
-test('Heute links to the cockpit and shows the next exam, never money', () => {
+test('Training & Erholung shows its own title and never money or Life OS examples', () => {
   const ctx = mk();
   db.upsert(ctx, 'account', { name: 'Giro', type: 'giro', cur: 'EUR', bal: 123456, asOf: '2026-11-20' });
   db.upsert(ctx, 'exam', { subj: 'Mathe', d: '2026-12-03', time: '08:00' });
   const html = heute.render({ area: 'heute' }, ctx);
-  assert.match(html, /href="#cockpit"/);
-  assert.match(html, /Mathe/);
-  assert.doesNotMatch(html, /1\.234|€/);
+  assert.match(html, /<h1>Training &amp; Erholung<\/h1>/);
+  assert.doesNotMatch(html, /1\.234|€|Mathe/);
   db.startDemo(ctx, '2026-11-26');
-  const demo = heute.render({ area: 'heute' }, ctx);
-  assert.match(demo, /Beispielmodus/);
-  assert.doesNotMatch(demo, /Rechnungswesen/);
+  assert.doesNotMatch(heute.render({ area: 'heute' }, ctx), /Rechnungswesen|Beispiel-/);
 });
