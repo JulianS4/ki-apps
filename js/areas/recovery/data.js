@@ -15,7 +15,7 @@ export const MOBILITY = {
       S(360, 'Lat Stretch', '45 s/Seite'),
       S(450, 'Cross-Body Shoulder Stretch', '45 s/Seite'),
       S(540, 'Upper Trap / Neck Stretch', '45 s/Seite'),
-      S(630, 'Thoracic Extension', '8–10 Wdh'),
+      S(630, 'Thoracic Extension', '8–10 langsame Wdh'),
       S(750, "Child's Pose mit Seit-Reach", '75 s/Seite'),
     ],
   },
