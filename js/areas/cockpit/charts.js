@@ -5,9 +5,9 @@ import { ticks } from '../training/logic.js';
 import { periodRange, addDaysUtc } from './logic.js';
 
 // Per-chart state survives redraws: period, free range, hidden series, measure.
-const ST = {};
+const ST = {}, DEF = { flow: 'jahr' };
 export function chartState(id, def = {}) {
-  if (!ST[id]) ST[id] = { per: def.per || 'monat', from: '', to: '', hidden: new Set(), measure: def.measure || '' };
+  if (!ST[id]) ST[id] = { per: def.per || DEF[id] || 'monat', from: '', to: '', hidden: new Set(), measure: def.measure || '' };
   return ST[id];
 }
 export const resetCharts = ids => ids.forEach(id => { delete ST[id]; });

@@ -650,3 +650,5 @@ a.back{color:var(--mut);font-weight:600;font-size:15px;margin-top:8px}
 .ichart text.miss{fill:var(--mut);font-weight:700}
 .chips .chipb{min-height:40px}
 .crows .ed{color:var(--acc);font-weight:600}
+.per .cust{flex:1 1 100%;flex-wrap:nowrap}
+.per .cust .tx{width:auto;flex:1 1 0;min-width:0;padding:0 8px}
