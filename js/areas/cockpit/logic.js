@@ -57,9 +57,12 @@ export function netWorth(accounts) {
   const eur = accounts.filter(a => a.cur === 'EUR'), days = eur.map(a => a.asOf).filter(Boolean).sort();
   return { total: eur.reduce((s, a) => s + a.bal, 0), oldest: days[0] || null, newest: days[days.length - 1] || null, skipped: accounts.filter(a => a.cur !== 'EUR').map(a => a.name) };
 }
+// The curve starts on the day the last account got its first balance: an
+// account without a known balance would otherwise count as 0 and fake growth.
 export function netWorthSeries(accounts) {
-  const eur = accounts.filter(a => a.cur === 'EUR').map(a => [...a.hist].sort((x, y) => (x.d < y.d ? -1 : 1)));
-  const dates = [...new Set(eur.flatMap(h => h.map(p => p.d)))].sort();
+  const eur = accounts.filter(a => a.cur === 'EUR' && a.hist.length).map(a => [...a.hist].sort((x, y) => (x.d < y.d ? -1 : 1)));
+  const start = eur.map(h => h[0].d).sort().pop();
+  const dates = [...new Set(eur.flatMap(h => h.map(p => p.d)))].filter(d => d >= start).sort();
   return dates.map(date => ({ date, c: eur.reduce((s, h) => { let v = 0; for (const p of h) if (p.d <= date) v = p.c; return s + v; }, 0) }));
 }
 

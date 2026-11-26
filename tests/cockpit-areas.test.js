@@ -112,6 +112,9 @@ test('example mode shows a banner on every cockpit page and ends cleanly', () =>
   home.onClick(click({ a: 'demostart' }), R.home, ctx);
   for (const [a, r] of [[home, R.home], [finance, R.fin('overview')], [school, R.school], [projects, R.proj], [agents, R.agents], [notes, R.notes], [integrations, R.integ]]) assert.match(a.render(r, ctx), /class="demo"[\s\S]*Beispieldaten/);
   assert.match(finance.render(R.fin('overview'), ctx), /Beispiel-Girokonto/);
+  school.onClick(click({ a: 'fnew', s: 'exam' }), R.school, ctx);
+  assert.match(school.render(R.school, ctx), /wird mit den Beispielen gelöscht/);
+  school.onClick(click({ a: 'fcancel' }), R.school, ctx);
   finance.onClick(click({ a: 'demoend' }), R.fin('overview'), ctx);
   assert.doesNotMatch(home.render(R.home, ctx), /class="demo"/);
   assert.doesNotMatch(finance.render(R.fin('overview'), ctx), /Beispiel-Girokonto/);
@@ -297,4 +300,8 @@ test('Heute links to the cockpit and shows the next exam, never money', () => {
   assert.match(html, /href="#cockpit"/);
   assert.match(html, /Mathe/);
   assert.doesNotMatch(html, /1\.234|€/);
+  db.startDemo(ctx, '2026-11-26');
+  const demo = heute.render({ area: 'heute' }, ctx);
+  assert.match(demo, /Beispielmodus/);
+  assert.doesNotMatch(demo, /Rechnungswesen/);
 });

@@ -25,6 +25,7 @@ export const DEFAULT_PROJECTS = [proj('reselling', 'Reselling'), proj('personal-
 // Every example is invented, named "Beispiel" and tagged src: 'beispiel'.
 export function demoData(today) {
   const d = n => addDaysUtc(today, n), B = 'beispiel', m0 = today.slice(0, 8) + '01';
+  const wd = n => { const x = d(n), g = new Date(x + 'T12:00:00Z').getUTCDay(); return g === 6 ? addDaysUtc(x, 2) : g === 0 ? addDaysUtc(x, 1) : x; };
   const hist = (end, steps) => steps.map((c, i) => ({ d: addMonths(end, i - steps.length + 1), c }));
   const acc = (id, name, type, bal, asOf, steps) => ({ id, name, type, cur: 'EUR', bal, asOf, src: B, hist: hist(asOf, [...steps, bal]) });
   let n = 0;
@@ -61,10 +62,10 @@ export function demoData(today) {
       { id: 'bsp-d2', name: 'Beispiel-Abteilung Vertrieb', from: d(11), note: '', src: B },
     ],
     exams: [
-      { id: 'bsp-e1', subj: 'Rechnungswesen', d: d(3), time: '08:00', place: 'Raum 12 (Beispiel)', prep: 'begonnen', src: B },
-      { id: 'bsp-e2', subj: 'BWL', d: d(8), time: '09:45', place: 'Raum 7 (Beispiel)', prep: 'offen', src: B },
-      { id: 'bsp-e3', subj: 'Deutsch', d: d(15), time: '11:30', place: 'Aula (Beispiel)', prep: 'offen', src: B },
-      { id: 'bsp-e4', subj: 'Englisch', d: d(30), place: 'Raum 3 (Beispiel)', prep: 'offen', src: B },
+      { id: 'bsp-e1', subj: 'Rechnungswesen', d: wd(3), time: '08:00', place: 'Raum 12 (Beispiel)', prep: 'begonnen', src: B },
+      { id: 'bsp-e2', subj: 'BWL', d: wd(8), time: '09:45', place: 'Raum 7 (Beispiel)', prep: 'offen', src: B },
+      { id: 'bsp-e3', subj: 'Deutsch', d: wd(15), time: '11:30', place: 'Aula (Beispiel)', prep: 'offen', src: B },
+      { id: 'bsp-e4', subj: 'Englisch', d: wd(30), place: 'Raum 3 (Beispiel)', prep: 'offen', src: B },
       { id: 'bsp-e5', subj: 'Englisch', d: d(-20), prep: 'fertig', grade: 2, src: B },
       { id: 'bsp-e6', subj: 'BWL', d: d(-40), prep: 'fertig', grade: 1.7, src: B },
     ],

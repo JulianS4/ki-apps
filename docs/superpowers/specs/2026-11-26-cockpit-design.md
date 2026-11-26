@@ -60,14 +60,18 @@ Beträge sind ganze Cent (`int`), Tage `YYYY-MM-DD`, Uhrzeiten `HH:MM`. Jeder Ei
 | `cx.cats` | `{id, name, kind: ausgabe/einnahme/sparen}`. Vorgaben: Wohnen, Essen, Mobilität, Abos, Freizeit, Bildung, Gesundheit, Business, Sonstiges · Gehalt, Business-Einnahmen, Sonstige Einnahmen · Sparen & Investieren. |
 | `cx.budgets` | `{catId: Cent pro Monat}` |
 | `cx.subs` | `{id, name, amt, cur, every: woche/monat/quartal/halbjahr/jahr, next, pay, cat, status: aktiv/pausiert/gekuendigt, src}`. Nächster Termin wird ab `next` im Intervall weitergerechnet. Summen nur aus aktiven Euro-Abos. |
-| `cx.school` | `{depts:[{id, name, from, to}], exams:[{id, subj, d, time, place, prep: offen/begonnen/fast/fertig, grade}], tasks:[{id, subj, text, due, done}]}` |
-| `cx.projects` | `{id, name, status: aktiv/pausiert/idee/abgeschlossen, goal, prog 0–100, notes, links:[{label, url}], tasks:[{id, text, due, done}], upd}`. Ohne gespeicherte Liste gelten die drei aktiven Projekte. |
+| `cx.depts`, `cx.exams`, `cx.stasks` | Abteilungen `{id, name, from, to, note}` · Klassenarbeiten `{id, subj, d, time, place, prep: offen/begonnen/fast/fertig, grade, note}` · Aufgaben `{id, subj, text, due, done}` |
+| `cx.projects` | `{id, name, status: aktiv/pausiert/idee/abgeschlossen, goal, prog 0–100, notes, links:[{label, url}], upd}`. Ohne gespeicherte Liste gelten die drei aktiven Projekte. |
+| `cx.ptasks` | Projektaufgaben `{id, proj, text, due, done}` |
 | `cx.log` | `{id, d, proj, text, min, inc, exp}` |
 | `cx.agents` | `{id, name, job, status: unbekannt/bereit/beschaeftigt/fehlgeschlagen/pausiert, last, next, result, issues, cost, asOf}`. Verbindung immer „nicht verbunden · manuell“. |
 | `cx.notes` | `{id, title, body, tags:[], topic: business/ki/ausbildung/finanzen/training/privat, projects:[ids], created, upd}`. `[[Titel]]` im Text verknüpft Notizen; Lernnotizen eines Fachs tragen das Fach als Tag. |
-| `cx.imports` | `[{kind: csv/json, file, at, n}]` → „zuletzt importiert“ in Einstellungen und an den Daten |
+| `cx.imports` | `[{kind: csv/json, file, at, n, acc}]` → „zuletzt importiert“ in Einstellungen |
+| `cx.demo` | `true` im Beispielmodus; die Beispiele liegen dann unter `demo.cx.*` |
 
-Gelesen wird alles über Aufräum-Funktionen: kaputte Einträge fallen weg, statt die Seite abstürzen zu lassen.
+Gelesen wird alles über Aufräum-Funktionen: kaputte Einträge fallen weg, statt die Seite abstürzen zu lassen. Eine Beschreibung pro Eintragsart (`schema.js`) steuert Formular, Eingabeprüfung und das Aufräumen.
+
+Der Vermögensverlauf beginnt erst an dem Tag, ab dem jedes Euro-Konto einen Stand hat. Ein Konto ohne bekannten Stand als 0 € zu zählen, würde Zuwachs vortäuschen.
 
 ## Integrationen
 

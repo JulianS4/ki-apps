@@ -16,7 +16,7 @@ import { fmtNum } from './body/logic.js';
 import { toGoal } from './body/view.js';
 import { conn as arenaConn, cacheSummary } from './arena/index.js';
 import { berlinDay, fmt1 } from './arena/logic.js';
-import { list as cxList } from './cockpit/db.js';
+import { list as cxList, isDemo as cxDemo } from './cockpit/db.js';
 import { nextExams, daysUntil } from './cockpit/logic.js';
 
 const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
@@ -67,12 +67,14 @@ function arenaTile(a) {
 
 // Cockpit: only the next exam shows here – money stays inside the cockpit.
 export let cockpitSummary = ctx => {
+  if (cxDemo(ctx)) return { demo: true, exam: null };
   const t = ds(ctx.now()), e = nextExams(cxList(ctx, 'exam'), t, 1)[0];
   return { exam: e ? { subj: e.subj, n: daysUntil(t, e.d) } : null };
 };
 export const setCockpitSummary = fn => { cockpitSummary = fn; };
 function cockpitTile(c) {
   const w = n => (n === 0 ? 'heute' : n === 1 ? 'morgen' : `in ${n} Tagen`);
+  if (c.demo) return '<a class="tile" href="#cockpit"><span class="k">Cockpit</span><b>Beispielmodus</b><span>zeigt erfundene Daten · beenden ›</span></a>';
   return `<a class="tile" href="#cockpit"><span class="k">Cockpit</span><b>${c.exam ? `${esc(c.exam.subj)} · ${w(c.exam.n)}` : 'Überblick öffnen ›'}</b><span>${c.exam ? 'nächste Klassenarbeit' : 'Finanzen, Ausbildung, Projekte'}</span></a>`;
 }
 

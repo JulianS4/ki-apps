@@ -46,12 +46,13 @@ test('netWorth sums euro accounts and names the left-out ones', () => {
   assert.deepEqual(r.skipped, ['c']);
 });
 
-test('netWorthSeries carries each account forward to every date', () => {
+test('netWorthSeries starts once every account is known and carries each forward', () => {
   const s = L.netWorthSeries([
-    acc('a', 'EUR', [{ d: '2026-09-01', c: 1000 }, { d: '2026-11-01', c: 3000 }]),
+    acc('a', 'EUR', [{ d: '2026-09-01', c: 1000 }, { d: '2026-10-15', c: 2000 }, { d: '2026-11-01', c: 3000 }]),
     acc('b', 'EUR', [{ d: '2026-10-01', c: 500 }]),
   ]);
-  assert.deepEqual(s, [{ date: '2026-09-01', c: 1000 }, { date: '2026-10-01', c: 1500 }, { date: '2026-11-01', c: 3500 }]);
+  // Before 1.10. account b had no balance yet: counting it as 0 would fake growth.
+  assert.deepEqual(s, [{ date: '2026-10-01', c: 1500 }, { date: '2026-10-15', c: 2500 }, { date: '2026-11-01', c: 3500 }]);
 });
 
 const CATS = [{ id: 'essen', name: 'Essen', kind: 'ausgabe' }, { id: 'abos', name: 'Abos', kind: 'ausgabe' }, { id: 'gehalt', name: 'Gehalt', kind: 'einnahme' }, { id: 'sparen', name: 'Sparen', kind: 'sparen' }];

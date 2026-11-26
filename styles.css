@@ -417,7 +417,7 @@ section.blk>.kv2 div{background:var(--card)}
 .cbars{list-style:none;margin:8px 0 0;padding:12px 14px;background:var(--card);border-radius:16px;display:grid;gap:10px}
 .cbars li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;font-size:15px}
 .cbars .bv{font-weight:700;font-variant-numeric:tabular-nums}
-.cbars i{grid-column:1/-1;display:block;height:8px;border-radius:4px;background:var(--cx);min-width:2px}
+.cbars i{grid-column:1/-1;display:block;height:8px;border-radius:4px;background:var(--cx)}
 .sum{margin:10px 0 0;color:var(--mut)}.sum b{color:var(--ink);font-variant-numeric:tabular-nums}
 .bud .gin input{width:5.5em;text-align:right}
 .bbar{display:block;height:8px;border-radius:4px;background:var(--bg);overflow:hidden;margin-top:6px}
@@ -445,5 +445,6 @@ a.chipb{display:inline-flex;align-items:center;text-decoration:none}
 button.wl.miss{border:1px dashed var(--line);background:none;border-radius:6px;padding:1px 6px;font:inherit;font-weight:600;cursor:pointer;color:var(--mut)}
 .links{margin:8px 0 0;padding-left:18px}
 .fl.note{font-weight:600}
+.bh p a{color:inherit;font-weight:600;text-decoration:none;padding:10px 0}
 .nwchart .chart path{stroke:var(--cx)}.nwchart .chart circle{stroke:var(--cx)}
 @media(min-width:900px){body.cx .hero h1{font-size:44px}}

@@ -22,7 +22,8 @@ function overview(ctx, t) {
     const w = typeof document !== 'undefined' && document.getElementById('main') ? document.getElementById('main').clientWidth : 600;
     const c = lineChart({ pts: series.map(p => ({ date: p.date, y: p.c / 100 })), label: 'Vermögensverlauf', unit: '€', fmt: fmtEuro0, step: 1, width: w });
     CH = c.ch;
-    chart = `<section class="blk"><div class="bh"><h2>Verlauf</h2><p>aus den Kontoständen</p></div><div class="nwchart">${c.html}</div></section>`;
+    const firsts = acc.filter(a => a.cur === 'EUR').map(a => a.hist[0].d), cut = new Set(firsts).size > 1;
+    chart = `<section class="blk"><div class="bh"><h2>Verlauf</h2><p>aus den Kontoständen</p></div><div class="nwchart">${c.html}</div>${cut ? `<p class="note">Ab ${dshort(series[0].date)}: erst seitdem hat jedes Konto einen Stand.</p>` : ''}</section>`;
   }
   const accRows = acc.length ? `<ul class="crows card-l">${acc.map(a => `<li><div class="nm"><b>${esc(a.name)}</b><small>${esc(label(ACC_TYPES, a.type))}</small>${srcLine(a.src, a.asOf, ctx, { warnDays: 30 })}</div><span class="vr">${money(a.bal, a.cur)}</span></li>`).join('')}</ul>`
     : empty('Noch kein Konto. Trag deine Konten mit dem aktuellen Stand ein – das Gesamtvermögen rechnet sich dann von selbst.', '<a class="btn pri" href="#finanzen/konten">Konto anlegen</a>');

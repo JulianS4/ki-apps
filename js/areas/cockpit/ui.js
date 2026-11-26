@@ -41,7 +41,7 @@ export const pbar = (pct, label) => `<div class="pbar cx" role="img" aria-label=
 // Labelled horizontal bars: name and value as text, the bar only shows the size.
 export function bars(rows, fmt) {
   const max = Math.max(...rows.map(r => r.c), 1);
-  return `<ul class="cbars">${rows.map(r => `<li><span class="nm">${esc(r.name)}</span><span class="bv">${esc(fmt(r.c))}</span><i style="width:${(r.c / max * 100).toFixed(1)}%"></i></li>`).join('')}</ul>`;
+  return `<ul class="cbars">${rows.map(r => `<li><span class="nm">${esc(r.name)}</span><span class="bv">${esc(fmt(r.c))}</span><i style="width:${r.c > 0 ? (r.c / max * 100).toFixed(1) + '%;min-width:2px' : '0'}"></i></li>`).join('')}</ul>`;
 }
 
 // ---- the editor: one open form at a time across the cockpit ----
@@ -76,7 +76,7 @@ export function edSave(ctx) {
 }
 
 function fieldHtml(ctx, f, v, err) {
-  const lab = esc(f.label) + (f.req ? ' <i>*</i>' : ''), cls = f.full || f.t === 'long' || f.t === 'links' || f.t === 'refs' ? ' class="full"' : '';
+  const lab = `<span>${esc(f.label)}${f.req ? ' <i aria-hidden="true">*</i>' : ''}</span>`, cls = f.full || f.t === 'long' || f.t === 'links' || f.t === 'refs' ? ' class="full"' : '';
   const hint = f.hint ? `<small>${esc(f.hint)}</small>` : '', e = err ? `<span class="err" role="alert">${esc(err)}</span>` : '';
   const id = `f-${f.k}`;
   let input;
@@ -87,12 +87,12 @@ function fieldHtml(ctx, f, v, err) {
     input = `<select class="tx" id="${id}" data-f="${f.k}">${f.req && known ? '' : `<option value="">${f.req ? 'Bitte wählen' : '—'}</option>`}${v && !known ? `<option value="${esc(v)}" selected>(gelöscht)</option>` : ''}${items.map(i => `<option value="${esc(i.id)}"${i.id === v ? ' selected' : ''}>${esc(i.name)}</option>`).join('')}</select>`;
   } else if (f.t === 'refs') {
     const items = db.list(ctx, f.ref);
-    return `<fieldset class="full refs"><legend>${lab}</legend>${items.map(i => `<label class="wph"><input type="checkbox" data-f="${f.k}" data-ref="${esc(i.id)}"${(v || []).includes(i.id) ? ' checked' : ''}> ${esc(i.name)}</label>`).join('')}</fieldset>`;
+    return `<fieldset class="full refs"><legend>${esc(f.label)}</legend>${items.map(i => `<label class="wph"><input type="checkbox" data-f="${f.k}" data-ref="${esc(i.id)}"${(v || []).includes(i.id) ? ' checked' : ''}> ${esc(i.name)}</label>`).join('')}</fieldset>`;
   } else if (f.t === 'bool') return `<label class="wph full"><input type="checkbox" data-f="${f.k}"${v ? ' checked' : ''}> ${esc(f.label)}</label>`;
   else {
     const type = f.t === 'date' ? 'date' : f.t === 'time' ? 'time' : 'text';
     const im = f.t === 'money' && f.pos ? ' inputmode="decimal"' : f.t === 'int' ? ' inputmode="numeric"' : '';
-    input = `<input class="tx" id="${id}" type="${type}" data-f="${f.k}" value="${esc(v)}"${im}${err ? ' aria-invalid="true"' : ''}>`;
+    input = `<input class="tx" id="${id}" type="${type}" data-f="${f.k}" value="${esc(v)}"${im}${f.req ? ' aria-required="true"' : ''}${err ? ' aria-invalid="true"' : ''}>`;
   }
   return `<label${cls} for="${id}">${lab}${input}${hint}${e}</label>`;
 }
@@ -100,7 +100,8 @@ function fieldHtml(ctx, f, v, err) {
 export function formHtml(ctx, { hide = [] } = {}) {
   const c = ed.cur, s = SCHEMAS[c.name];
   const fields = s.fields.filter(f => !hide.includes(f.k)).map(f => fieldHtml(ctx, f, c.draft[f.k], c.errors[f.k])).join('');
-  return `<div class="cform" id="cform"><h3>${c.id ? `${s.title} bearbeiten` : `Neu: ${s.title}`}</h3><div class="fg">${fields}</div>
+  const demo = db.isDemo(ctx) ? '<p class="note err">Beispielmodus: Was du hier speicherst, wird mit den Beispielen gelöscht. Echte Einträge erst nach „Beispiele beenden“.</p>' : '';
+  return `<div class="cform" id="cform"><h3>${c.id ? `${s.title} bearbeiten` : `Neu: ${s.title}`}</h3>${demo}<div class="fg">${fields}</div>
   ${c.errors._ ? `<p class="err" role="alert">${esc(c.errors._)}</p>` : ''}
   <div class="fa">${c.id ? `<button class="btn red" type="button" data-a="fdel">${c.confirm ? 'Sicher? Nochmal tippen' : 'Löschen'}</button>` : ''}<span class="sp"></span><button class="btn" type="button" data-a="fcancel">Abbrechen</button><button class="btn pri" type="button" data-a="fsave">Speichern</button></div></div>`;
 }

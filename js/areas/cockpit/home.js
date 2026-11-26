@@ -81,7 +81,7 @@ export function render(route, ctx) {
   const t = today(ctx), now = ctx.now();
   const emptyAll = !db.isDemo(ctx) && !['account', 'tx', 'exam', 'log', 'note', 'agent', 'dept'].some(n => db.list(ctx, n).length);
   const intro = emptyAll ? `<section class="ccard intro"><b>Dein Cockpit ist noch leer.</b><p>Trag Konten, Klassenarbeiten oder Business-Einträge ein – oder sieh dir alles erst mit Beispieldaten an. Deine echten Einträge bleiben davon getrennt.</p><div class="tools"><button class="btn pri" type="button" data-a="demostart">Beispieldaten ansehen</button></div></section>` : '';
-  return `${banner(ctx)}${hero('Cockpit', 'Überblick', `${dfmt(t)} ${now.getFullYear()}`)}${intro}
+  return `${banner(ctx)}${hero('Cockpit', 'Überblick', now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}${intro}
   <div class="cgrid">${examsCard(ctx, t)}${tasksCard(ctx, t)}${moneyCard(ctx)}${monthCard(ctx, t)}${schoolCard(ctx, t)}${projectsCard(ctx)}${healthCard(ctx)}${agentsCard(ctx)}</div>`;
 }
 export function onClick(e, route, ctx) { const t = target(e); if (t) common(t, ctx); }
