@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as rout from '../js/areas/routines/index.js';
 import * as food from '../js/areas/food/index.js';
 import { runOf } from '../js/core/guided.js';
+import { EVENING } from '../js/areas/routines/data.js';
 import { createStore } from '../js/core/store.js';
 import { memBackend } from './helpers.js';
 
@@ -206,4 +207,43 @@ test('evening supplements step works without evening supplements', () => {
   assert.equal(rout.summary(ctx).abend.done, 0);
   rout.onClick(click({ a: 'all', k: 'abend' }), TODAY, ctx);
   assert.deepEqual(rout.summary(ctx).abend, { done: 7, total: 7 });
+});
+
+// ---- edited lists ----
+test('edited lists drive today, summary and holder', () => {
+  const ctx = mk(at(6, 7));
+  ctx.store.set('rout.steps', { morgen: [
+    { id: 'wecker', from: '06:00', title: 'Aufstehen' },
+    { id: 'grandpa', from: '06:05', to: '06:10', title: 'Grandpa draußen', link: 'grandpa' },
+    { id: 'tasche', from: '06:55', to: '07:00', title: 'Tasche', link: 'pack' },
+  ] });
+  ctx.store.set('rout.pack', [{ cat: 'Tasche', items: [{ id: 'buch', name: 'Buch' }] }]);
+  const html = rout.render(TODAY, ctx);
+  assert.match(html, /Aufstehen/);
+  assert.match(html, /Packliste 0\/1/);
+  assert.deepEqual(rout.summary(ctx).morgen, { done: 0, total: 3 });
+  assert.deepEqual(rout.summary(ctx).abend, { done: 0, total: 7 });
+  assert.match(rout.render(HOLD, ctx), /Grandpa draußen/);
+  rout.onClick(click({ a: 'all', k: 'morgen' }), TODAY, ctx);
+  assert.deepEqual(rout.summary(ctx).morgen, { done: 3, total: 3 });
+});
+
+test('malformed stored lists fall back to Notion', () => {
+  for (const bad of ['x', [], { morgen: [] }, { morgen: [{ id: 1 }], abend: 'x' }]) {
+    const ctx = mk();
+    ctx.store.set('rout.steps', bad);
+    ctx.store.set('rout.pack', bad);
+    assert.doesNotThrow(() => rout.render(TODAY, ctx));
+    assert.doesNotThrow(() => rout.render(HOLD, ctx));
+    assert.deepEqual(rout.summary(ctx), { morgen: { done: 0, total: 10 }, abend: { done: 0, total: 7 } });
+    assert.match(rout.render(TODAY, ctx), /Packliste 0\/15/);
+  }
+});
+
+test('a deleted mobility step is no longer set by everything done', () => {
+  const ctx = mk();
+  ctx.store.set('rout.steps', { abend: EVENING.filter(s => s.id !== 'mobility') });
+  rout.onClick(click({ a: 'all', k: 'abend' }), TODAY, ctx);
+  assert.deepEqual(rout.summary(ctx).abend, { done: 6, total: 6 });
+  assert.equal(ctx.store.get('rec.mobility'), null);
 });

@@ -5,8 +5,8 @@ import { ds, addDays } from '../../core/dates.js';
 import { mobilityFor } from '../recovery/logic.js';
 import { supps, setSuppGroup, groupDone } from '../food/index.js';
 import { timerState, startRun, toggleRun, stopRun, runOf, activeRun, mountRun, unlockAudio, stepTimerView, keepAwake } from '../../core/guided.js';
-import { GRANDPA, GRANDPA_END, EVENING } from './data.js';
-import { routineFor, progress, activeStep } from './logic.js';
+import { GRANDPA, GRANDPA_END, MORNING, EVENING, PACK } from './data.js';
+import { routineFor, progress, activeStep, cleanSteps, cleanPack } from './logic.js';
 import { todayView, holderView } from './view.js';
 
 const p2 = n => String(n).padStart(2, '0');
@@ -18,6 +18,14 @@ function put(ctx, k, v) {
   if (!ctx.store.set(k, v)) ctx.setStatus('Speichern nicht möglich – privater Modus?');
 }
 const KINDS = ['morgen', 'abend'];
+
+// The step and pack lists: edited copies from storage, else Notion's.
+export function steps(ctx) {
+  const v = ctx.store.get('rout.steps'), o = isObj(v) ? v : {};
+  return { morgen: cleanSteps(o.morgen, MORNING), abend: cleanSteps(o.abend, EVENING) };
+}
+export const packList = ctx => cleanPack(ctx.store.get('rout.pack'), PACK);
+const stepsFor = (ctx, kind, d) => routineFor(kind, d, steps(ctx)[kind]);
 
 // One day's ticks, read defensively: only objects count.
 function ticksOf(ctx, d) {
@@ -52,14 +60,14 @@ function setLinked(ctx, d, link, on) {
   else if (link === 'supps') editTicks(ctx, d, x => { if (on) x.abend[SUPP_STEP] = true; else delete x.abend[SUPP_STEP]; });
 }
 function completeRoutine(ctx, kind, d) {
-  const steps = routineFor(kind, d);
-  editTicks(ctx, d, x => { for (const s of steps) if (s.link !== 'mobility' && s.link !== 'supps') x[kind][s.id] = true; });
-  for (const s of steps) if (s.link === 'mobility' || s.link === 'supps') setLinked(ctx, d, s.link, true);
+  const list = stepsFor(ctx, kind, d);
+  editTicks(ctx, d, x => { for (const s of list) if (s.link !== 'mobility' && s.link !== 'supps') x[kind][s.id] = true; });
+  for (const s of list) if (s.link === 'mobility' || s.link === 'supps') setLinked(ctx, d, s.link, true);
 }
 
 export function summaryFor(ctx, d) {
   const t = ticksOf(ctx, d), l = linked(ctx, d);
-  return { morgen: progress(routineFor('morgen', d), t.morgen, l), abend: progress(routineFor('abend', d), t.abend, l) };
+  return { morgen: progress(stepsFor(ctx, 'morgen', d), t.morgen, l), abend: progress(stepsFor(ctx, 'abend', d), t.abend, l) };
 }
 export const summary = ctx => summaryFor(ctx, dayOf(ctx));
 
@@ -90,14 +98,14 @@ export function header(route) {
 }
 
 function routineVM(ctx, kind, d) {
-  const steps = routineFor(kind, d), ticks = ticksOf(ctx, d)[kind], l = linked(ctx, d);
-  return { day: d, steps, ticks, linked: l, prog: progress(steps, ticks, l) };
+  const list = stepsFor(ctx, kind, d), ticks = ticksOf(ctx, d)[kind], l = linked(ctx, d);
+  return { day: d, steps: list, ticks, linked: l, prog: progress(list, ticks, l) };
 }
 function todayVM(ctx) {
   const d = dayOf(ctx), t = timeOf(ctx), y = routineVM(ctx, 'abend', addDays(d, -1));
   return {
     day: d, first: t < '14:00' ? 'morgen' : 'abend', open: { ...open },
-    routines: { morgen: routineVM(ctx, 'morgen', d), abend: routineVM(ctx, 'abend', d) }, pack: ticksOf(ctx, d).pack,
+    routines: { morgen: routineVM(ctx, 'morgen', d), abend: routineVM(ctx, 'abend', d) }, pack: ticksOf(ctx, d).pack, packList: packList(ctx),
     mob: mobilityFor(d), supps: eveningSupps(ctx).map(s => s.name),
     yesterday: t < '12:00' && y.prog.done < y.prog.total ? y : null,
   };
@@ -113,7 +121,7 @@ export function render(route, ctx) {
       doneToday: ticksOf(ctx, d).morgen.grandpa === true,
     });
   }
-  if (route.view === 'holder') return holderView({ day: dayOf(ctx), active: activeStep(dayOf(ctx), timeOf(ctx)) });
+  if (route.view === 'holder') return holderView({ day: dayOf(ctx), active: activeStep(dayOf(ctx), timeOf(ctx), steps(ctx)) });
   return todayView(todayVM(ctx));
 }
 
@@ -154,7 +162,7 @@ function tickDay(ctx, raw) {
 export function onChange(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a, d = dayOf(ctx);
   if (a === 'step' && KINDS.includes(t.dataset.k)) {
-    const k = t.dataset.k, sd = tickDay(ctx, t.dataset.d), s = sd && routineFor(k, sd).find(x => x.id === t.dataset.id);
+    const k = t.dataset.k, sd = tickDay(ctx, t.dataset.d), s = sd && stepsFor(ctx, k, sd).find(x => x.id === t.dataset.id);
     if (s && (s.link === 'mobility' || s.link === 'supps')) setLinked(ctx, sd, s.link, t.checked);
     else if (s) editTicks(ctx, sd, x => { if (t.checked) x[k][s.id] = true; else delete x[k][s.id]; });
     ctx.rerender();

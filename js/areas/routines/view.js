@@ -1,13 +1,13 @@
 // Routine views as HTML strings. Pure: everything comes in through `v`.
 import { esc } from '../../core/html.js';
 import { dfmt, DN, DAYS, dayIdx } from '../../core/dates.js';
-import { PACK, PHONE_NOTE, LABELS } from './data.js';
+import { PHONE_NOTE, LABELS } from './data.js';
 
 const hero = (v, title) => `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">${dfmt(v.day)}</p><h1>${title}</h1></div></div>`;
 
 function packList(v) {
-  const n = PACK.reduce((a, c) => a + c.items.filter(i => v.pack[i.id]).length, 0), all = PACK.reduce((a, c) => a + c.items.length, 0);
-  return `<details class="ses pk2"${v.open.pack ? ' open' : ''}><summary data-a="open" data-k="pack"><b>Packliste ${n}/${all}</b><span>Tasche & Essentials</span></summary>${PACK.map(c => `<p class="note fl">${esc(c.cat)}</p>
+  const P = v.packList, n = P.reduce((a, c) => a + c.items.filter(i => v.pack[i.id]).length, 0), all = P.reduce((a, c) => a + c.items.length, 0);
+  return `<details class="ses pk2"${v.open.pack ? ' open' : ''}><summary data-a="open" data-k="pack"><b>Packliste ${n}/${all}</b><span>${P.map(c => esc(c.cat)).join(' & ')}</span></summary>${P.map(c => `<p class="note fl">${esc(c.cat)}</p>
   <ul class="list">${c.items.map(i => `<li><label><input type="checkbox" data-a="pack" data-id="${esc(i.id)}" ${v.pack[i.id] ? 'checked' : ''}>${esc(i.name)}</label></li>`).join('')}</ul>`).join('')}</details>`;
 }
 
