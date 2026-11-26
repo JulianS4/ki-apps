@@ -1,4 +1,4 @@
-// Start page: what's on now, morning check, today's training and recovery, backup reminder.
+// Start page: what's on now, morning check, today's training, recovery and nutrition, backup reminder.
 import { ds, dayIdx, DAYS, DN, addDays } from '../core/dates.js';
 import { nowNext } from '../core/schedule.js';
 import { esc } from '../core/html.js';
@@ -7,6 +7,9 @@ import { totals } from './training/logic.js';
 import { summary } from './recovery/index.js';
 import { ampCard } from './recovery/view.js';
 import { DELOAD_RULES } from './recovery/data.js';
+import { summary as foodSum } from './food/index.js';
+import { litres } from './food/view.js';
+import { SUPP_LABELS } from './food/data.js';
 
 const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const MO = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -38,6 +41,27 @@ export const setTrainingSummary = fn => { trainingSummary = fn; };
 export let recoverySummary = ctx => summary(ctx);
 export const setRecoverySummary = fn => { recoverySummary = fn; };
 
+// Nutrition reads straight from the store too.
+export let foodSummary = ctx => foodSum(ctx);
+export const setFoodSummary = fn => { foodSummary = fn; };
+
+// Hints from "Recovery · Trainingstag" and the Wed/Sun meal prep.
+function foodCards(f) {
+  const c = (href, title, line) => `<a class="card" href="${href}"><p class="k">Ernährung</p><b>${title}</b><span>${line}</span></a>`;
+  const cards = [
+    f.snack ? c('#ernaehrung', 'Vor dem Training: Kohlenhydrat-Snack', 'Dein Essen ist über 3 h her ›') : '',
+    f.dinner ? c('#ernaehrung', 'Abendessen: 30–40 g Protein + Kohlenhydrate', 'Gerichte ansehen ›') : '',
+    f.mealprep ? c('#ernaehrung/einkauf', 'Heute Mealprep · Einkaufsliste prüfen', 'Abhaken, was fehlt ›') : '',
+  ].join('');
+  return cards ? `<section class="blk"><div class="cards">${cards}</div></section>` : '';
+}
+
+function foodTile(f) {
+  const p = f.target ? `Protein ${f.protein} / ${f.target} g` : `Protein ${f.protein} g · Ziel fehlt`;
+  const supps = f.due.total && f.due.done >= f.due.total ? 'Supps ✓' : `${SUPP_LABELS[f.due.group]} ${f.due.done}/${f.due.total}`;
+  return `<a class="tile" href="#ernaehrung"><span class="k">Ernährung</span><b>${p}</b><span>Wasser ${litres(f.water)} / ${litres(f.waterGoal)} L · ${supps}</span></a>`;
+}
+
 function recoveryCards(r) {
   const morning = r.ampel ? ampCard(r.ampel, r.sum)
     : '<a class="card warn" href="#recovery"><b>Morgen-Check offen</b><span>Schlaf, Energie, Muskeln · 30 Sekunden ›</span></a>';
@@ -49,10 +73,10 @@ function recoveryCards(r) {
 export function render(route, ctx) {
   const now = ctx.now(), todayStr = ds(now), { now: cur, next } = nowNext(now);
   const nextWhen = (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start;
-  const tr = trainingSummary(ctx.store, now), rec = recoverySummary(ctx), cy = rec.cycle, mob = rec.mobility;
+  const tr = trainingSummary(ctx.store, now), rec = recoverySummary(ctx), cy = rec.cycle, mob = rec.mobility, fd = foodSummary(ctx);
   const trLine = tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`;
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1><p class="m">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</p></div></div>
-  ${recoveryCards(rec)}${backupCard(ctx.store, todayStr)}
+  ${recoveryCards(rec)}${backupCard(ctx.store, todayStr)}${foodCards(fd)}
   <section class="blk"><div class="cards">
     ${cur ? `<div class="card now"><p class="k">Jetzt</p><b>${esc(cur.title)}</b><span>bis ${cur.end}</span></div>` : ''}
     <div class="card"><p class="k">Als Nächstes</p><b>${esc(next.title)}</b><span>${nextWhen}</span></div>
@@ -60,5 +84,6 @@ export function render(route, ctx) {
   <section class="blk"><div class="bh"><h2>Bereiche</h2></div><div class="tiles">
     <a class="tile" href="#training"><span class="k">Training</span><b>${esc(tr.type === 'ruhe' ? 'Ruhetag' : tr.name)}</b><span>${trLine}</span></a>
     <a class="tile" href="#recovery"><span class="k">Recovery</span><b>Mobility ${mob.routine} · ${mob.name}</b><span>${mob.done ? '✓ erledigt' : 'offen'}</span></a>
-  </div><p class="note soon">Kommt bald: Ernährung · Routinen · Körper · Arena</p></section>`;
+    ${foodTile(fd)}
+  </div><p class="note soon">Kommt bald: Routinen · Körper · Arena</p></section>`;
 }

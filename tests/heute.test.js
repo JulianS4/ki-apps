@@ -73,3 +73,37 @@ test('recovery tile and coming-soon line', () => {
   html = render({ area: 'heute' }, ctx(s));
   assert.match(html, /✓ erledigt/);
 });
+
+const meal = (t, g, slot) => ({ id: 'm' + t, name: 'x', g, slot, t });
+test('heute food tile with protein and water', () => {
+  const s = createStore(memBackend());
+  s.set('body.weight', { '2026-11-20': 85 });
+  s.set('food.days', { '2026-11-23': { meals: [meal('07:00', 45, 'fr')], water: 1000, supps: { omega: true } } });
+  const html = render({ area: 'heute' }, ctx(s));
+  assert.match(html, /href="#ernaehrung"/);
+  assert.match(html, /Protein 45 \/ 170 g/);
+  assert.match(html, /Wasser 1,0 \/ 3,5 L/);
+  assert.match(html, /Mittags 0\/1/);
+});
+test('heute food tile without a weight', () => {
+  const html = render({ area: 'heute' }, ctx());
+  assert.match(html, /Protein 0 g · Ziel fehlt/);
+  assert.doesNotMatch(html, /NaN/);
+});
+test('snack hint before training', () => {
+  const s = createStore(memBackend());
+  s.set('food.days', { '2026-11-26': { meals: [meal('12:00', 30, 'mi')] } });
+  assert.match(render({ area: 'heute' }, ctx(s, new Date(2026, 10, 26, 14, 30))), /Kohlenhydrat-Snack/);
+  assert.doesNotMatch(render({ area: 'heute' }, ctx(s, new Date(2026, 10, 26, 11, 0))), /Kohlenhydrat-Snack/);
+});
+test('dinner hint after training', () => {
+  assert.match(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 26, 18, 0))), /30–40 g Protein/);
+});
+test('mealprep hint on wednesday', () => {
+  assert.match(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 25, 10, 0))), /Heute Mealprep/);
+  assert.doesNotMatch(render({ area: 'heute' }, ctx(undefined, new Date(2026, 10, 26, 10, 0))), /Heute Mealprep/);
+});
+test('coming-soon line', () => {
+  const html = render({ area: 'heute' }, ctx());
+  assert.doesNotMatch(html.match(/Kommt bald[^<]*/)[0], /Ernährung/);
+});
