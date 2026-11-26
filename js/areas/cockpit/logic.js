@@ -41,8 +41,18 @@ export const addDaysUtc = (day, n) => new Date(Date.parse(day + 'T12:00:00Z') + 
 export const daysUntil = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5);
 
 export const PERIODS = [['monat', 'Dieser Monat'], ['vormonat', 'Letzter Monat'], ['3m', 'Letzte 3 Monate'], ['jahr', 'Dieses Jahr'], ['alle', 'Alles']];
-export function periodRange(kind, today) {
+export const dm = day => `${+day.slice(8, 10)}.${+day.slice(5, 7)}.`;
+const dmy = day => dm(day) + day.slice(0, 4);
+const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const wday = day => new Date(day + 'T12:00:00Z').getUTCDay();
+// 'woche' is Monday to Sunday; 'frei' takes { from, to } and is null when that is not a valid span.
+export function periodRange(kind, today, custom) {
   const [y, m] = parts(today), first = (yy, mm) => `${yy}-${pad(mm)}-01`;
+  if (kind === 'woche') { const from = addDaysUtc(today, -((wday(today) + 6) % 7)), to = addDaysUtc(from, 6); return { from, to, label: `Woche ${dm(from)}–${dm(to)}` }; }
+  if (kind === 'frei') {
+    const f = custom && custom.from, t = custom && custom.to;
+    return isDay(f) && isDay(t) && f <= t ? { from: f, to: t, label: `${dmy(f)}–${dmy(t)}` } : null;
+  }
   const month = (yy, mm) => ({ from: first(yy, mm), to: `${yy}-${pad(mm)}-${pad(lastDay(yy, mm))}`, label: `${MONTHS[mm - 1]} ${yy}` });
   if (kind === 'vormonat') { const p = addMonths(first(y, m), -1); return month(...parts(p).slice(0, 2)); }
   if (kind === '3m') return { from: addMonths(first(y, m), -2), to: month(y, m).to, label: 'Letzte 3 Monate' };
@@ -51,6 +61,30 @@ export function periodRange(kind, today) {
   return month(y, m);
 }
 export const inRange = (d, r) => !r || (d >= r.from && d <= r.to);
+
+// Chart buckets: days up to two weeks, weeks up to three months, else months.
+export function buckets(r) {
+  const n = daysUntil(r.from, r.to) + 1, out = [];
+  if (n <= 14) {
+    for (let i = 0; i < n; i++) { const d = addDaysUtc(r.from, i); out.push({ from: d, to: d, label: WD[wday(d)], long: `${WD[wday(d)]} ${dm(d)}` }); }
+  } else if (n <= 92) {
+    let d = r.from;
+    while (d <= r.to) {
+      const end = [addDaysUtc(d, 6 - ((wday(d) + 6) % 7)), r.to].sort()[0];
+      out.push({ from: d, to: end, label: dm(d), long: d === end ? dm(d) : `${dm(d)}–${dm(end)}` });
+      d = addDaysUtc(end, 1);
+    }
+  } else {
+    const years = r.from.slice(0, 4) !== r.to.slice(0, 4);
+    let d = r.from;
+    while (d <= r.to) {
+      const [yy, mm] = parts(d), last = `${yy}-${pad(mm)}-${pad(lastDay(yy, mm))}`, end = [last, r.to].sort()[0];
+      out.push({ from: d, to: end, label: MONTHS[mm - 1].slice(0, 3) + (years ? ` ${String(yy).slice(2)}` : ''), long: `${MONTHS[mm - 1]} ${yy}` });
+      d = addDaysUtc(end, 1);
+    }
+  }
+  return out;
+}
 
 // Net worth counts euro accounts only and names the others instead of converting.
 export function netWorth(accounts) {
@@ -93,6 +127,31 @@ export function budgetRows(budgets, tx, cats, range) {
     const plan = budgets[c.id], actual = -filterTx(tx, { cat: c.id, range }).reduce((s, t) => s + t.amt, 0);
     return { cat: c.id, name: c.name, plan, actual, rest: plan - actual, over: actual > plan };
   });
+}
+
+// Income, spending and money put aside per bucket, with the count behind each.
+export function flowSeries(tx, cats, bks) {
+  const out = { inc: [], exp: [], save: [], n: [] };
+  for (const b of bks) {
+    const t = filterTx(tx, { range: b }), s = totals(t, cats);
+    out.inc.push(s.inc); out.exp.push(s.exp); out.save.push(s.save); out.n.push(t.length);
+  }
+  return out;
+}
+
+// Business log per project for one measure: the three largest (by size), the rest as "Weitere".
+const MEASURE = { inc: e => e.inc, profit: e => e.inc - e.exp, min: e => e.min };
+export function logSeries(log, projects, bks, measure) {
+  const f = MEASURE[measure] || MEASURE.inc, inR = log.filter(e => bks.length && e.d >= bks[0].from && e.d <= bks[bks.length - 1].to);
+  const ids = [...new Set([...projects.map(p => p.id), ...inR.map(e => e.proj)])];
+  const vals = id => bks.map(b => inR.filter(e => e.proj === id && e.d >= b.from && e.d <= b.to).reduce((s, e) => s + f(e), 0));
+  const rows = ids.map(id => ({ id, values: vals(id) })).map(r => ({ ...r, size: r.values.reduce((s, v) => s + Math.abs(v), 0) })).filter(r => r.size > 0);
+  const top = new Set([...rows].sort((a, b) => b.size - a.size).slice(0, 3).map(r => r.id));
+  const name = id => (projects.find(p => p.id === id) || { name: 'Projekt gelöscht' }).name;
+  const out = rows.filter(r => top.has(r.id)).map(r => ({ key: r.id, name: name(r.id), values: r.values }));
+  const rest = rows.filter(r => !top.has(r.id));
+  if (rest.length) out.push({ key: '_rest', name: 'Weitere', values: bks.map((b, i) => rest.reduce((s, r) => s + r.values[i], 0)) });
+  return out;
 }
 
 // Subscriptions: monthly share, yearly sum, next billing date rolled forward from `next`.

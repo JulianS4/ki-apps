@@ -13,7 +13,8 @@ export const cnav = area => `<nav class="cnav" aria-label="Cockpit-Bereiche">${N
 
 export const today = ctx => ds(ctx.now());
 export const banner = ctx => (db.isDemo(ctx) ? '<div class="demo" role="note"><b>Beispieldaten</b><span>Alles hier ist erfunden. Deine echten Einträge sind unberührt.</span><button class="btn" type="button" data-a="demoend">Beispiele beenden</button></div>' : '');
-export const hero = (k, h1, m = '') => `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">${k}</p><h1>${h1}</h1>${m ? `<p class="m">${m}</p>` : ''}</div></div>`;
+// Page header: optional eyebrow, the title, one line of orientation.
+export const hero = (k, h1, m = '') => `<div class="hero" style="grid-template-columns:1fr"><div>${k ? `<p class="k">${k}</p>` : ''}<h1>${h1}</h1>${m ? `<p class="m">${m}</p>` : ''}</div></div>`;
 
 // Amounts on the overview stay covered until asked for (reset on reload).
 let shown = false;
@@ -40,7 +41,8 @@ export function csvNote(ctx, txs) {
 export const DEMO_NO_IMPORT = 'Im Beispielmodus ist kein Import möglich – erst „Beispiele beenden“, dann landen Importe bei deinen echten Daten.';
 
 export const empty = (text, actions = '') => `<div class="cempty"><p>${text}</p>${actions ? `<div class="tools">${actions}</div>` : ''}</div>`;
-export const newBtn = (name, label, preset) => `<button class="btn" type="button" data-a="fnew" data-s="${name}"${preset ? ` data-preset="${esc(JSON.stringify(preset))}"` : ''}>＋ ${label}</button>`;
+// Actions say what they do: "Konto hinzufügen", never a bare plus.
+export const newBtn = (name, label, preset, cls = 'btn') => `<button class="${cls}" type="button" data-a="fnew" data-s="${name}" data-title="${esc(label)}"${preset ? ` data-preset="${esc(JSON.stringify(preset))}"` : ''}>${esc(label)}</button>`;
 export const editBtn = (name, id, label = 'Bearbeiten') => `<button class="ed" type="button" data-a="fedit" data-s="${name}" data-id="${esc(id)}">${label}</button>`;
 export const seg = (a, opts, cur) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button type="button" data-a="${a}" data-v="${esc(v)}"${v === cur ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"'}>${esc(l)}</button>`).join('')}</div>`;
 export const pbar = (pct, label) => `<div class="pbar cx" role="img" aria-label="${esc(label)}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>`;
@@ -53,10 +55,10 @@ export function bars(rows, fmt) {
 
 // ---- the editor: one open form at a time across the cockpit ----
 export const ed = { cur: null, fresh: false };
-export function openEd(ctx, name, item, preset = {}) {
+export function openEd(ctx, name, item, preset = {}, title = '') {
   const draft = item ? toDraft(name, item) : toDraft(name, {});
   if (!item) for (const f of SCHEMAS[name].fields) if (f.today) draft[f.k] = today(ctx);
-  ed.cur = { name, id: item ? item.id : null, draft: item ? draft : { ...draft, ...preset }, errors: {}, confirm: false };
+  ed.cur = { name, id: item ? item.id : null, draft: item ? draft : { ...draft, ...preset }, errors: {}, confirm: false, title };
   ed.fresh = true;
 }
 export const closeEd = () => { ed.cur = null; };
@@ -106,9 +108,14 @@ function fieldHtml(ctx, f, v, err) {
 // The open form, with fields the context already fixes left out.
 export function formHtml(ctx, { hide = [] } = {}) {
   const c = ed.cur, s = SCHEMAS[c.name];
-  const fields = s.fields.filter(f => !hide.includes(f.k)).map(f => fieldHtml(ctx, f, c.draft[f.k], c.errors[f.k])).join('');
+  let grp = '';
+  const fields = s.fields.filter(f => !hide.includes(f.k)).map(f => {
+    const h = f.grp && f.grp !== grp ? `<p class="fgh full">${esc(f.grp)}</p>` : '';
+    if (f.grp) grp = f.grp;
+    return h + fieldHtml(ctx, f, c.draft[f.k], c.errors[f.k]);
+  }).join('');
   const demo = db.isDemo(ctx) ? '<p class="note err">Beispielmodus: Was du hier speicherst, wird mit den Beispielen gelöscht. Echte Einträge erst nach „Beispiele beenden“.</p>' : '';
-  return `<div class="cform" id="cform"><h3>${c.id ? `${s.title} bearbeiten` : `Neu: ${s.title}`}</h3>${demo}<div class="fg">${fields}</div>
+  return `<div class="cform" id="cform"><h3>${c.id ? `${s.title} bearbeiten` : esc(c.title || `${s.title} hinzufügen`)}</h3>${demo}<div class="fg">${fields}</div>
   ${c.errors._ ? `<p class="err" role="alert">${esc(c.errors._)}</p>` : ''}
   <div class="fa">${c.id ? `<button class="btn red" type="button" data-a="fdel">${c.confirm ? 'Sicher? Nochmal tippen' : 'Löschen'}</button>` : ''}<span class="sp"></span><button class="btn" type="button" data-a="fcancel">Abbrechen</button><button class="btn pri" type="button" data-a="fsave">Speichern</button></div></div>`;
 }
@@ -117,7 +124,7 @@ export const formIf = (ctx, name, opts) => (edIs(name) ? formHtml(ctx, opts) : '
 // Clicks every cockpit area shares. Returns true when handled.
 export function common(t, ctx) {
   const a = t.dataset.a;
-  if (a === 'fnew') { let p = {}; try { p = JSON.parse(t.dataset.preset || '{}'); } catch (e) { p = {}; } openEd(ctx, t.dataset.s, null, p); }
+  if (a === 'fnew') { let p = {}; try { p = JSON.parse(t.dataset.preset || '{}'); } catch (e) { p = {}; } openEd(ctx, t.dataset.s, null, p, t.dataset.title || ''); }
   else if (a === 'fedit') { const it = db.find(ctx, t.dataset.s, t.dataset.id); if (!it) return true; openEd(ctx, t.dataset.s, it); }
   else if (a === 'fsave') { if (ed.cur && edSave(ctx)) ctx.toast('Gespeichert', ''); }
   else if (a === 'fcancel') closeEd();

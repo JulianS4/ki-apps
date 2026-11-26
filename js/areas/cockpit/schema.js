@@ -7,16 +7,17 @@ const F = (k, label, t, o = {}) => ({ k, label, t, ...o });
 const REQ = { req: 1 };
 export const SCHEMAS = {
   account: { key: 'accounts', title: 'Konto', fields: [F('name', 'Name', 'text', { req: 1, full: 1 }), F('type', 'Art', 'select', { opts: ACC_TYPES }), F('cur', 'Währung', 'select', { opts: CURS }), F('bal', 'Kontostand', 'money', REQ), F('asOf', 'Stand vom', 'date', { req: 1, today: 1 })] },
-  tx: { key: 'tx', title: 'Buchung', fields: [F('d', 'Datum', 'date', { req: 1, today: 1 }), F('amt', 'Betrag', 'money', { req: 1, hint: 'Ausgabe mit Minus, z. B. -12,50' }), F('payee', 'Empfänger / Zahler', 'text', { full: 1 }), F('cat', 'Kategorie', 'ref', { ref: 'cat' }), F('acc', 'Konto', 'ref', { ref: 'account', req: 1 }), F('note', 'Notiz', 'text', { full: 1 })] },
+  // 'dir' only lives in the form: Ausgabe stores a negative amount, Einnahme a positive one.
+  tx: { key: 'tx', title: 'Buchung', fields: [F('dir', 'Art', 'select', { opts: [['aus', 'Ausgabe'], ['ein', 'Einnahme']], virtual: 1 }), F('amt', 'Betrag in €', 'money', { req: 1, posIn: 1 }), F('d', 'Datum', 'date', { req: 1, today: 1 }), F('acc', 'Konto', 'ref', { ref: 'account', req: 1, grp: 'Zuordnung' }), F('cat', 'Kategorie', 'ref', { ref: 'cat' }), F('payee', 'Empfänger / Zahler', 'text', { full: 1 }), F('note', 'Notiz', 'text', { full: 1 })] },
   cat: { key: 'cats', title: 'Kategorie', fields: [F('name', 'Name', 'text', REQ), F('kind', 'Art', 'select', { opts: CAT_KINDS })] },
-  sub: { key: 'subs', title: 'Abo', fields: [F('name', 'Dienst', 'text', { req: 1, full: 1 }), F('amt', 'Betrag', 'money', { req: 1, pos: 1 }), F('cur', 'Währung', 'select', { opts: CURS }), F('every', 'Abrechnung', 'select', { opts: EVERY }), F('next', 'Nächste Abbuchung', 'date', REQ), F('pay', 'Konto / Zahlungsmittel', 'text'), F('cat', 'Kategorie', 'ref', { ref: 'cat' }), F('status', 'Status', 'select', { opts: SUB_STATUS })] },
+  sub: { key: 'subs', title: 'Abo', fields: [F('name', 'Dienst', 'text', { req: 1, full: 1 }), F('amt', 'Betrag', 'money', { req: 1, pos: 1 }), F('cur', 'Währung', 'select', { opts: CURS }), F('every', 'Abrechnung', 'select', { opts: EVERY }), F('next', 'Nächste Abbuchung', 'date', REQ), F('pay', 'Konto / Zahlungsmittel', 'text', { grp: 'Zuordnung' }), F('cat', 'Kategorie', 'ref', { ref: 'cat' }), F('status', 'Status', 'select', { opts: SUB_STATUS })] },
   dept: { key: 'depts', title: 'Abteilung', fields: [F('name', 'Abteilung', 'text', { req: 1, full: 1 }), F('from', 'Von', 'date', REQ), F('to', 'Bis', 'date'), F('note', 'Notiz', 'text', { full: 1 })] },
-  exam: { key: 'exams', title: 'Klassenarbeit', fields: [F('subj', 'Fach', 'text', REQ), F('d', 'Datum', 'date', REQ), F('time', 'Uhrzeit', 'time'), F('place', 'Ort', 'text'), F('prep', 'Vorbereitung', 'select', { opts: PREP }), F('grade', 'Note', 'grade'), F('note', 'Notiz', 'text', { full: 1 })] },
+  exam: { key: 'exams', title: 'Klassenarbeit', fields: [F('subj', 'Fach', 'text', REQ), F('d', 'Datum', 'date', REQ), F('time', 'Uhrzeit', 'time'), F('place', 'Ort', 'text'), F('prep', 'Vorbereitung', 'select', { opts: PREP, grp: 'Vorbereitung und Note' }), F('grade', 'Note', 'grade'), F('note', 'Notiz', 'text', { full: 1 })] },
   stask: { key: 'stasks', title: 'Aufgabe', fields: [F('subj', 'Fach', 'text', REQ), F('text', 'Aufgabe', 'text', { req: 1, full: 1 }), F('due', 'Fällig am', 'date'), F('done', 'Erledigt', 'bool')] },
-  project: { key: 'projects', title: 'Projekt', fields: [F('name', 'Name', 'text', REQ), F('status', 'Status', 'select', { opts: PROJ_STATUS }), F('goal', 'Nächstes Ziel', 'text', { full: 1 }), F('prog', 'Fortschritt in %', 'int', { min: 0, max: 100, def: 0 }), F('notes', 'Notizen', 'long', { full: 1 }), F('links', 'Wichtige Links', 'links', { full: 1, hint: 'Einer pro Zeile: Name https://…' })] },
+  project: { key: 'projects', title: 'Projekt', fields: [F('name', 'Name', 'text', REQ), F('status', 'Status', 'select', { opts: PROJ_STATUS }), F('goal', 'Nächstes Ziel', 'text', { full: 1 }), F('prog', 'Fortschritt in %', 'int', { min: 0, max: 100, def: 0 }), F('notes', 'Notizen', 'long', { full: 1, grp: 'Notizen und Links' }), F('links', 'Wichtige Links', 'links', { full: 1, hint: 'Einer pro Zeile: Name https://…' })] },
   ptask: { key: 'ptasks', title: 'Aufgabe', fields: [F('proj', 'Projekt', 'ref', { ref: 'project', req: 1 }), F('text', 'Aufgabe', 'text', { req: 1, full: 1 }), F('due', 'Fällig am', 'date'), F('done', 'Erledigt', 'bool')] },
-  log: { key: 'log', title: 'Log-Eintrag', fields: [F('d', 'Datum', 'date', { req: 1, today: 1 }), F('proj', 'Projekt', 'ref', { ref: 'project', req: 1 }), F('text', 'Aktivität', 'text', { req: 1, full: 1 }), F('min', 'Dauer', 'dur', { hint: 'z. B. 1:30 oder 45 (Minuten)', def: 0 }), F('inc', 'Einnahmen', 'money', { pos: 1, def: 0 }), F('exp', 'Ausgaben', 'money', { pos: 1, def: 0 })] },
-  agent: { key: 'agents', title: 'Agent', fields: [F('name', 'Name', 'text', REQ), F('job', 'Aufgabe', 'text', { full: 1 }), F('status', 'Status', 'select', { opts: AGENT_STATUS }), F('asOf', 'Status vom', 'date', { today: 1 }), F('last', 'Letzter Lauf', 'text', { hint: 'z. B. 25.11. 07:00' }), F('next', 'Nächster Lauf', 'text'), F('result', 'Letztes Ergebnis', 'text', { full: 1 }), F('issues', 'Fehler / offene Aufgaben', 'long', { full: 1 }), F('runtime', 'Laufzeit', 'text'), F('cost', 'Kosten', 'money', { pos: 1 })] },
+  log: { key: 'log', title: 'Log-Eintrag', fields: [F('d', 'Datum', 'date', { req: 1, today: 1 }), F('proj', 'Projekt', 'ref', { ref: 'project', req: 1 }), F('text', 'Aktivität', 'text', { req: 1, full: 1 }), F('min', 'Dauer', 'dur', { hint: 'z. B. 1:30 oder 45 (Minuten)', def: 0, grp: 'Zeit und Geld' }), F('inc', 'Einnahmen', 'money', { pos: 1, def: 0 }), F('exp', 'Ausgaben', 'money', { pos: 1, def: 0 })] },
+  agent: { key: 'agents', title: 'Agent', fields: [F('name', 'Name', 'text', REQ), F('job', 'Aufgabe', 'text', { full: 1 }), F('status', 'Status', 'select', { opts: AGENT_STATUS, grp: 'Status' }), F('asOf', 'Status vom', 'date', { today: 1 }), F('last', 'Letzter Lauf', 'text', { hint: 'z. B. 25.11. 07:00' }), F('next', 'Nächster Lauf', 'text'), F('result', 'Letztes Ergebnis', 'text', { full: 1 }), F('issues', 'Fehler / offene Aufgaben', 'long', { full: 1 }), F('runtime', 'Laufzeit', 'text', { grp: 'Aufwand' }), F('cost', 'Kosten', 'money', { pos: 1 })] },
   note: { key: 'notes', title: 'Notiz', fields: [F('title', 'Titel', 'text', { req: 1, full: 1 }), F('topic', 'Bereich', 'select', { opts: TOPICS }), F('tags', 'Tags', 'tags', { hint: 'mit Komma trennen' }), F('projects', 'Projekte', 'refs', { ref: 'project', full: 1 }), F('body', 'Inhalt', 'long', { full: 1, rows: 10, hint: '[[Titel]] verknüpft eine andere Notiz' })] },
   import: { key: 'imports', title: 'Import', fields: [F('kind', 'Art', 'select', { opts: [['csv', 'CSV'], ['json', 'Cockpit-Datei']] }), F('file', 'Datei', 'text'), F('at', 'Am', 'date', REQ), F('n', 'Einträge', 'int', { min: 0, max: 1e7, def: 0 }), F('acc', 'Konto', 'text')] },
 };
@@ -54,6 +55,7 @@ export function cleanItem(name, raw) {
   if (!s || !isObj(raw) || typeof raw.id !== 'string' || !ID.test(raw.id)) return null;
   const out = { id: raw.id };
   for (const f of s.fields) {
+    if (f.virtual) continue;
     const v = cleanVal(f, raw[f.k]);
     if (v === undefined && f.req) return null;
     const d = v === undefined ? def(f) : v;
@@ -81,6 +83,7 @@ function parseVal(f, s) {
       if (empty) return { v: f.def ?? null };
       const c = parseMoney(str);
       if (c == null) return { err: 'Betrag wie 12,50 eingeben' };
+      if (f.posIn && c < 0) return { err: 'Betrag ohne Minus eingeben – Ausgabe oder Einnahme wählst du oben' };
       return f.pos && c < 0 ? { err: 'Betrag ohne Minus eingeben' } : { v: c };
     }
     case 'int': {
@@ -120,6 +123,10 @@ export function parseItem(name, draft) {
     if (r.err) errors[f.k] = r.err;
     else if (r.v !== null) item[f.k] = r.v;
   }
+  if (name === 'tx') {
+    if (item.amt != null && item.dir !== 'ein') item.amt = -item.amt || 0;
+    delete item.dir;
+  }
   return { ok: !Object.keys(errors).length, item, errors };
 }
 
@@ -138,5 +145,6 @@ export function toDraft(name, item = {}) {
     else if (f.t === 'bool') d[f.k] = !!v;
     else d[f.k] = v == null ? '' : String(v);
   }
+  if (name === 'tx') { d.dir = (item.amt ?? -1) < 0 ? 'aus' : 'ein'; if (item.amt != null) d.amt = plain(Math.abs(item.amt)); }
   return d;
 }
