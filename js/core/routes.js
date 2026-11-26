@@ -31,9 +31,34 @@ function bodyRoute(sub) {
   return view === 'entry' ? { area: 'body', view, date: /^\d{4}-\d{2}-\d{2}$/.test(q || '') ? q : null } : { area: 'body', view };
 }
 
+// Cockpit: one area per section, sub-pages as views.
+const FIN_VIEWS = { konten: 'accounts', buchungen: 'tx', kosten: 'costs', budget: 'budget', abos: 'subs' };
+function sub(h, base) { return h === base ? '' : h.startsWith(base + '/') ? h.slice(base.length + 1) : null; }
+function cockpitRoute(h) {
+  let s;
+  if (h === 'cockpit') return { area: 'cockpit' };
+  if (h === 'agents') return { area: 'agents' };
+  if (h === 'integrationen') return { area: 'integrations' };
+  if ((s = sub(h, 'finanzen')) !== null) return { area: 'finance', view: FIN_VIEWS[s] || 'overview' };
+  if ((s = sub(h, 'ausbildung')) !== null) {
+    const [p, q] = s.split('?');
+    let subj = '';
+    try { subj = decodeURIComponent(q || '').trim(); } catch (e) { subj = ''; }
+    return p === 'fach' && subj ? { area: 'school', view: 'subject', subj } : { area: 'school', view: 'overview' };
+  }
+  if ((s = sub(h, 'projekte')) !== null) {
+    if (s === 'log') return { area: 'projects', view: 'log' };
+    return s.startsWith('p-') && s.length > 2 ? { area: 'projects', view: 'project', id: s.slice(2) } : { area: 'projects', view: 'list' };
+  }
+  if ((s = sub(h, 'wissen')) !== null) return s.startsWith('n-') && s.length > 2 ? { area: 'notes', view: 'note', id: s.slice(2) } : { area: 'notes', view: 'list' };
+  return null;
+}
+
 export function parseRoute(hash) {
   const h = String(hash || '').replace(/^#/, '');
   if (h === 'einstellungen') return { area: 'settings' };
+  const cx = cockpitRoute(h);
+  if (cx) return cx;
   if (h === 'recovery' || h.startsWith('recovery/')) return recoveryRoute(h.slice('recovery/'.length));
   if (h === 'routinen' || h.startsWith('routinen/')) return { area: 'routines', view: ROUT_VIEWS[h.slice('routinen/'.length)] || 'today' };
   if (h === 'arena' || h.startsWith('arena/')) return arenaRoute(h.slice('arena/'.length));

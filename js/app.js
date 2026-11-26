@@ -11,6 +11,14 @@ import * as routines from './areas/routines/index.js';
 import * as body from './areas/body/index.js';
 import * as arena from './areas/arena/index.js';
 import { arenaOnly } from './areas/arena/index.js';
+import * as cockpit from './areas/cockpit/home.js';
+import * as finance from './areas/cockpit/finance.js';
+import * as school from './areas/cockpit/school.js';
+import * as projects from './areas/cockpit/projects.js';
+import * as agents from './areas/cockpit/agents.js';
+import * as notes from './areas/cockpit/notes.js';
+import * as integrations from './areas/cockpit/integrations.js';
+import { FAMILY, cnav } from './areas/cockpit/ui.js';
 
 const $ = s => document.querySelector(s);
 
@@ -18,7 +26,7 @@ const $ = s => document.querySelector(s);
 // the app runs on memory and says so, because nothing survives a restart.
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
-const AREAS = { heute, training, recovery, food, routines, body, arena, settings };
+const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations };
 const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Körper', arena: 'Arena', settings: 'Einstellungen' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
@@ -42,11 +50,13 @@ const ctx = {
 };
 
 function header(route, area) {
+  // Cockpit pages share one navigation row under the brand.
+  if (FAMILY.includes(route.area)) return `<div class="lead"><a class="brand" href="#cockpit">Cockpit</a></div><a class="home" href="#heute">KI-Apps ›</a>${cnav(route.area)}`;
   const left = route.area === 'arena' && arenaOnly(ctx.store) ? '<span class="brand">Arena</span>' : route.area === 'heute'
     ? '<a class="brand" href="#heute">KI-Apps</a>'
     : `<a class="home" href="#heute">‹ Heute</a><span class="brand">${TITLES[route.area]}</span>`;
   const right = area.header ? area.header(route, ctx)
-    : route.area === 'heute' ? '<nav class="tabs"><a href="#einstellungen">Einstellungen</a></nav>' : '';
+    : route.area === 'heute' ? '<nav class="tabs"><a href="#cockpit">Cockpit</a><a href="#einstellungen">Einstellungen</a></nav>' : '';
   return `<div class="lead">${left}</div>${right}`;
 }
 
@@ -58,7 +68,11 @@ function render() {
   // Uygar sees only the arena (and settings) until he shows everything.
   if (arenaOnly(ctx.store) && route.area !== 'arena' && route.area !== 'settings') { location.replace('#arena'); return; }
   current = { route, area };
+  const cx = FAMILY.includes(route.area);
+  document.body.classList.toggle('cx', cx);
   $('#top').innerHTML = header(route, area);
+  const nav = cx && $('#top .cnav'), on = nav && nav.querySelector('.on');
+  if (on) nav.scrollLeft = on.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   $('#main').innerHTML = area.render(route, ctx);
   if (area.mount) area.mount($('#main'), route, ctx);
 }

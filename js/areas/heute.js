@@ -16,6 +16,8 @@ import { fmtNum } from './body/logic.js';
 import { toGoal } from './body/view.js';
 import { conn as arenaConn, cacheSummary } from './arena/index.js';
 import { berlinDay, fmt1 } from './arena/logic.js';
+import { list as cxList } from './cockpit/db.js';
+import { nextExams, daysUntil } from './cockpit/logic.js';
 
 const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const MO = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -63,6 +65,17 @@ function arenaTile(a) {
   return a.cache && a.cache.day === a.today ? t('#arena', `Julian ${fmt1(a.cache.julian)} : ${fmt1(a.cache.uygar)} Uygar`, 'heute') : t('#arena', 'Arena öffnen ›', 'Julian · Uygar');
 }
 
+// Cockpit: only the next exam shows here – money stays inside the cockpit.
+export let cockpitSummary = ctx => {
+  const t = ds(ctx.now()), e = nextExams(cxList(ctx, 'exam'), t, 1)[0];
+  return { exam: e ? { subj: e.subj, n: daysUntil(t, e.d) } : null };
+};
+export const setCockpitSummary = fn => { cockpitSummary = fn; };
+function cockpitTile(c) {
+  const w = n => (n === 0 ? 'heute' : n === 1 ? 'morgen' : `in ${n} Tagen`);
+  return `<a class="tile" href="#cockpit"><span class="k">Cockpit</span><b>${c.exam ? `${esc(c.exam.subj)} · ${w(c.exam.n)}` : 'Überblick öffnen ›'}</b><span>${c.exam ? 'nächste Klassenarbeit' : 'Finanzen, Ausbildung, Projekte'}</span></a>`;
+}
+
 // Körper: the quarter check stays on Heute until all eight are done.
 function quarterCard(b) {
   const q = b.quarter;
@@ -101,7 +114,7 @@ export function render(route, ctx) {
   const now = ctx.now(), todayStr = ds(now), { now: cur, next } = nowNext(now);
   const nextWhen = (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start;
   // Each area is read on its own: bad data in one never blanks the start page.
-  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx)), rt = safe(() => routinesSummary(ctx)), bd = safe(() => bodySummary(ctx)), ar = safe(() => arenaSummary(ctx));
+  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx)), rt = safe(() => routinesSummary(ctx)), bd = safe(() => bodySummary(ctx)), ar = safe(() => arenaSummary(ctx)), cx = safe(() => cockpitSummary(ctx));
   const cy = rec && rec.cycle, mob = rec && rec.mobility;
   const trLine = tr && (tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`);
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1>${cy ? `<p class="m">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</p>` : ''}</div></div>
@@ -119,5 +132,6 @@ export function render(route, ctx) {
     ${rt ? `<a class="tile" href="#routinen"><span class="k">Routinen</span><b>Morgen ${rt.morgen.done}/${rt.morgen.total}</b><span>Abend ${rt.abend.done}/${rt.abend.total}</span></a>` : ''}
     ${bd ? bodyTile(bd) : ''}
     ${ar ? arenaTile(ar) : ''}
+    ${cx ? cockpitTile(cx) : ''}
   </div></section>`;
 }
