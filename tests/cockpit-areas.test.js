@@ -43,13 +43,13 @@ test('routes reach every cockpit page', () => {
 test('a new entry is typed into the form and saved; missing fields are named', () => {
   const ctx = mk();
   school.onClick(click({ a: 'fnew', s: 'exam' }), R.school, ctx);
-  assert.match(school.render(R.school, ctx), /<h3>Klassenarbeit hinzufügen</h3>/);
+  assert.match(school.render(R.school, ctx), /<h3>Klassenarbeit hinzufügen<\/h3>/);
   school.onClick(click({ a: 'fsave' }), R.school, ctx);
   assert.match(school.render(R.school, ctx), /Bitte ausfüllen/);
   fill(school, R.school, ctx, { subj: 'Mathe', d: '2026-12-03', time: '08:00', place: 'Raum 4', grade: '' });
   school.onClick(click({ a: 'fsave' }), R.school, ctx);
   assert.deepEqual(db.list(ctx, 'exam').map(e => [e.subj, e.d, e.time, e.place]), [['Mathe', '2026-12-03', '08:00', 'Raum 4']]);
-  assert.doesNotMatch(school.render(R.school, ctx), /<h3>Klassenarbeit hinzufügen</h3>/);
+  assert.doesNotMatch(school.render(R.school, ctx), /<h3>Klassenarbeit hinzufügen<\/h3>/);
 });
 
 test('editing can empty an optional field, deleting takes two taps', () => {
