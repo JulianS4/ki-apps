@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PACK, GRANDPA, GRANDPA_END, EVENING } from '../js/areas/routines/data.js';
+import { PACK, GRANDPA, GRANDPA_END, MORNING, EVENING } from '../js/areas/routines/data.js';
 import { shiftTime, routineFor, activeStep, progress, cleanSteps, cleanPack } from '../js/areas/routines/logic.js';
 
 const THU = '2026-11-26', FRI = '2026-11-27', SAT = '2026-11-28', SUN = '2026-11-29';
@@ -58,7 +58,7 @@ test('cleanSteps keeps valid steps sorted and drops the rest', () => {
   ];
   assert.deepEqual(cleanSteps(raw, EVENING), [
     { id: 'a', from: '06:00', to: '06:05', title: 'A', link: 'water' },
-    { id: 'b', from: '06:10', title: 'B' },
+    { id: 'b', from: '06:10', to: '06:05', title: 'B' },
   ]);
   for (const bad of [undefined, 'x', {}, [], [{ id: 1 }]]) assert.equal(cleanSteps(bad, EVENING), EVENING);
 });
@@ -84,4 +84,22 @@ test('routineFor and activeStep use edited lists', () => {
   assert.equal(routineFor('abend', FRI, late.abend)[0].from, '00:30');
   assert.doesNotThrow(() => activeStep(FRI, '00:10', late));
   assert.doesNotThrow(() => activeStep(FRI, '23:59', late));
+});
+
+// ---- final review fixes ----
+test('a bis before von is kept but not used', () => {
+  const l = cleanSteps([{ id: 'm', from: '21:55', to: '21:10', title: 'M' }, { id: 'n', from: '22:00', title: 'N' }], EVENING);
+  assert.equal(l[0].to, '21:10');
+  assert.equal(routineFor('abend', THU, l)[0].until, '22:00');
+  assert.equal(cleanSteps([{ id: 'm', from: '21:55', to: '9:10', title: 'M' }], EVENING)[0].to, undefined);
+});
+
+test('a gap inside a routine shows the next step', () => {
+  const abend = EVENING.filter(s => s.id !== 'mobility');
+  const a = activeStep(THU, '21:00', { morgen: MORNING, abend });
+  assert.equal(a.kind, 'abend');
+  assert.equal(a.step.id, 'lesen');
+  const morgen = MORNING.map(s => (s.id === 'toilette' ? { ...s, to: '06:15' } : s));
+  assert.equal(activeStep(THU, '06:16', { morgen, abend: EVENING }).step.id, 'mund');
+  assert.equal(activeStep(THU, '07:05', { morgen, abend: EVENING }).kind, null);
 });

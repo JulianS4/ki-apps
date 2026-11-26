@@ -11,6 +11,8 @@ export const shiftTime = (hhmm, min) => { const t = mins(hhmm) + min; return p2(
 
 // Edited lists come from storage and are checked on every read: only valid
 // steps stay, sorted by start time; nothing valid left means the Notion list.
+// A "bis" that is not after "von" is kept (the next edit may fix "von") but
+// routineFor does not use it.
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const LINKS = ['water', 'grandpa', 'pack', 'mobility', 'supps', 'breath'];
@@ -24,7 +26,7 @@ export function cleanSteps(raw, def) {
     seen.add(s.id);
     out.push({
       id: s.id, from: s.from, title: s.title,
-      ...(HHMM.test(s.to) && s.to > s.from ? { to: s.to } : {}),
+      ...(HHMM.test(s.to) ? { to: s.to } : {}),
       ...(LINKS.includes(s.link) ? { link: s.link } : {}),
     });
   }
@@ -43,12 +45,18 @@ export function cleanPack(raw, def) {
 export function routineFor(kind, day, base = kind === 'morgen' ? MORNING : EVENING) {
   const i = dayIdx(noon(day)), late = kind === 'morgen' ? i >= 5 : i === 4 || i === 5, sh = late ? 60 : 0;
   const steps = base.map(s => ({ ...s, from: shiftTime(s.from, sh), ...(s.to ? { to: shiftTime(s.to, sh) } : {}) }));
-  return steps.map((s, k) => ({ ...s, until: s.to || (steps[k + 1] ? steps[k + 1].from : shiftTime(s.from, 1)) }));
+  return steps.map((s, k) => ({ ...s, until: s.to && s.to > s.from ? s.to : steps[k + 1] ? steps[k + 1].from : shiftTime(s.from, 1) }));
 }
 
 export function activeStep(day, hhmm, lists = { morgen: MORNING, abend: EVENING }) {
   for (const kind of ['morgen', 'abend']) {
     const steps = routineFor(kind, day, lists[kind]), k = steps.findIndex(s => s.from <= hhmm && hhmm < s.until && s.from < s.until);
+    if (k >= 0) return { kind, step: steps[k], next: steps[k + 1] || null };
+  }
+  // Between two steps of a routine (an edited list can leave gaps): the next step.
+  for (const kind of ['morgen', 'abend']) {
+    const steps = routineFor(kind, day, lists[kind]), last = steps[steps.length - 1];
+    const k = steps[0].from <= hhmm && hhmm < last.until ? steps.findIndex(s => s.from > hhmm) : -1;
     if (k >= 0) return { kind, step: steps[k], next: steps[k + 1] || null };
   }
   const m = routineFor('morgen', day, lists.morgen)[0].from, a = routineFor('abend', day, lists.abend)[0].from;

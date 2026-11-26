@@ -342,3 +342,15 @@ test('reset restores Notion after two taps', () => {
   assert.match(rout.render(TODAY, ctx), /Packliste 0\/15/);
   assert.doesNotMatch(rout.render(TODAY, ctx), /data-a="rt"/);
 });
+
+// ---- final review fixes ----
+test('moving von past bis and back keeps bis', () => {
+  const ctx = mk();
+  edit(ctx, 'abend');
+  const set = (a, value) => rout.onChange(change({ a, k: 'abend', id: 'mobility' }, { value }), TODAY, ctx);
+  set('rfrom', '21:55');
+  rout.onInput(change({ a: 'rt', k: 'abend', id: 'mobility' }, { value: 'Mobility' }), TODAY, ctx);
+  set('rfrom', '21:05');
+  const m = base(ctx, 'abend').find(s => s.id === 'mobility');
+  assert.deepEqual([m.from, m.to], ['21:05', '21:10']);
+});
