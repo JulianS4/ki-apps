@@ -1,0 +1,64 @@
+rules_version = '2';
+// KI-Apps Arena. Everything lives under arenas/{code}; nothing else is open.
+// A player proves who they are once per device by writing a claim with their
+// key; keys and claims can never be read. Days can only be written by the
+// player they belong to.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /arenas/{code} {
+      function signedIn() { return request.auth != null; }
+      function claimed(p) {
+        return exists(/databases/$(database)/documents/arenas/$(code)/claims/$(p + '_' + request.auth.uid));
+      }
+      function member() { return signedIn() && (claimed('julian') || claimed('uygar')); }
+
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && code.size() >= 22
+        && request.resource.data.keys().hasOnly(['start', 'v'])
+        && request.resource.data.start is string && request.resource.data.v == 1;
+      allow update, delete: if false;
+
+      match /keys/{p} {
+        allow read: if false;
+        allow create: if signedIn() && p in ['julian', 'uygar']
+          && request.resource.data.keys().hasOnly(['key'])
+          && request.resource.data.key is string && request.resource.data.key.size() >= 32;
+        allow update, delete: if false;
+      }
+
+      match /claims/{id} {
+        allow read: if false;
+        allow create, update: if signedIn()
+          && request.resource.data.keys().hasOnly(['player', 'uid', 'key'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.player in ['julian', 'uygar']
+          && id == request.resource.data.player + '_' + request.auth.uid
+          && request.resource.data.key == get(/databases/$(database)/documents/arenas/$(code)/keys/$(request.resource.data.player)).data.key;
+        allow delete: if false;
+      }
+
+      match /tasks/{t} {
+        allow read: if member();
+        allow create, update: if member()
+          && request.resource.data.keys().hasOnly(['id', 'name', 'kind', 'unit', 'goal', 'hint', 'order', 'archived'])
+          && request.resource.data.id == t
+          && request.resource.data.name is string && request.resource.data.name.size() <= 60
+          && request.resource.data.kind in ['yes', 'value'];
+        allow delete: if false;
+      }
+
+      match /days/{id} {
+        allow read: if member();
+        allow create, update: if signedIn()
+          && request.resource.data.keys().hasOnly(['player', 'date', 'values', 'points', 'total'])
+          && request.resource.data.player in ['julian', 'uygar']
+          && request.resource.data.date is string
+          && id == request.resource.data.player + '_' + request.resource.data.date
+          && request.resource.data.total is number
+          && claimed(request.resource.data.player);
+        allow delete: if false;
+      }
+    }
+  }
+}
