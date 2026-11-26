@@ -151,3 +151,49 @@ test('due supplements come first', () => {
   food.onChange(change({ a: 'supp', id: 'omega' }, { checked: true }), TODAY, ctx);
   assert.deepEqual(food.summary(ctx).due, { group: 'morgens', done: 1, total: 3 });
 });
+
+const DISH = { area: 'food', view: 'dishes' };
+
+test('dishes view shows the ingredients', () => {
+  const html = food.render(DISH, mk());
+  assert.match(html, /Griechischer Joghurt \+ Whey/);
+  assert.match(html, /Frühstück Sa–So/);
+  assert.match(html, /data-a="dedit"/);
+});
+
+test('editing a dish changes the plan', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'dedit' }), DISH, ctx);
+  assert.match(food.render(DISH, ctx), /data-a="dg"/);
+  food.onChange(change({ a: 'dg', id: 'joghurt-bowl' }, { value: '50' }), DISH, ctx);
+  assert.equal(ctx.store.get('food.dishes').find(d => d.id === 'joghurt-bowl').g, 50);
+  food.onClick(click({ a: 'dish', id: 'joghurt-bowl' }), TODAY, ctx);
+  assert.equal(day(ctx).meals[0].g, 50);
+});
+
+test('editing a dish does not change logged meals', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'dish', id: 'joghurt-bowl' }), TODAY, ctx);
+  food.onClick(click({ a: 'dedit' }), DISH, ctx);
+  food.onInput(input({ a: 'dn', id: 'joghurt-bowl' }, 'Bowl XL'), DISH, ctx);
+  food.onChange(change({ a: 'dg', id: 'joghurt-bowl' }, { value: '60' }), DISH, ctx);
+  assert.equal(ctx.store.get('food.dishes').find(d => d.id === 'joghurt-bowl').name, 'Bowl XL');
+  const m = day(ctx).meals[0];
+  assert.deepEqual({ name: m.name, g: m.g }, { name: 'Joghurt Bowl', g: 45 });
+  food.onClick(click({ a: 'dreset' }), DISH, ctx);
+  assert.ok(Array.isArray(ctx.store.get('food.dishes')));
+  food.onClick(click({ a: 'dreset' }), DISH, ctx);
+  assert.equal(ctx.store.get('food.dishes'), null);
+  assert.deepEqual({ name: day(ctx).meals[0].name, g: day(ctx).meals[0].g }, { name: 'Joghurt Bowl', g: 45 });
+});
+
+test('adding and deleting a dish', () => {
+  const ctx = mk(THU, 85);
+  food.onClick(click({ a: 'dedit' }), DISH, ctx);
+  food.onClick(click({ a: 'dadd', slot: 'sn', days: 'all' }), DISH, ctx);
+  const added = ctx.store.get('food.dishes').filter(d => d.name === 'Neues Gericht');
+  assert.equal(added.length, 1);
+  assert.deepEqual({ slot: added[0].slot, days: added[0].days, g: added[0].g }, { slot: 'sn', days: 'all', g: 20 });
+  food.onClick(click({ a: 'ddel', id: added[0].id }), DISH, ctx);
+  assert.equal(ctx.store.get('food.dishes').filter(d => d.name === 'Neues Gericht').length, 0);
+});

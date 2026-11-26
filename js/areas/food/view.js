@@ -83,5 +83,26 @@ function supplements(v) {
 }
 
 export const todayView = v => hero(v, 'Ernährung') + protein(v) + grid(v) + entries(v) + water(v) + supplements(v) + clean(v);
-export const dishesView = v => hero(v, 'Gerichte');
+const DISH_GROUPS = [['fr', 'wt', 'Frühstück Mo–Fr'], ['fr', 'we', 'Frühstück Sa–So'], ['mi', 'wt', 'Mittag Mo–Fr'], ['mi', 'we', 'Mittag Sa–So'],
+  ['ab', 'wt', 'Abendessen Mo–Fr'], ['ab', 'we', 'Abendessen Sa–So'], ['sn', 'all', 'Snacks'], ['dr', 'all', 'Drinks']];
+
+const dishRead = d => `<details class="ses"><summary><b>${esc(d.name || 'Ohne Namen')}</b><span>~${num(d.g)} g</span></summary><p class="sigh">${esc(d.ing || '–')}</p></details>`;
+const dishEdit = d => `<div class="ex"><label class="note fl" for="dn-${esc(d.id)}">Name</label><input id="dn-${esc(d.id)}" class="tx" data-a="dn" data-id="${esc(d.id)}" value="${esc(d.name)}" autocomplete="off">
+  <div class="frow"><label class="gin"><input type="number" inputmode="numeric" min="0" max="150" data-a="dg" data-id="${esc(d.id)}" value="${num(d.g)}" aria-label="Gramm Protein">g Protein</label><button class="btn red" type="button" data-a="ddel" data-id="${esc(d.id)}">Löschen</button></div>
+  <label class="note fl" for="di-${esc(d.id)}">Zutaten</label><textarea id="di-${esc(d.id)}" data-a="di" data-id="${esc(d.id)}">${esc(d.ing)}</textarea></div>`;
+
+export function dishesView(v) {
+  const used = new Set(), groups = DISH_GROUPS.map(([slot, days, label]) => {
+    const l = v.dishes.filter(d => d.slot === slot && d.days === days);
+    l.forEach(d => used.add(d));
+    return { slot, days, label, l };
+  });
+  const other = v.dishes.filter(d => !used.has(d));
+  if (other.length) groups.push({ label: 'Weitere', l: other });
+  return hero(v, 'Gerichte') + `<p class="note">Antippen zeigt die Zutaten. Protein-Werte sind Schätzungen und lassen sich ändern.</p>
+  <div class="tools"><button class="btn${v.edit ? ' pri' : ''}" type="button" data-a="dedit">${v.edit ? 'Fertig mit Bearbeiten' : 'Bearbeiten'}</button></div>
+  ${groups.map(g => `<section class="blk"><div class="bh"><h2>${g.label}</h2><p>${g.l.length}</p></div>${g.l.map(v.edit ? dishEdit : dishRead).join('')}
+  ${v.edit && g.slot ? `<button class="add" type="button" data-a="dadd" data-slot="${g.slot}" data-days="${g.days}">+ Gericht</button>` : ''}</section>`).join('')}
+  ${v.edit ? `<section class="blk"><button class="btn red" type="button" data-a="dreset">${v.confirm ? 'Sicher? Nochmal tippen' : 'Auf Notion-Stand zurücksetzen'}</button></section>` : ''}`;
+}
 export const shopView = v => hero(v, 'Einkauf') + `<p class="note">${esc(v.note || '')}</p>`;
