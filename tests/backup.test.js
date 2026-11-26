@@ -76,3 +76,18 @@ test('edited routine lists travel as a whole', () => {
   importBackup({ app: 'ki-apps', v: 1, data: { 'rout.days': {} } }, b);
   assert.deepEqual(b.get('rout.steps'), lists);
 });
+
+test('body keys merge per date; the photo index stays out of a plain backup', () => {
+  const a = fresh();
+  a.set('body.log', { '2026-11-20': { fat: 15 } });
+  a.set('body.photos', { '2026-11-02': { vorne: true } });
+  assert.equal('body.photos' in buildBackup(a, 'iso').data, false);
+  assert.deepEqual(buildBackup(a, 'iso', { photos: true }).data['body.photos'], { '2026-11-02': { vorne: true } });
+  const b = fresh();
+  b.set('body.log', { '2026-11-21': { fat: 14 } });
+  b.set('body.quarter', { '2026-Q3': { plan: true } });
+  importBackup({ app: 'ki-apps', v: 1, data: { 'body.log': { '2026-11-20': { fat: 15 } }, 'body.quarter': { '2026-Q4': { pain: true } }, 'body.photos': { '2026-11-02': { vorne: true } } } }, b);
+  assert.deepEqual(b.get('body.log'), { '2026-11-21': { fat: 14 }, '2026-11-20': { fat: 15 } });
+  assert.deepEqual(b.get('body.quarter'), { '2026-Q3': { plan: true }, '2026-Q4': { pain: true } });
+  assert.equal(b.get('body.photos'), null);
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { render, setFoodSummary, foodSummary as foodSummaryDefault } from '../js/areas/heute.js';
+import { render, setFoodSummary, foodSummary as foodSummaryDefault, setBodySummary, bodySummary as bodySummaryDefault } from '../js/areas/heute.js';
 import { createStore } from '../js/core/store.js';
 import { memBackend } from './helpers.js';
 
@@ -135,6 +135,30 @@ test('now card links to the holder during a routine', () => {
 });
 test('coming-soon line after routines', () => {
   const soon = render({ area: 'heute' }, ctx()).match(/Kommt bald[^<]*/)[0];
-  assert.match(soon, /Körper/);
+  assert.match(soon, /Arena/);
+  assert.doesNotMatch(soon, /Körper/);
   assert.doesNotMatch(soon, /Routinen/);
+});
+
+test('body tile shows the latest weight and the distance to 90', () => {
+  const s = createStore(memBackend());
+  s.set('body.weight', { '2026-11-20': 92.4 });
+  const html = render({ area: 'heute' }, ctx(s));
+  assert.match(html, /href="#koerper"/);
+  assert.match(html, /92,4 kg/);
+  assert.match(html, /2,4 kg bis 90/);
+  assert.match(render({ area: 'heute' }, ctx()), /Gewicht fehlt/);
+});
+
+test('quarter card shows until all eight are done', () => {
+  const s = createStore(memBackend());
+  assert.match(render({ area: 'heute' }, ctx(s)), /Quartals-Check fällig · 0\/8/);
+  s.set('body.quarter', { '2026-Q4': Object.fromEntries(['weight', 'photos', 'measures', 'mob', 'run5k', 'plan', 'pain', 'hang'].map(k => [k, true])) });
+  assert.doesNotMatch(render({ area: 'heute' }, ctx(s)), /Quartals-Check/);
+});
+
+test('broken body summary keeps Heute up', () => {
+  const original = bodySummaryDefault;
+  setBodySummary(() => { throw new Error('x'); });
+  try { assert.match(render({ area: 'heute' }, ctx()), /Bereiche/); } finally { setBodySummary(original); }
 });

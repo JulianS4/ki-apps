@@ -1,5 +1,5 @@
 // Offline cache: network first, cache as fallback. Bump CACHE on every release.
-const CACHE = 'ki-apps-v5';
+const CACHE = 'ki-apps-v6';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'js/app.js', 'js/core/dates.js', 'js/core/store.js', 'js/core/routes.js', 'js/core/schedule.js',
@@ -9,6 +9,7 @@ const FILES = [
   'js/areas/recovery/data.js', 'js/areas/recovery/logic.js', 'js/areas/recovery/view.js', 'js/areas/recovery/index.js',
   'js/areas/food/data.js', 'js/areas/food/logic.js', 'js/areas/food/view.js', 'js/areas/food/index.js',
   'js/core/guided.js', 'js/areas/routines/data.js', 'js/areas/routines/logic.js', 'js/areas/routines/view.js', 'js/areas/routines/index.js',
+  'js/areas/body/data.js', 'js/areas/body/logic.js', 'js/areas/body/view.js', 'js/areas/body/index.js', 'js/areas/body/chart.js', 'js/areas/body/photos.js',
 ];
 
 self.addEventListener('install', e => {

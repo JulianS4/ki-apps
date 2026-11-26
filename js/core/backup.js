@@ -4,16 +4,17 @@ export const STORAGE_FAILED = 'Speichern nicht möglich – Speicher voll oder p
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const validPlan = p => isObj(p) && Array.isArray(p.days) && p.days.length === 7;
 
-export function buildBackup(store, exportedIso) {
+// The photo index only travels with the photos themselves (settings adds them).
+export function buildBackup(store, exportedIso, { photos = false } = {}) {
   const data = {};
-  for (const k of store.keys()) if (k !== 'meta.lastBackup') data[k] = store.get(k);
+  for (const k of store.keys()) if (k !== 'meta.lastBackup' && (photos || k !== 'body.photos')) data[k] = store.get(k);
   return { app: 'ki-apps', v: 1, exported: exportedIso, data };
 }
 
 // Date-keyed maps merge per key (backup wins), so loading an older backup
 // never wipes entries made since. Complaints merge by id. The plan only
 // replaces when it is a full week, everything else is replaced as a whole.
-const PER_KEY = ['train.sess', 'rec.morning', 'rec.mobility', 'rec.weekly', 'rec.blocks', 'rec.flags', 'food.days', 'body.weight', 'rout.days'];
+const PER_KEY = ['train.sess', 'rec.morning', 'rec.mobility', 'rec.weekly', 'rec.blocks', 'rec.flags', 'food.days', 'body.weight', 'rout.days', 'body.log', 'body.quarter'];
 function put(store, key, value) {
   let ok = true;
   if (PER_KEY.includes(key)) {
@@ -26,6 +27,8 @@ function put(store, key, value) {
     }
   } else if (key === 'train.plan') {
     if (validPlan(value)) ok = store.set(key, value);
+  } else if (key === 'body.photos') {
+    // Never taken over directly: importPhotos indexes the images it wrote.
   } else if (key !== 'meta.lastBackup') {
     ok = store.set(key, value);
   }

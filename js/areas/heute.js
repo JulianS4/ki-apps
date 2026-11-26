@@ -11,6 +11,9 @@ import { summary as foodSum } from './food/index.js';
 import { litres } from './food/view.js';
 import { SUPP_LABELS } from './food/data.js';
 import { summary as routSum } from './routines/index.js';
+import { summary as bodySum } from './body/index.js';
+import { fmtNum } from './body/logic.js';
+import { toGoal } from './body/view.js';
 
 const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const MO = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -47,6 +50,15 @@ export let foodSummary = ctx => foodSum(ctx);
 export const setFoodSummary = fn => { foodSummary = fn; };
 export let routinesSummary = ctx => routSum(ctx);
 export const setRoutinesSummary = fn => { routinesSummary = fn; };
+export let bodySummary = ctx => bodySum(ctx);
+export const setBodySummary = fn => { bodySummary = fn; };
+
+// Körper: the quarter check stays on Heute until all eight are done.
+function quarterCard(b) {
+  const q = b.quarter;
+  return q.done < q.total ? `<a class="card warn" href="#koerper"><b>Quartals-Check fällig · ${q.done}/${q.total}</b><span>${q.q.slice(5)} ${q.q.slice(0, 4)} · abhaken ›</span></a>` : '';
+}
+const bodyTile = b => `<a class="tile" href="#koerper"><span class="k">Körper</span><b>${b.kg ? fmtNum(b.kg.y) + ' kg' : 'Gewicht fehlt'}</b><span>${b.kg ? toGoal(b.kg.y) : 'Messung eintragen ›'}</span></a>`;
 
 // Hints from "Recovery · Trainingstag" and the Wed/Sun meal prep.
 function foodCards(f) {
@@ -79,11 +91,11 @@ export function render(route, ctx) {
   const now = ctx.now(), todayStr = ds(now), { now: cur, next } = nowNext(now);
   const nextWhen = (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start;
   // Each area is read on its own: bad data in one never blanks the start page.
-  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx)), rt = safe(() => routinesSummary(ctx));
+  const tr = safe(() => trainingSummary(ctx.store, now)), rec = safe(() => recoverySummary(ctx)), fd = safe(() => foodSummary(ctx)), rt = safe(() => routinesSummary(ctx)), bd = safe(() => bodySummary(ctx));
   const cy = rec && rec.cycle, mob = rec && rec.mobility;
   const trLine = tr && (tr.type === 'ruhe' ? 'Kein Training' : `${tr.done}/${tr.total} Sätze`);
   return `<div class="hero" style="grid-template-columns:1fr"><div><p class="k">Heute</p><h1>${WD[dayIdx(now)]}, ${now.getDate()}. ${MO[now.getMonth()]}</h1>${cy ? `<p class="m">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</p>` : ''}</div></div>
-  ${rec ? recoveryCards(rec) : ''}${backupCard(ctx.store, todayStr)}${fd ? foodCards(fd) : ''}
+  ${rec ? recoveryCards(rec) : ''}${backupCard(ctx.store, todayStr)}${bd ? quarterCard(bd) : ''}${fd ? foodCards(fd) : ''}
   <section class="blk"><div class="cards">
     ${cur ? (/^(Morgen|Abend)routine$/.test(cur.title)
     ? `<a class="card now" href="#routinen/halterung"><p class="k">Jetzt</p><b>${esc(cur.title)}</b><span>bis ${cur.end} · Halterungs-Modus ›</span></a>`
@@ -95,5 +107,6 @@ export function render(route, ctx) {
     ${mob ? `<a class="tile" href="#recovery"><span class="k">Recovery</span><b>Mobility ${mob.routine} · ${mob.name}</b><span>${mob.done ? '✓ erledigt' : 'offen'}</span></a>` : ''}
     ${fd ? foodTile(fd) : ''}
     ${rt ? `<a class="tile" href="#routinen"><span class="k">Routinen</span><b>Morgen ${rt.morgen.done}/${rt.morgen.total}</b><span>Abend ${rt.abend.done}/${rt.abend.total}</span></a>` : ''}
-  </div><p class="note soon">Kommt bald: Körper · Arena</p></section>`;
+    ${bd ? bodyTile(bd) : ''}
+  </div><p class="note soon">Kommt bald: Arena</p></section>`;
 }
