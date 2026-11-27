@@ -2,7 +2,7 @@
 // with its own measure (rings, pill bars, a mini knowledge graph). Every figure
 // names its source; each tile leads to its area for the details.
 import { esc } from '../../core/html.js';
-import { dfmt, dshort, dayIdx, DAYS, DN } from '../../core/dates.js';
+import { dfmt, dshort, dayIdx, DAYS, DN, ds, monday } from '../../core/dates.js';
 import { nowNext } from '../../core/schedule.js';
 import * as db from './db.js';
 import { netWorth, netWorthSeries, nextExams, currentDept, totals, filterTx, periodRange, logStats, hasProgress, dueTasks, daysUntil, gradeAvg, fmtDur, budgetRows, buckets, inRange, MONTHS } from './logic.js';
@@ -20,6 +20,8 @@ import { SUPP_LABELS } from '../food/data.js';
 import { DELOAD_RULES } from '../recovery/data.js';
 import { fmtNum } from '../body/logic.js';
 import { toGoal } from '../body/view.js';
+import { weekLoad, muscleFigure } from '../training/muscles.js';
+import { DEF } from '../training/plan-default.js';
 
 export const inDays = n => (n === 0 ? 'heute' : n === 1 ? 'morgen' : n < 0 ? 'vorbei' : `in ${n} Tagen`);
 export const fmtGrade = g => g.toFixed(Math.round(g * 100) % 10 ? 2 : 1).replace('.', ',');
@@ -101,7 +103,8 @@ function trainTile(ctx) {
   const rest = tr.type === 'ruhe';
   const g = rest ? ring(100, { label: 'Training heute', value: 'Ruhe', sub: 'tag' }) : ring(pct(tr.done, tr.total), { label: 'Sätze heute', value: `${tr.done}/${tr.total}`, sub: 'Sätze' });
   const chips = `<span class="chip">${esc(rest ? 'Ruhetag' : tr.name)}</span>${cy ? `<span class="chip">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</span>` : ''}`;
-  return tile('train', 'Training', '#training', 'Öffnen', `<div class="rings">${g}</div><div class="chips">${chips}</div>`, `${rest ? 'Ruhetag' : `${tr.done}/${tr.total} Sätze`} · aus Training auf diesem Gerät`);
+  const fig = safe(() => muscleFigure(weekLoad(ctx.store.get('train.plan') || DEF, ctx.store.get('train.sess', {}) || {}, ds(monday(ctx.now()))), { mini: true })) || '';
+  return tile('train', 'Training', '#training', 'Öffnen', `<div class="wsplit tsplit"><div class="rings">${g}</div>${fig}</div><div class="chips">${chips}</div>`, `${rest ? 'Ruhetag' : `${tr.done}/${tr.total} Sätze`} · aus Training auf diesem Gerät`);
 }
 
 function foodTile(ctx) {

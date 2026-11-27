@@ -1116,3 +1116,25 @@ details.tdone>summary{cursor:pointer;color:var(--mut);font-weight:600;padding:8p
   #bar,.sheet{left:276px}
   body.solo{padding-left:0}body.solo #bar,body.solo .sheet{left:0}
 }
+/* the muscle figure: dark body, muscle groups glow in the accent by this week's sets */
+.mwrap{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:22px;align-items:center}
+@media(max-width:620px){.mwrap{grid-template-columns:1fr}}
+.mfig{perspective:1000px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.mstage{position:relative;width:min(100%,220px);aspect-ratio:1/2;transform-style:preserve-3d;transform:rotateY(var(--ry,0deg));transition:transform .9s cubic-bezier(.2,.8,.2,1);touch-action:pan-y;cursor:grab}
+.mstage.drag{transition:none;cursor:grabbing}
+.mfig.flip .mstage{--ry:180deg}
+.mface{position:absolute;inset:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.mface.back{transform:rotateY(180deg)}
+.mfig .sil{fill:#151815;stroke:rgb(255 255 255/.09);stroke-width:.8}
+.mfig .mg{fill:#272B25;stroke:rgb(255 255 255/.07);stroke-width:.7;transition:fill .5s}
+.mfig .mg.on{fill:color-mix(in srgb,var(--ac) calc(30% + var(--l) * 70%),#272B25);stroke:rgb(var(--ac-rgb)/calc(.3 + var(--l) * .6))}
+.mctl{display:flex;align-items:center;gap:10px}
+.mside{font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.mfig.mini{flex-direction:row;gap:4px;perspective:none}
+.mfig.mini .mface{position:static;width:64px;height:128px;backface-visibility:visible;transform:none}
+.tsplit{display:flex;align-items:center;justify-content:space-around;gap:10px}
+.mlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.mlist li{display:grid;grid-template-columns:minmax(0,1fr) 90px 44px;align-items:center;gap:10px;font-size:14px}
+.mlist i{display:block;height:6px;border-radius:6px;background:linear-gradient(90deg,var(--ac) calc(var(--l) * 100%),rgb(255 255 255/.07) 0);box-shadow:0 0 10px rgb(var(--ac-rgb)/calc(var(--l) * .5))}
+.mlist b{text-align:right;font-family:var(--mono);font-size:12px;color:var(--mut)}
+@media(prefers-reduced-motion:reduce){.mstage{transition:none}}

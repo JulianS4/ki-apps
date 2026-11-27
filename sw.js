@@ -1,14 +1,14 @@
 // Offline cache: network first, cache as fallback. Bump CACHE on every release.
 // Own files skip the browser cache (GitHub Pages lets it keep files for 10 minutes): an
 // update must never mix an old and a new module, or the page stays blank.
-const CACHE = 'ki-apps-v14';
+const CACHE = 'ki-apps-v15';
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'js/app.js', 'js/core/dates.js', 'js/core/store.js', 'js/core/routes.js', 'js/core/schedule.js',
   'js/core/backup.js', 'js/core/html.js', 'js/core/theme.js', 'js/areas/heute.js', 'js/areas/settings.js',
   'js/areas/training/index.js', 'js/areas/training/plan-default.js', 'js/areas/training/logic.js',
-  'js/areas/training/view.js', 'js/areas/training/chart.js', 'js/core/migrate.js',
+  'js/areas/training/view.js', 'js/areas/training/chart.js', 'js/areas/training/muscles.js', 'js/core/migrate.js',
   'js/areas/recovery/data.js', 'js/areas/recovery/logic.js', 'js/areas/recovery/view.js', 'js/areas/recovery/index.js',
   'js/areas/food/data.js', 'js/areas/food/logic.js', 'js/areas/food/view.js', 'js/areas/food/index.js',
   'js/core/guided.js', 'js/areas/routines/data.js', 'js/areas/routines/logic.js', 'js/areas/routines/view.js', 'js/areas/routines/index.js',

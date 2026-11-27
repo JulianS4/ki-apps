@@ -6,7 +6,8 @@ import { dayView, histView, exDetail, getDay, cur, dateFor, keyFor, todayId, clo
 import { bindChart } from './chart.js';
 import { setTrainingSummary } from '../heute.js';
 import { recoveryFor } from '../recovery/index.js';
-import { dfmt } from '../../core/dates.js';
+import { dfmt, ds, monday } from '../../core/dates.js';
+import { weekLoad, muscleFigure, muscleList, bindFigures } from './muscles.js';
 
 const SC_NAME = 'Training loggen';
 const HTYPE = { kraft: 'Krafttraining', athletik: 'Functional Training', cardio: 'Laufen' };
@@ -65,13 +66,19 @@ export function render(route, ctx) {
   st.CH = null;
   if (route.view === 'hist') return histView(st, ctx);
   if (route.view === 'ex') return exDetail(st, route.ex, mainWidth());
-  return dayView(st, dayOf(route, ctx), ctx);
+  return muscleBlock(ctx) + dayView(st, dayOf(route, ctx), ctx);
+}
+
+// The muscle figure for this week, above the day.
+function muscleBlock(ctx) {
+  const w = weekLoad(st.plan, st.sess, ds(monday(ctx.now())));
+  return `<section class="blk mbody"><div class="bh"><h2>Muskeln diese Woche</h2><p>${w.total.done} von ${w.total.plan} Sätzen</p></div><div class="mwrap">${muscleFigure(w)}<div>${muscleList(w)}<p class="note">Je heller, desto mehr der geplanten Sätze für diese Muskeln sind diese Woche geschafft.</p></div></div></section>`;
 }
 
 export const header = route =>
   `<nav class="tabs"><a href="#training" class="${route.view === 'day' ? 'on' : ''}">Woche</a><a href="#training/verlauf" class="${route.view !== 'day' ? 'on' : ''}">Verlauf</a></nav>`;
 
-export const mount = root => bindChart(root, st.CH);
+export const mount = root => { bindChart(root, st.CH); bindFigures(root); };
 export const onNavigate = () => { st.edit = false; };
 export const redrawOnResize = route => route.view === 'ex';
 
