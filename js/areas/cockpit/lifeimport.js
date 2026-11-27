@@ -45,9 +45,9 @@ export function planImport(ctx, file, name = 'Life-OS-Import') {
       let item = { ...raw, src: 'notion', upd: today };
       // Already in the app – the same Notion entry from last time (even renamed), or something with the
       // same name: Notion takes its place and keeps its id, so tasks, bookings and log entries stay linked.
-      const nameKey = BY_NAME[k], free = e => !taken.has(e.id);
-      const same = nameKey && (existing.find(e => free(e) && e.nid && e.nid === raw.id) || existing.find(e => free(e) && norm(e[nameKey]) === norm(item[nameKey])));
-      if (nameKey) item.nid = String(raw.id);
+      const nameKey = BY_NAME[k], free = e => !taken.has(e.id), nid = raw.id == null ? '' : String(raw.id);
+      const same = nameKey && (existing.find(e => free(e) && nid && e.nid === nid) || existing.find(e => free(e) && norm(e[nameKey]) === norm(item[nameKey])));
+      if (nameKey && nid) item.nid = nid;
       if (same) { ids[k].set(raw.id, same.id); item = { ...same, ...item, id: same.id }; }
       if (k === 'account') item = withHist({ hist: [], ...item }, same || existing.find(e => e.id === item.id));
       if (k === 'tx') item = { ...item, acc: map('account', item.acc), cat: map('cat', item.cat) };
