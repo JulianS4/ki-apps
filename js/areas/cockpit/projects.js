@@ -6,6 +6,7 @@ import { logStats, periodRange, fmtDur, fmtMoney, fmtEuro0, buckets, logSeries }
 import { PROJ_STATUS, label } from './data.js';
 import { banner, hero, srcLine, pbar, empty, newBtn, editBtn, formIf, common, tick, target, today, edInput, onNavigateCommon, mountCommon, blurActive } from './ui.js';
 import { barChart, bindBars, periodPicker, rangeOf, chartState, chartClick, chartChange, resetCharts } from './charts.js';
+import { knowledgeBox, kbInput } from './knowledge.js';
 
 let lproj = '', BARS = {};
 const MEASURES = [['inc', 'Umsatz', 'Welches Projekt bringt Umsatz?'], ['profit', 'Gewinn', 'Welches Projekt bringt Gewinn?'], ['min', 'Stunden', 'Wohin gehen die Stunden?']];
@@ -39,7 +40,7 @@ function project(ctx, t, id) {
   const notes = db.list(ctx, 'note').filter(n => n.projects.includes(id)), ps = db.list(ctx, 'project');
   return `<a class="back" href="#projekte">‹ Projekte</a>${hero('', esc(p.name), `${esc(label(PROJ_STATUS, p.status))} · ${esc(nextStep(p, tasks, t))}`)}
   <div class="pact">${newBtn('log', 'Log-Eintrag hinzufügen', { proj: id }, 'btn pri')}${newBtn('ptask', 'Aufgabe hinzufügen', { proj: id })}${editBtn('project', p.id, 'Projekt bearbeiten').replace('class="ed"', 'class="btn"')}</div>
-  ${formIf(ctx, 'project')}${formIf(ctx, 'log', { hide: ['proj'] })}${formIf(ctx, 'ptask', { hide: ['proj'] })}
+  ${formIf(ctx, 'project')}${formIf(ctx, 'log', { hide: ['proj'] })}${formIf(ctx, 'ptask', { hide: ['proj'] })}${formIf(ctx, 'note')}
   <section class="blk"><div class="bh"><h2>Fortschritt</h2><p>${p.upd ? srcLine(p.src, p.upd, ctx, { label: 'aktualisiert' }) : 'noch nicht bearbeitet'}</p></div><div class="ex">${pbar(p.prog, `Fortschritt ${p.prog} Prozent`)}<p class="note">${p.prog} % geschafft${p.goal ? ' · Ziel: ' + esc(p.goal) : ''}</p></div></section>
   <section class="blk"><div class="bh"><h2>Zahlen</h2><p>aus dem Business Log</p></div>${periodPicker('proj', t)}${stats(logStats(log, { range: r }))}</section>
   <section class="blk"><div class="bh"><h2>Aufgaben</h2><p>${tasks.filter(x => !x.done).length} offen</p></div>
@@ -48,7 +49,8 @@ function project(ctx, t, id) {
   ${inR.length ? `<ul class="crows card-l">${inR.map(e => logRow(e, ps)).join('')}</ul>` : '<p class="note">Keine Einträge in diesem Zeitraum.</p>'}</section>
   <section class="blk prose"><div class="bh"><h2>Notizen & Links</h2></div><div class="ex">${p.notes ? `<p class="pre">${esc(p.notes)}</p>` : '<p class="note">Keine Notizen.</p>'}
   ${p.links.length ? `<ul class="links">${p.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)}</a></li>`).join('')}</ul>` : ''}</div>
-  ${notes.length ? `<p class="fl note">Verknüpfte Notizen</p><ul class="crows card-l">${notes.map(n => `<li><a class="nm" href="#wissen/n-${esc(n.id)}"><b>${esc(n.title)}</b><small>${esc(n.tags.map(g => '#' + g).join(' '))}</small></a></li>`).join('')}</ul>` : ''}</section>`;
+  ${notes.length ? `<p class="fl note">Verknüpfte Notizen</p><ul class="crows card-l">${notes.map(n => `<li><a class="nm" href="#wissen/n-${esc(n.id)}"><b>${esc(n.title)}</b><small>${esc(n.tags.map(g => '#' + g).join(' '))}</small></a></li>`).join('')}</ul>` : ''}</section>
+  ${knowledgeBox(ctx, { id: 'proj-' + p.id, about: p.name, q: p.name, prefer: notes.map(n => n.id), preset: { topic: 'business', projects: [p.id] } })}`;
 }
 
 function logView(ctx, t) {
@@ -73,7 +75,11 @@ function logView(ctx, t) {
   <ul class="crows card-l">${byProj.map(x => `<li><a class="nm" href="#projekte/p-${esc(x.id)}"><b>${esc(pname(ps, x.id))}</b><small>Umsatz ${fmtMoney(x.s.inc)} · Kosten ${fmtMoney(x.s.exp)} · ${fmtDur(x.s.min)}</small></a><span class="vr"><span class="${x.s.profit < 0 ? 'neg' : ''}">${fmtMoney(x.s.profit)}</span><small>Gewinn</small></span></li>`).join('')}</ul></section>
   <section class="blk"><div class="bh"><h2>Einträge</h2><p>${shown.length}</p></div>
   <div class="cflt"><label class="dsel">Projekt<select data-a="lproj"><option value="">Alle</option>${ps.map(p => `<option value="${esc(p.id)}"${p.id === lproj ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label></div>
-  ${shown.length ? `<ul class="crows card-l">${shown.map(e => logRow(e, ps)).join('')}</ul>` : empty(all.length ? 'Keine Einträge für diese Auswahl.' : 'Noch keine Einträge. Halte fest, was du für deine Projekte tust: Datum, Dauer, Einnahmen und Ausgaben.')}</section>`;
+  ${shown.length ? `<ul class="crows card-l">${shown.map(e => logRow(e, ps)).join('')}</ul>` : empty(all.length ? 'Keine Einträge für diese Auswahl.' : 'Noch keine Einträge. Halte fest, was du für deine Projekte tust: Datum, Dauer, Einnahmen und Ausgaben.')}</section>
+  ${formIf(ctx, 'note')}${knowledgeBox(ctx, {
+    id: 'log', about: 'deine Projekte', mode: 'any', q: ids.map(id => pname(ps, id)).join(' ') || 'business projekt umsatz kunden',
+    prefer: db.list(ctx, 'note').filter(n => n.projects.some(x => ids.includes(x))).map(n => n.id), preset: { topic: 'business' },
+  })}`;
 }
 
 export function render(route, ctx) {
@@ -87,7 +93,7 @@ export function onClick(e, route, ctx) {
   if (!t || common(t, ctx)) return;
   if (chartClick(t, today(ctx))) { blurActive(); ctx.rerender(); }
 }
-export function onInput(e) { edInput(e.target); }
+export function onInput(e, route, ctx) { if (!kbInput(e.target, ctx)) edInput(e.target); }
 export function onChange(e, route, ctx) {
   const t = e.target;
   if (edInput(t) || tick(t, ctx)) return;

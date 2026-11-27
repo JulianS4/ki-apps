@@ -4,6 +4,7 @@ import * as db from './db.js';
 import { fmtMoney } from './logic.js';
 import { AGENT_STATUS, label } from './data.js';
 import { banner, hero, srcLine, empty, newBtn, editBtn, formIf, common, target, edInput, onNavigateCommon, mountCommon } from './ui.js';
+import { knowledgeBox, kbInput } from './knowledge.js';
 
 const CLS = { bereit: 'ok', beschaeftigt: 'hot', fehlgeschlagen: 'late', pausiert: 'mute', unbekannt: 'mute' };
 export function render(route, ctx) {
@@ -19,10 +20,15 @@ export function render(route, ctx) {
   <div class="pact">${newBtn('agent', 'Agent hinzufügen', null, 'btn pri')}</div>
   <div class="ex info"><p>Noch ist kein Agent-System angebunden. Was hier steht, trägst du selbst ein – mit Datum, damit klar ist, wie aktuell der Status ist. Sobald ein System eine Schnittstelle bietet, kann es hier andocken.</p></div>
   <section class="blk">${formIf(ctx, 'agent')}
-  ${ags.length ? `<div class="cgrid">${cards}</div>` : empty('Noch keine Agents eingetragen.')}</section>`;
+  ${ags.length ? `<div class="cgrid">${cards}</div>` : empty('Noch keine Agents eingetragen.')}</section>
+  ${formIf(ctx, 'note')}${knowledgeBox(ctx, {
+    id: 'agents', about: ags.length ? 'deine Agents' : 'KI-Agents', mode: 'any',
+    q: ags.length ? ags.map(a => `${a.name} ${a.job || ''}`).join(' ') : 'agent agents automatisierung ki',
+    prefer: db.list(ctx, 'note').filter(n => n.topic === 'ki').map(n => n.id), preset: { topic: 'ki' },
+  })}`;
 }
 export function onClick(e, route, ctx) { const t = target(e); if (t) common(t, ctx); }
-export function onInput(e) { edInput(e.target); }
+export function onInput(e, route, ctx) { if (!kbInput(e.target, ctx)) edInput(e.target); }
 export function onChange(e) { edInput(e.target); }
 export function onNavigate() { onNavigateCommon(); }
 export function mount() { mountCommon(); }

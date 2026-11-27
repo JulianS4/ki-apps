@@ -16,6 +16,8 @@ import { fmtNum } from './body/logic.js';
 import { toGoal } from './body/view.js';
 import { conn as arenaConn, cacheSummary } from './arena/index.js';
 import { berlinDay, fmt1 } from './arena/logic.js';
+import * as db from './cockpit/db.js';
+import { knowledgeBox, kbInput } from './cockpit/knowledge.js';
 
 const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const MO = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -119,5 +121,12 @@ export function render(route, ctx) {
     ${rt ? `<a class="tile" href="#routinen"><span class="k">Routinen</span><b>Morgen ${rt.morgen.done}/${rt.morgen.total}</b><span>Abend ${rt.abend.done}/${rt.abend.total}</span></a>` : ''}
     ${bd ? bodyTile(bd) : ''}
     ${ar ? arenaTile(ar) : ''}
-  </div></section>`;
+  </div></section>
+  ${safe(() => knowledgeBox(ctx, {
+    id: 'heute', about: 'Training & Erholung', mode: 'any', create: false,
+    q: `training erholung regeneration schlaf mobility ernährung ${tr && tr.type !== 'ruhe' ? tr.name : ''}`,
+    prefer: db.list(ctx, 'note').filter(n => n.topic === 'training').map(n => n.id),
+  })) || ''}`;
 }
+// The knowledge box: typing redraws only its results.
+export function onInput(e, route, ctx) { kbInput(e.target, ctx); }

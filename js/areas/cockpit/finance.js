@@ -8,6 +8,7 @@ import { ACC_TYPES, EVERY, SUB_STATUS, label } from './data.js';
 import { banner, hero, money, signed, srcLine, srcName, bars, empty, newBtn, editBtn, formIf, common, target, today, edInput, onNavigateCommon, mountCommon, blurActive, csvNote, DEMO_NO_IMPORT } from './ui.js';
 import { barChart, bindBars, periodPicker, rangeOf, chartState, chartClick, chartChange, resetCharts } from './charts.js';
 import { STORAGE_FAILED } from '../../core/backup.js';
+import { knowledgeBox, kbInput } from './knowledge.js';
 import { lineChart } from '../body/chart.js';
 import { bindChart } from '../training/chart.js';
 
@@ -64,7 +65,10 @@ function overview(ctx, t) {
   <section class="blk"><div class="bh"><h2>Konten</h2><p>Stand = zuletzt eingetragener Kontostand</p></div>${formIf(ctx, 'account')}${formIf(ctx, 'tx')}
   ${accRows}<div class="tools">${newBtn('account', 'Konto hinzufügen')}</div>
   <p class="note">Neuen Kontostand eintragen: „Stand ändern“, Betrag und Datum anpassen. Jeder Stand bleibt im Verlauf.</p></section>
-  ${chart}`;
+  ${chart}${formIf(ctx, 'note')}${knowledgeBox(ctx, {
+    id: 'fin', about: 'Finanzen', mode: 'any', q: 'finanzen geld budget sparen sparziel konto abo ausgaben einnahmen versicherung steuer vertrag',
+    prefer: db.list(ctx, 'note').filter(n => n.topic === 'finanzen').map(n => n.id), preset: { topic: 'finanzen' },
+  })}`;
 }
 
 function filters(ctx) {
@@ -193,7 +197,7 @@ export function onClick(e, route, ctx) {
   blurActive();
   ctx.rerender();
 }
-export function onInput(e) { edInput(e.target); }
+export function onInput(e, route, ctx) { if (!kbInput(e.target, ctx)) edInput(e.target); }
 export function onChange(e, route, ctx) {
   const t = e.target, a = t.dataset && t.dataset.a;
   if (edInput(t)) return undefined;

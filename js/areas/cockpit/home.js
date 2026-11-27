@@ -6,7 +6,8 @@ import { nowNext } from '../../core/schedule.js';
 import * as db from './db.js';
 import { netWorth, nextExams, currentDept, totals, filterTx, periodRange, logStats, dueTasks, daysUntil, gradeAvg, fmtDur, MONTHS } from './logic.js';
 import { PREP, AGENT_STATUS, label } from './data.js';
-import { banner, hero, money, amountsShown, srcLine, pbar, common, target, today, onNavigateCommon, mountCommon, csvNote, newBtn, formIf } from './ui.js';
+import { banner, hero, money, amountsShown, srcLine, pbar, common, target, today, onNavigateCommon, mountCommon, csvNote, newBtn, formIf, edInput } from './ui.js';
+import { knowledgeBox, kbInput } from './knowledge.js';
 import { icon } from './nav.js';
 import { trainingSummary, recoverySummary, bodySummary } from '../heute.js';
 
@@ -103,7 +104,8 @@ export function render(route, ctx) {
   return `${banner(ctx)}${hero(dateLine, greet(now.getHours()), items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.')}${intro}
   <section class="blk"><div class="bh"><h2>Jetzt wichtig</h2></div>${agendaHtml(items)}</section>
   <section class="blk"><div class="bh"><h2>Zahlen</h2><p>tippen für Details</p></div>${figures(ctx, t)}</section>
-  <section class="blk"><div class="bh"><h2>Bereiche</h2><p>zum Aufklappen</p></div><div class="ovgrid"><div>${schoolSec(ctx, t)}${projectsSec(ctx, t)}${accountsSec(ctx)}</div><div>${healthSec(ctx)}${agentsSec(ctx)}</div></div></section>`;
+  <section class="blk"><div class="bh"><h2>Bereiche</h2><p>zum Aufklappen</p></div><div class="ovgrid"><div>${schoolSec(ctx, t)}${projectsSec(ctx, t)}${accountsSec(ctx)}</div><div>${healthSec(ctx)}${agentsSec(ctx)}</div></div></section>
+  ${formIf(ctx, 'note')}${knowledgeBox(ctx, { id: 'home' })}`;
 }
 export function onClick(e, route, ctx) {
   const t = target(e);
@@ -111,5 +113,8 @@ export function onClick(e, route, ctx) {
   if (t.dataset.a === 'dsc') { const k = t.dataset.k; if (open.has(k)) open.delete(k); else open.add(k); return; }
   common(t, ctx);
 }
+// Forms on this page (first account, a note from the knowledge box) and the box's search.
+export function onInput(e, route, ctx) { if (!kbInput(e.target, ctx)) edInput(e.target); }
+export function onChange(e) { edInput(e.target); }
 export function onNavigate() { onNavigateCommon(); }
 export function mount() { mountCommon(); }
