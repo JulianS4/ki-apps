@@ -56,3 +56,45 @@ test('with nothing to do the page says so and offers the first task', () => {
   assert.match(html, /Keine offenen Aufgaben/);
   assert.match(html, /data-a="fnew" data-s="task"/);
 });
+
+import * as calendar from '../js/areas/cockpit/calendar.js';
+import { weekDays } from '../js/areas/cockpit/calendar.js';
+import * as routines from '../js/areas/routines/index.js';
+
+test('the week runs Monday to Sunday, also across a month and a year', () => {
+  assert.deepEqual(weekDays('2026-11-27').map(d => d.d), ['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27', '2026-11-28', '2026-11-29']);
+  assert.deepEqual(weekDays('2026-11-29').map(d => d.d)[0], '2026-11-23', 'Sunday still belongs to its week');
+  assert.deepEqual(weekDays('2027-01-01').map(d => d.d), ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03']);
+  assert.deepEqual(weekDays('2026-11-30').map(d => d.k), ['mo', 'di', 'mi', 'do', 'fr', 'sa', 'so']);
+});
+
+test('the calendar shows each day with routine, training, exams, due tasks and subscription charges', () => {
+  const ctx = mk(new Date(2026, 10, 27, 17, 0));
+  db.upsert(ctx, 'exam', { subj: 'Rechnungswesen', d: '2026-11-26', time: '08:00', prep: 'angefangen' });
+  db.upsert(ctx, 'task', { text: 'Steuer machen', due: '2026-11-28', done: false });
+  db.upsert(ctx, 'sub', { name: 'Streaming', amt: 1299, cur: 'EUR', every: 'monat', next: '2026-11-29', status: 'aktiv' });
+  const html = calendar.render({ area: 'calendar', week: null }, ctx);
+  assert.match(html, /<h1>Kalender &amp; Routinen<\/h1>/);
+  assert.match(html, /<nav class="csub"[^>]*><a href="#kalender" class="on" aria-current="page">Kalender<\/a><a href="#routinen">Routinen<\/a><\/nav>/);
+  assert.match(html, /Woche 23\.11\.–29\.11\./);
+  const day = d => html.split(`data-day="${d}"`)[1].split('</section>')[0];
+  assert.match(day('2026-11-23'), /Lower A/);
+  assert.match(day('2026-11-23'), /06:00[\s\S]*Morgenroutine/);
+  assert.match(day('2026-11-26'), /Klassenarbeit Rechnungswesen[\s\S]*08:00/);
+  assert.match(day('2026-11-28'), /Steuer machen/);
+  assert.match(day('2026-11-29'), /Streaming[\s\S]*12,99 €/);
+  assert.match(html, /data-day="2026-11-27" class="cday today"/);
+  assert.match(html, /Jetzt[\s\S]*Upper B Training[\s\S]*Als Nächstes/);
+});
+
+test('other weeks are one tap away, and the routine page links back to the calendar', () => {
+  const ctx = mk(new Date(2026, 10, 27, 17, 0));
+  const html = calendar.render({ area: 'calendar', week: '2026-12-01' }, ctx);
+  assert.match(html, /Woche 30\.11\.–6\.12\./);
+  assert.match(html, /href="#kalender\/2026-11-23"[^>]*>‹ Vorwoche/);
+  assert.match(html, /href="#kalender\/2026-12-07"[^>]*>Nächste Woche ›/);
+  assert.match(html, /href="#kalender"[^>]*>Diese Woche/);
+  assert.doesNotMatch(html, /class="cday today"/);
+  assert.doesNotMatch(html, /<p class="k">Jetzt<\/p>/, 'now/next only for the current week');
+  assert.match(routines.header({ area: 'routines', view: 'today' }), /href="#kalender"[^>]*>Kalender</);
+});

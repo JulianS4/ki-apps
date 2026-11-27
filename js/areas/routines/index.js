@@ -113,7 +113,7 @@ export function onNavigate(next) {
 
 export function header(route) {
   const v = route.view, tab = (h, l, on) => `<a href="${h}"${on ? ' class="on"' : ''}>${l}</a>`;
-  return `<nav class="tabs">${tab('#routinen', 'Tag', v !== 'holder')}${tab('#routinen/halterung', 'Halterung', v === 'holder')}</nav>`;
+  return `<nav class="tabs">${tab('#kalender', 'Kalender', false)}${tab('#routinen', 'Tag', v !== 'holder')}${tab('#routinen/halterung', 'Halterung', v === 'holder')}</nav>`;
 }
 
 function routineVM(ctx, kind, d) {
