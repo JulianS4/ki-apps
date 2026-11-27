@@ -85,6 +85,11 @@ test('after the import: graph, folder list and search work together, and it all 
   const backend = memBackend(), ctx = mk(backend), list = await imported(ctx);
   let html = notes.render(L, ctx);
   assert.match(html, /Import fertig: 2 neu, 0 aktualisiert, 0 unverändert · 1 Anhang gespeichert/);
+  // the network opens as a 3D brain; the flat graph is one switch away
+  assert.match(html, /data-a="gview" data-v="3d" aria-pressed="true"/);
+  assert.match(html, /<div class="brain" data-brain="main">[\s\S]*aria-label="Wissensnetz in 3D: 2 Notizen, 1 Verbindung/);
+  notes.onClick(click({ a: 'gview', v: '2d' }), L, ctx);
+  html = notes.render(L, ctx);
   assert.match(html, /<svg class="kg"[^>]*data-kg="main"/);
   const sens = list.find(n => n.title === 'Sensito'), ideen = list.find(n => n.title === 'Ideen');
   assert.match(html, new RegExp(`<a class="gn[^"]*" href="#wissen/n-${sens.id}"[^>]*aria-label="Sensito · 1 Verbindung"`));

@@ -9,11 +9,12 @@ import { TOPICS, label } from './data.js';
 import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon, blurActive, today, DEMO_NO_IMPORT } from './ui.js';
 import { zip, notesMarkdown } from './zip.js';
 import { makeResolver, noteLinks, renderMd, parseProps, plainText } from './md.js';
-import { cachedGraph, graphSvg, localGraph, layout, bindGraphs, graphZoom, markHits, resetView } from './graph.js';
+import { cachedGraph, graphData, graphSvg, localGraph, layout, bindGraphs, graphZoom, markHits, resetView } from './graph.js';
+import { brainHtml, cachedLayout, bindBrains, brainCmd, brainHits, brainSpinning } from './brain.js';
 import { readZipVault, planVault, applyVault, takeConflict, removeVault, localChanged, openable, MAX_ZIP, ATT_STORE } from './vault.js';
 import { idbBlobs } from '../body/photos.js';
 
-let q = '', topic = '', msg = '', imp = null, confirmRemove = false, scrolled = '';
+let q = '', topic = '', msg = '', imp = null, confirmRemove = false, scrolled = '', gview = '3d', VIEWED = false;
 const flip = new Set(); // folders opened or closed against their default
 
 // Attachments live in IndexedDB; tests hand in a memory store.
@@ -120,11 +121,22 @@ function listView(ctx) {
   const tags = [...new Set(all.flatMap(n => n.tags))].sort((a, b) => a.localeCompare(b, 'de')), topics = new Set(all.map(n => n.topic));
   let graph = '', links = 0;
   if (shown.length) {
-    const f = frame(), g = cachedGraph(shown, f, r);
-    links = g.g.links.length;
-    graph = `<section class="blk"><div class="bh"><h2>Graph</h2><p>${plural(shown.length, 'Notiz', 'Notizen')} · ${plural(links, 'Verbindung', 'Verbindungen')}</p></div>
-    <div class="kgw">${toolbar('main')}${graphSvg(g.g, g.pos, { key: 'main', hits: hitIds(ctx), w: f.w, h: f.h })}</div>
-    <p class="src">Punkt antippen öffnet die Notiz · ziehen verschiebt · zwei Finger, Strg/⌘ + Mausrad oder ＋/− zoomen · Linien sind [[Links]]</p></section>`;
+    // 3D: the notes as a turning, glowing network; 2D: the same graph flat, every point a link for keyboards and screen readers
+    const views = `<div class="seg gseg" role="group" aria-label="Darstellung">${[['3d', '3D-Gehirn'], ['2d', '2D-Netz']].map(([v, l]) => `<button type="button" data-a="gview" data-v="${v}" aria-pressed="${v === gview}"${v === gview ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`;
+    let body;
+    if (gview === '3d') {
+      const g = graphData(shown, r);
+      links = g.links.length;
+      const spin = brainSpinning('main') || !VIEWED;
+      body = `<div class="kgw brainw"><div class="kgt" role="group" aria-label="Gehirn bewegen"><button class="btn sm" type="button" data-a="bz" data-k="main" data-v="spin" aria-pressed="${spin}">${spin ? 'Anhalten' : 'Drehen'}</button><button class="btn sm" type="button" data-a="bz" data-k="main" data-v="in" aria-label="Vergrößern">＋</button><button class="btn sm" type="button" data-a="bz" data-k="main" data-v="out" aria-label="Verkleinern">−</button><button class="btn sm" type="button" data-a="bz" data-k="main" data-v="fit">Einpassen</button></div>${brainHtml('main', g, cachedLayout(g), { hits: hitIds(ctx) })}</div>
+      <p class="src">Ziehen dreht · Punkt antippen öffnet die Notiz · zwei Finger, Strg/⌘ + Mausrad oder ＋/− zoomen · Leertaste hält an · Lichtimpulse laufen entlang der [[Links]]</p>`;
+    } else {
+      const f = frame(), g = cachedGraph(shown, f, r);
+      links = g.g.links.length;
+      body = `<div class="kgw">${toolbar('main')}${graphSvg(g.g, g.pos, { key: 'main', hits: hitIds(ctx), w: f.w, h: f.h })}</div>
+      <p class="src">Punkt antippen öffnet die Notiz · ziehen verschiebt · zwei Finger, Strg/⌘ + Mausrad oder ＋/− zoomen · Linien sind [[Links]]</p>`;
+    }
+    graph = `<section class="blk"><div class="bh"><h2>Wissensnetz</h2><p>${plural(shown.length, 'Notiz', 'Notizen')} · ${plural(links, 'Verbindung', 'Verbindungen')}</p></div>${views}${body}</section>`;
   }
   const line = all.length ? `${plural(all.length, 'Notiz', 'Notizen')}${info ? ` · Vault „${esc(info.name)}“ · importiert ${dshort(info.at)}` : ''} · verknüpft mit [[Titel]], durchsuchbar, nutzbar in allen Bereichen.` : 'Deine Notizen als verlinkte Dateien – schreib hier oder importiere deinen Obsidian-Vault.';
   return `${hero('', 'Wissen', line)}
@@ -222,6 +234,11 @@ export function onClick(e, route, ctx) {
   const a = t.dataset.a;
   if (a === 'fold') { const k = t.dataset.k; if (flip.has(k)) flip.delete(k); else flip.add(k); return undefined; }
   if (a === 'gz') { graphZoom(t.dataset.k, t.dataset.v); return undefined; }
+  if (a === 'bz') {
+    const on = brainCmd(t.dataset.k, t.dataset.v);
+    if (t.dataset.v === 'spin') { t.setAttribute('aria-pressed', String(on)); t.textContent = on ? 'Anhalten' : 'Drehen'; }
+    return undefined;
+  }
   if (a === 'vpick') { const f = typeof document !== 'undefined' && document.getElementById('vaultf'); if (f) f.click(); return undefined; }
   if (a === 'attopen') return openAtt(ctx, t.dataset.p);
   if (a === 'vapply' && imp && imp.plan) return applyImport(ctx);
@@ -238,6 +255,7 @@ export function onClick(e, route, ctx) {
     openEd(ctx, 'note', null, { title: t.dataset.t, topic: cur && cur.topic !== 'ohne' ? cur.topic : 'privat' });
   } else if (a === 'tagq') { q = norm(q) === '#' + norm(t.dataset.v) ? '' : '#' + t.dataset.v; if (route.view === 'note') ctx.go('#wissen'); }
   else if (a === 'ntopic') topic = t.dataset.v;
+  else if (a === 'gview') gview = t.dataset.v === '2d' ? '2d' : '3d';
   else if (a === 'vopen') { imp = { phase: 'open' }; confirmRemove = false; msg = ''; if (route.view === 'note') ctx.go('#wissen'); }
   else if (a === 'vcancel') imp = null;
   else if (a === 'vtake') { if (imp && imp.plan && takeConflict(ctx, imp.plan, t.dataset.id)) ctx.toast('Vault-Fassung übernommen', ''); }
@@ -256,6 +274,7 @@ export function onInput(e, route, ctx) {
     const el = document.getElementById('nres');
     if (el) el.innerHTML = results(ctx);
     markHits(document, hitIds(ctx));
+    brainHits('main', hitIds(ctx));
   }
 }
 export function onChange(e, route, ctx) {
@@ -299,6 +318,7 @@ export function mount(root, route) {
   mountCommon();
   if (!root || typeof document === 'undefined') return;
   bindGraphs(root);
+  if (root.querySelector('.brain')) { bindBrains(root); VIEWED = true; }
   loadAtts(root);
   if (route && route.view === 'note' && route.h && scrolled !== route.id + route.h) {
     scrolled = route.id + route.h;

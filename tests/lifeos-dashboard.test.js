@@ -70,7 +70,7 @@ test('training, school, projects, business log, agents and knowledge each show t
   assert.match(widget(html, 'log'), /<b class="big">\d+:\d\d h<\/b>/);
   assert.match(widget(html, 'log'), /class="pills"/);
   assert.match(widget(html, 'agents'), /nicht verbunden/);
-  assert.match(widget(html, 'wissen'), /<svg class="kg mini"[^>]*data-kg="mini"/);
+  assert.match(widget(html, 'wissen'), /<a class="brainlink" href="#wissen"[^>]*><div class="brain mini" data-brain="mini">/);
   assert.match(widget(html, 'wissen'), /4 Notizen · 2 Verbindungen/);
 });
 

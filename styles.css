@@ -936,3 +936,80 @@ dialog.more::backdrop{background:rgb(5 31 32/.7);backdrop-filter:blur(4px)}
 .nbody .callout{background:rgb(35 83 71/.45);border:1px solid var(--edge2)}
 .nbody pre,.nbody code{background:rgb(5 31 32/.7)}
 @media(prefers-reduced-motion:reduce){.btn,.wgo{transition:none}}
+
+/* ===================== LIFE OS · HUD =====================
+   A head-up display over the Nacht look: a faint measuring grid, corner brackets on
+   every panel, numbered readouts in a mono face, slowly turning scales and a reactor
+   mark. Every motion stops for people who ask for reduced motion. */
+:root{--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace}
+body{background:
+  linear-gradient(rgb(142 182 155/.045) 1px,transparent 1px) 0 0/36px 36px,
+  linear-gradient(90deg,rgb(142 182 155/.045) 1px,transparent 1px) 0 0/36px 36px,
+  radial-gradient(900px 520px at 92% -10%,rgb(142 182 155/.16),transparent 62%),
+  radial-gradient(780px 560px at 6% 36%,rgb(35 83 71/.36),transparent 64%),
+  radial-gradient(700px 420px at 62% 112%,rgb(35 83 71/.28),transparent 62%),#051F20;background-attachment:fixed}
+
+/* readouts in mono */
+.hero .k,.wh h2,.bh h2,.kvs span,.fig .k,.kv2 span,.gauge .gc small,.wf,.pl small,.bhud,.hudl,.src,.side .brand,header.top .brand{font-family:var(--mono)}
+.hero .k,.wh h2,.bh h2{letter-spacing:.18em}
+.src{font-size:11.5px;letter-spacing:.02em}
+.wn{display:inline-block;margin-right:10px;padding:1px 6px;border:1px solid rgb(142 182 155/.35);border-radius:4px;color:#DAF1DE;font-size:10.5px;letter-spacing:.08em;box-shadow:0 0 10px rgb(142 182 155/.2)}
+.side .brand,header.top .brand{font-size:15px;font-weight:600;letter-spacing:.22em;text-transform:uppercase}
+
+/* reactor mark */
+.side .brand::before,header.top .brand.m::before{content:"";flex:none;width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle,#DAF1DE 0 18%,rgb(218 241 222/.15) 22%,transparent 34%),conic-gradient(from 0deg,#DAF1DE 0 8%,transparent 8% 25%,#8EB69B 25% 33%,transparent 33% 50%,#DAF1DE 50% 58%,transparent 58% 75%,#8EB69B 75% 83%,transparent 83%);
+  -webkit-mask:radial-gradient(circle,#000 0 34%,transparent 35% 52%,#000 53% 70%,transparent 71%);mask:radial-gradient(circle,#000 0 34%,transparent 35% 52%,#000 53% 70%,transparent 71%);
+  box-shadow:0 0 16px rgb(218 241 222/.6);animation:hudspin 9s linear infinite}
+header.top .brand.m{display:inline-flex;align-items:center;gap:10px}
+
+/* corner brackets on panels */
+.w::before,.brainw::before,.kgw::before,.cform::before{content:"";position:absolute;inset:7px;pointer-events:none;border-radius:14px;opacity:.75;
+  background:
+    linear-gradient(#8EB69B,#8EB69B) left top/14px 1px no-repeat,linear-gradient(#8EB69B,#8EB69B) left top/1px 14px no-repeat,
+    linear-gradient(#8EB69B,#8EB69B) right top/14px 1px no-repeat,linear-gradient(#8EB69B,#8EB69B) right top/1px 14px no-repeat,
+    linear-gradient(#8EB69B,#8EB69B) left bottom/14px 1px no-repeat,linear-gradient(#8EB69B,#8EB69B) left bottom/1px 14px no-repeat,
+    linear-gradient(#8EB69B,#8EB69B) right bottom/14px 1px no-repeat,linear-gradient(#8EB69B,#8EB69B) right bottom/1px 14px no-repeat}
+.kgw,.cform{position:relative}
+.w:hover{border-color:rgb(142 182 155/.32)}
+.w:hover::before{opacity:1;filter:drop-shadow(0 0 4px #8EB69B)}
+
+/* status line and a scan across the header */
+.hudl{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.hudl i{width:7px;height:7px;border-radius:50%;background:#DAF1DE;box-shadow:0 0 10px #DAF1DE;animation:hudpulse 2.4s ease-in-out infinite}
+.dhead{position:relative;overflow:hidden}
+.dhead::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-30%;pointer-events:none;background:linear-gradient(90deg,transparent,rgb(218 241 222/.06),transparent);animation:hudscan 9s ease-in-out infinite}
+
+/* gauges: the outer scale turns, a second arc sweeps */
+.gauge .gk{transform-origin:60px 60px;animation:hudspin 48s linear infinite;stroke:rgb(142 182 155/.5)}
+.gauge::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid transparent;border-top-color:rgb(218 241 222/.45);border-right-color:rgb(218 241 222/.12);animation:hudspin 7s linear infinite;pointer-events:none}
+.gauge.sm::after{display:none}
+.stat i{animation:hudpulse 3s ease-in-out infinite}
+
+/* the brain */
+.brainw{padding:0;overflow:hidden;background:radial-gradient(circle at 50% 55%,rgb(35 83 71/.45),rgb(5 31 32/.2) 60%),var(--glass)}
+.brainw .kgt{position:absolute;top:10px;right:10px;z-index:2;padding:0}
+.brain{position:relative;height:clamp(360px,64vh,640px)}
+.brain canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.brain canvas:active{cursor:grabbing}
+.brain canvas:focus-visible{outline:2px solid #DAF1DE;outline-offset:-4px;border-radius:18px}
+.bhud{position:absolute;left:18px;top:16px;margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);pointer-events:none}
+.bhud span{color:#DAF1DE;margin-right:10px}
+.bhud b{color:#DAF1DE;font-weight:600}
+.btip{position:absolute;z-index:3;transform:translate(-50%,calc(-100% - 22px));min-width:120px;max-width:260px;padding:7px 11px;border:1px solid #8EB69B;border-radius:10px;background:rgb(5 31 32/.94);box-shadow:0 0 18px rgb(142 182 155/.35);pointer-events:none;font-family:var(--mono);text-align:center}
+.btip b{display:block;font-size:12.5px;color:#DAF1DE;font-weight:600}
+.btip small{display:block;margin-top:2px;font-size:10.5px;letter-spacing:.08em;color:var(--mut)}
+.gseg{margin:4px 0 10px}
+.brain.mini{height:clamp(200px,26vw,260px)}
+.brain.mini canvas{pointer-events:none;cursor:pointer}
+.brainlink{display:block;margin:-4px -6px 0;border-radius:16px;background:radial-gradient(circle at 50% 55%,rgb(35 83 71/.4),transparent 70%)}
+.brainlink:focus-visible{outline:2px solid #DAF1DE;outline-offset:2px}
+@media(max-width:640px){.brain{height:clamp(300px,54vh,460px)}.bhud{top:auto;bottom:14px}}
+
+@keyframes hudspin{to{transform:rotate(360deg)}}
+@keyframes hudpulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes hudscan{0%,55%{left:-30%}100%{left:110%}}
+@media(prefers-reduced-motion:reduce){
+  .side .brand::before,header.top .brand.m::before,.hudl i,.dhead::after,.gauge .gk,.gauge::after,.stat i{animation:none}
+  .dhead::after{display:none}
+}

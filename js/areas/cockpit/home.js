@@ -10,7 +10,8 @@ import { PREP, AGENT_STATUS, label } from './data.js';
 import { banner, money, amountsShown, srcLine, common, target, today, onNavigateCommon, mountCommon, csvNote, newBtn, formIf, edInput } from './ui.js';
 import { knowledgeBox, kbInput } from './knowledge.js';
 import { ring, pills } from './charts.js';
-import { cachedGraph, graphSvg } from './graph.js';
+import { graphData } from './graph.js';
+import { brainHtml, cachedLayout, bindBrains } from './brain.js';
 import { makeResolver } from './md.js';
 import { icon } from './nav.js';
 import { trainingSummary, recoverySummary, bodySummary } from '../heute.js';
@@ -48,7 +49,9 @@ function agenda(ctx, t) {
 const agendaHtml = items => `<ul class="agenda">${items.map(x => `<li${x.att ? ' class="att"' : ''}><a class="rowlink" href="${esc(x.href)}">${icon(x.ic)}<span class="tx2"><b>${esc(x.title)}</b><small>${esc(x.line)}</small></span><span class="chev" aria-hidden="true">›</span></a></li>`).join('') || '<li class="done">Nichts Dringendes. ✓</li>'}</ul>`;
 
 // One tile: title, the way to its area, the measure, and a foot with the source.
-const tile = (k, title, href, go, body, foot = '') => `<section class="w w-${k}" data-w="${k}" aria-labelledby="w-${k}"><div class="wh"><h2 id="w-${k}">${title}</h2>${href ? `<a class="wgo" href="${href}">${go} <span aria-hidden="true">›</span></a>` : ''}</div><div class="wb">${body}</div>${foot ? `<div class="wf">${foot}</div>` : ''}</section>`;
+// HUD numbering of the tiles, like the readouts of a cockpit display.
+const NUM = { agenda: '01', money: '02', month: '03', train: '04', school: '05', projects: '06', log: '07', agents: '08', wissen: '09' };
+const tile = (k, title, href, go, body, foot = '') => `<section class="w w-${k}" data-w="${k}" aria-labelledby="w-${k}"><div class="wh"><h2 id="w-${k}"><span class="wn" aria-hidden="true">${NUM[k] || ''}</span>${title}</h2>${href ? `<a class="wgo" href="${href}">${go} <span aria-hidden="true">›</span></a>` : ''}</div><div class="wb">${body}</div>${foot ? `<div class="wf">${foot}</div>` : ''}</section>`;
 
 // Net worth over time as a soft line; the shape only, no amounts.
 function spark(series) {
@@ -119,11 +122,9 @@ function agentsTile(ctx) {
 function wissenTile(ctx) {
   const notes = db.list(ctx, 'note');
   if (!notes.length) return tile('wissen', 'Wissen', '#wissen', 'Öffnen', '<p class="note">Noch keine Notizen – schreib die erste oder importiere deinen Obsidian-Vault.</p>');
-  // wide screens get a flat strip across the page, phones a box
-  const m = typeof document !== 'undefined' && document.getElementById('main'), wide = !!m && m.clientWidth >= 1000;
-  const frame = wide ? { w: 1000, h: 260 } : { w: 360, h: 220 }, g = cachedGraph(notes, frame, makeResolver(notes, db.getRaw(ctx, 'vatt', []) || []));
-  const n = g.g.links.length;
-  return tile('wissen', 'Wissen', '#wissen', 'Graph', `<div class="kgw mini">${graphSvg(g.g, g.pos, { key: 'mini', w: frame.w, h: frame.h, labels: false }).replace('<svg class="kg', '<svg class="kg mini')}</div><span class="sub">${notes.length} ${notes.length === 1 ? 'Notiz' : 'Notizen'} · ${n} ${n === 1 ? 'Verbindung' : 'Verbindungen'}</span>`);
+  // the knowledge as a small turning brain; the whole picture opens the Wissen tab
+  const g = graphData(notes, makeResolver(notes, db.getRaw(ctx, 'vatt', []) || [])), n = g.links.length;
+  return tile('wissen', 'Wissen', '#wissen', 'Gehirn', `<a class="brainlink" href="#wissen" aria-label="Wissensnetz öffnen: ${notes.length} ${notes.length === 1 ? 'Notiz' : 'Notizen'}, ${n} ${n === 1 ? 'Verbindung' : 'Verbindungen'}">${brainHtml('mini', g, cachedLayout(g), { mini: true })}</a><span class="sub">${notes.length} ${notes.length === 1 ? 'Notiz' : 'Notizen'} · ${n} ${n === 1 ? 'Verbindung' : 'Verbindungen'}</span>`);
 }
 
 const greet = h => (h < 11 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Abend');
@@ -132,7 +133,8 @@ export function render(route, ctx) {
   const emptyAll = !db.isDemo(ctx) && !['account', 'tx', 'exam', 'log', 'note', 'agent', 'dept'].some(n => db.list(ctx, n).length);
   const intro = emptyAll ? `<section class="ccard intro"><b>Life OS ist noch leer.</b><p>Trag Konten, Klassenarbeiten oder Business-Einträge ein – oder sieh dir alles erst mit Beispieldaten an. Deine echten Einträge bleiben davon getrennt.</p><div class="tools"><button class="btn pri" type="button" data-a="demostart">Beispieldaten ansehen</button>${newBtn('account', 'Konto hinzufügen')}</div></section>` : '';
   const dateLine = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  return `${banner(ctx)}<div class="hero dhead"><div><p class="k">${dateLine}</p><h1>${greet(now.getHours())}</h1><p class="m">${items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.'}</p></div>
+  return `${banner(ctx)}<div class="hero dhead"><div><p class="k">${dateLine}</p><h1>${greet(now.getHours())}</h1><p class="m">${items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.'}</p>
+  <p class="hudl"><i aria-hidden="true"></i>System bereit · alle Daten lokal · Stand ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</p></div>
   <button class="btn sm" type="button" data-a="shown" aria-pressed="${amountsShown()}">${amountsShown() ? 'Beträge verbergen' : 'Beträge zeigen'}</button></div>${intro}${formIf(ctx, 'account')}
   <div class="bento">${tile('agenda', 'Jetzt wichtig', '', '', agendaHtml(items))}${moneyTile(ctx)}${monthTile(ctx, t)}${trainTile(ctx)}${schoolTile(ctx, t)}${projectsTile(ctx, t)}${logTile(ctx, t)}${agentsTile(ctx)}${wissenTile(ctx)}</div>
   ${formIf(ctx, 'note')}${knowledgeBox(ctx, { id: 'home' })}`;
@@ -145,4 +147,4 @@ export function onClick(e, route, ctx) {
 export function onInput(e, route, ctx) { if (!kbInput(e.target, ctx)) edInput(e.target); }
 export function onChange(e) { edInput(e.target); }
 export function onNavigate() { onNavigateCommon(); }
-export function mount() { mountCommon(); }
+export function mount(root) { mountCommon(); if (root) bindBrains(root); }
