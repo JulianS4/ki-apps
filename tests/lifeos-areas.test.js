@@ -98,3 +98,41 @@ test('other weeks are one tap away, and the routine page links back to the calen
   assert.doesNotMatch(html, /<p class="k">Jetzt<\/p>/, 'now/next only for the current week');
   assert.match(routines.header({ area: 'routines', view: 'today' }), /href="#kalender"[^>]*>Kalender</);
 });
+
+import * as goals from '../js/areas/cockpit/goals.js';
+
+test('goals come from the vault folder "02 Ziele", each linking to its note', () => {
+  const ctx = mk();
+  db.upsert(ctx, 'note', { title: 'Lebensziele', path: '02 Ziele/Lebensziele.md', body: '---\nquelle: notion\n---\n# Lebensziele\n> 🎯 Work in **silence**.\n\nEin Ziel pro Säule.', topic: 'ohne', tags: [], src: 'vault' });
+  db.upsert(ctx, 'note', { title: 'Ideen', path: '05 Wissen/Ideen.md', body: 'Text', topic: 'ohne', tags: [], src: 'vault' });
+  const id = db.list(ctx, 'note').find(n => n.title === 'Lebensziele').id;
+  const html = goals.render({ area: 'goals' }, ctx);
+  assert.match(html, /<h1>Ziele &amp; Rückblicke<\/h1>/);
+  assert.match(html, new RegExp(`<a class="ccard goal" href="#wissen/n-${id}"><h3>Lebensziele</h3><p>🎯 Work in silence\. Ein Ziel pro Säule\.</p>`));
+  assert.doesNotMatch(html, /<h3>Ideen<\/h3>/);
+  assert.match(goals.render({ area: 'goals' }, mk()), /Noch keine Ziele[\s\S]*href="#import"/);
+});
+
+test('the pillar check-ins as a history, newest first, with the average', () => {
+  const ctx = mk();
+  db.setRaw(ctx, 'pillars', [{ id: 'k46', d: '2026-11-15', week: 'KW 46', koerper: 6, karriere: 7, business: 4, fokus: 5, netzwerk: 6, src: 'notion' }, { id: 'k47', d: '2026-11-22', week: 'KW 47', koerper: 5, karriere: 6, business: 3, fokus: 5, netzwerk: 4, src: 'notion' }]);
+  const html = goals.render({ area: 'goals' }, ctx);
+  assert.match(html, /<tr><th>KW 47<\/th><td>5<\/td><td>6<\/td><td>3<\/td><td>5<\/td><td>4<\/td><td><b>4,6<\/b><\/td><\/tr><tr><th>KW 46<\/th>/);
+  assert.match(html, /Notion · Check-in 22\.11\./);
+});
+
+test('the week review compares this week with the last, each figure with its source', () => {
+  const ctx = mk(new Date(2026, 10, 27, 20, 0));
+  ctx.store.set('train.sess', { 's_2026-11-23_mo': { day: 'mo', date: '2026-11-23', sets: { pistol: [{ ok: true }] } }, 's_2026-11-24_di': { day: 'di', date: '2026-11-24', sets: { x: [{ ok: false }] } }, 's_2026-11-17_di': { day: 'di', date: '2026-11-17', sets: { x: [{ ok: true }] } } });
+  ctx.store.set('rec.morning', { '2026-11-24': { schlaf: 4, energie: 3, muskeln: 4 }, '2026-11-25': { schlaf: 5, energie: 5, muskeln: 5 }, '2026-11-18': { schlaf: 2, energie: 2, muskeln: 2 } });
+  ctx.store.set('food.days', { '2026-11-24': { meals: [{ g: 100 }, { g: 60 }] }, '2026-11-26': { meals: [{ g: 140 }] } });
+  db.upsert(ctx, 'log', { d: '2026-11-25', proj: 'sensito', text: 'Shop', min: 90, inc: 0, exp: 0 });
+  const r = goals.review(ctx, '2026-11-23', '2026-11-27');
+  assert.deepEqual([r.training, r.check, r.protein, r.minutes], [1, 13, 150, 90]);
+  const html = goals.render({ area: 'goals' }, ctx);
+  assert.match(html, /<tr><th>Trainingseinheiten<\/th><td>1<\/td><td>1<\/td><td class="src">Training<\/td><\/tr>/);
+  assert.match(html, /<tr><th>Ø Morgen-Check<\/th><td>13,0 \/ 15<\/td><td>6,0 \/ 15<\/td><td class="src">Recovery<\/td><\/tr>/);
+  assert.match(html, /<tr><th>Ø Protein<\/th><td>150 g<\/td><td>–<\/td>/);
+  assert.match(html, /<tr><th>Arbeitsstunden<\/th><td>1:30 h<\/td>/);
+  assert.match(html, /Diese Woche \(Mo 23\.11\.–Fr 27\.11\.\)[\s\S]*Vorwoche/);
+});

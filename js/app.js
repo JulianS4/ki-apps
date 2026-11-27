@@ -20,6 +20,7 @@ import * as notes from './areas/cockpit/notes.js';
 import * as integrations from './areas/cockpit/integrations.js';
 import * as importPage from './areas/cockpit/imports.js';
 import * as calendar from './areas/cockpit/calendar.js';
+import * as goals from './areas/cockpit/goals.js';
 import { FAMILY } from './areas/cockpit/ui.js';
 import { navKey, sideNav, bottomNav, moreList } from './areas/cockpit/nav.js';
 
@@ -29,7 +30,7 @@ const $ = s => document.querySelector(s);
 // the app runs on memory and says so, because nothing survives a restart.
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
-const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations, import: importPage, calendar };
+const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations, import: importPage, calendar, goals };
 const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Gesundheit', arena: 'Arena' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};

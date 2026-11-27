@@ -15,7 +15,7 @@ const FILES = [
   'js/areas/body/data.js', 'js/areas/body/logic.js', 'js/areas/body/view.js', 'js/areas/body/index.js', 'js/areas/body/chart.js', 'js/areas/body/photos.js',
   'js/areas/arena/data.js', 'js/areas/arena/logic.js', 'js/areas/arena/net.js', 'js/areas/arena/view.js', 'js/areas/arena/index.js',
   'js/areas/cockpit/logic.js', 'js/areas/cockpit/data.js', 'js/areas/cockpit/schema.js', 'js/areas/cockpit/db.js', 'js/areas/cockpit/ui.js', 'js/areas/cockpit/zip.js', 'js/areas/cockpit/nav.js', 'js/areas/cockpit/charts.js',
-  'js/areas/cockpit/md.js', 'js/areas/cockpit/unzip.js', 'js/areas/cockpit/vault.js', 'js/areas/cockpit/graph.js', 'js/areas/cockpit/knowledge.js', 'js/areas/cockpit/brain.js', 'js/areas/cockpit/lifeimport.js', 'js/areas/cockpit/imports.js', 'js/areas/cockpit/calendar.js',
+  'js/areas/cockpit/md.js', 'js/areas/cockpit/unzip.js', 'js/areas/cockpit/vault.js', 'js/areas/cockpit/graph.js', 'js/areas/cockpit/knowledge.js', 'js/areas/cockpit/brain.js', 'js/areas/cockpit/lifeimport.js', 'js/areas/cockpit/imports.js', 'js/areas/cockpit/calendar.js', 'js/areas/cockpit/goals.js',
   'js/areas/cockpit/home.js', 'js/areas/cockpit/finance.js', 'js/areas/cockpit/school.js', 'js/areas/cockpit/projects.js',
   'js/areas/cockpit/agents.js', 'js/areas/cockpit/notes.js', 'js/areas/cockpit/integrations.js',
 ];
