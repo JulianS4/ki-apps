@@ -4,9 +4,9 @@ import { createStore } from '../js/core/store.js';
 import { memBackend, mkzip } from './helpers.js';
 import { memBlobs } from '../js/areas/body/photos.js';
 import * as db from '../js/areas/cockpit/db.js';
-import { edSave, openEd, ed } from '../js/areas/cockpit/ui.js';
+import { edSave, openEd, ed, formHtml } from '../js/areas/cockpit/ui.js';
 import { notesMarkdown } from '../js/areas/cockpit/zip.js';
-import { vaultFiles, noteFromFile, readZipVault, planVault, applyVault, takeConflict, removeVault, localChanged } from '../js/areas/cockpit/vault.js';
+import { vaultFiles, noteFromFile, readZipVault, planVault, applyVault, takeConflict, removeVault, localChanged, openable } from '../js/areas/cockpit/vault.js';
 
 const enc = s => new TextEncoder().encode(s);
 const mk = (backend = memBackend()) => ({ store: createStore(backend), now: () => new Date(2026, 10, 26, 9, 0), rerender() {}, toast() {}, go() {} });
@@ -140,4 +140,30 @@ test('Markdown export writes vault notes back to their path, unchanged', () => {
   ], []);
   assert.deepEqual(files.map(f => f.name), ['Ordner/Plan.md', 'Ordner Plan.md']);
   assert.equal(new TextDecoder().decode(files[0].data), '---\ntags: [a]\n---\nText [[X]]\n');
+});
+
+test('a note that starts with an empty line survives the edit form unchanged', async () => {
+  const ctx = mk();
+  await applyVault(ctx, planVault(await readZipVault(mkzip([{ name: 'V/a.md', data: enc('---\ntags: [x]\n---\n\nErste Zeile') }]), 'v.zip'), ctx, 'v.zip'), memBlobs());
+  const n = db.list(ctx, 'note')[0];
+  assert.equal(n.body, '\nErste Zeile');
+  openEd(ctx, 'note', n);
+  const html = formHtml(ctx);
+  // the HTML parser drops one newline right after <textarea>, so the form writes one extra
+  assert.match(html, /<textarea class="tx" id="f-body" data-f="body" rows="10">\n\nErste Zeile<\/textarea>/);
+});
+
+test('a vault too big for this device is refused as a whole, with its size', async () => {
+  const backend = memBackend(), set = backend.setItem;
+  backend.setItem = (k, v) => { if (k === 'ki.cx.notes') throw new Error('QuotaExceededError'); return set(k, v); };
+  const ctx = mk(backend), plan = planVault(await readZipVault(vaultZip(), 'v.zip'), ctx, 'v.zip');
+  await assert.rejects(() => applyVault(ctx, plan, memBlobs()), /passt nicht in den Speicher[\s\S]*MB Text[\s\S]*einzelne Ordner/);
+  assert.equal(db.list(ctx, 'note').length, 0);
+  assert.equal(db.getRaw(ctx, 'vatt'), null);
+});
+
+test('an attachment opened in a new tab can never run script there', () => {
+  assert.equal(openable(new Blob(['<svg onload="x()"/>'], { type: 'image/svg+xml' })).type, 'text/plain');
+  assert.equal(openable(new Blob(['%PDF'], { type: 'application/pdf' })).type, 'application/pdf');
+  assert.equal(openable(new Blob([new Uint8Array([137])], { type: 'image/png' })).type, 'image/png');
 });

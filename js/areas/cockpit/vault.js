@@ -148,7 +148,10 @@ export async function applyVault(ctx, plan, files) {
   for (const n of plan.add) byId.set(n.id, { ...n, created: n.created || today, upd: today });
   for (const u of plan.update) byId.set(u.old.id, { ...u.note, upd: today });
   const out = [...byId.values()].map(n => cleanItem('note', n)).filter(Boolean);
-  if (!db.setRaw(ctx, 'notes', out)) throw new Error(STORAGE_FAILED);
+  if (!db.setRaw(ctx, 'notes', out)) {
+    const mb = (JSON.stringify(out).length / 1048576).toFixed(1).replace('.', ',');
+    throw new Error(`Der Vault passt nicht in den Speicher dieser App auf diesem Gerät (zusammen ${mb} MB Text). Nichts wurde gespeichert – importiere einzelne Ordner als ZIP.`);
+  }
   const index = new Set(db.getRaw(ctx, 'vatt', []) || []);
   let attWritten = 0, attFailed = 0;
   for (const a of plan.atts) {
@@ -183,3 +186,7 @@ export async function removeVault(ctx, files) {
   if (files) { try { await files.clear(); } catch (e) { /* stays until the next import */ } }
   return notes.length - keep.length;
 }
+
+// Opening a blob in a new tab gives it this app's origin: anything that could run
+// script there (SVG) opens as plain text instead. PDFs and pictures open as they are.
+export const openable = blob => (/svg|html|xml|javascript/i.test(blob.type || '') ? new Blob([blob], { type: 'text/plain' }) : blob);

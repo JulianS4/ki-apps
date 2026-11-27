@@ -99,7 +99,10 @@ export function graphSvg(g, pos, { key = 'main', hits = null, focus = '', w = W,
   const lines = g.links.map(([a, b]) => `<line x1="${pos[a].x}" y1="${pos[a].y}" x2="${pos[b].x}" y2="${pos[b].y}" data-s="${a}" data-t="${b}"/>`).join('');
   const nodes = g.nodes.map((x, i) => {
     const cls = ['gn', named.has(i) && 'lb', hits && hits.has(x.id) && 'hit', x.id === focus && 'cur'].filter(Boolean).join(' '), r = radius(x.deg);
-    return `<a class="${cls}" href="#wissen/n-${esc(x.id)}" data-i="${i}" aria-label="${esc(x.title)} · ${conn(x.deg)}"><circle cx="${pos[i].x}" cy="${pos[i].y}" r="${r}"/><text x="${pos[i].x}" y="${(pos[i].y + +r + 14).toFixed(1)}">${esc(short(x.title))}</text></a>`;
+    // names near the left or right edge run inwards instead of off the frame
+    const { x: px, y: py } = pos[i], edge = px < w * 0.2 ? ' class="ta-s"' : px > w * 0.8 ? ' class="ta-e"' : '';
+    const tx = edge ? (px < w * 0.2 ? px - +r : px + +r).toFixed(1) : px;
+    return `<a class="${cls}" href="#wissen/n-${esc(x.id)}" data-i="${i}" aria-label="${esc(x.title)} · ${conn(x.deg)}"><circle cx="${px}" cy="${py}" r="${r}"/><text${edge} x="${tx}" y="${(py + +r + 14).toFixed(1)}">${esc(short(x.title))}</text></a>`;
   }).join('');
   return `<svg class="kg${hits ? ' searching' : ''}" viewBox="0 0 ${w} ${h}" role="group" aria-label="Wissensgraph: ${n} ${n === 1 ? 'Notiz' : 'Notizen'}, ${g.links.length} ${g.links.length === 1 ? 'Verbindung' : 'Verbindungen'}. Jeder Punkt öffnet eine Notiz; die Dateiliste enthält dieselben Notizen." tabindex="0" data-kg="${esc(key)}"><g class="vp"><g class="ed">${lines}</g><g class="nd">${nodes}</g></g></svg>`;
 }

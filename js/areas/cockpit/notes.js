@@ -10,7 +10,7 @@ import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edIn
 import { zip, notesMarkdown } from './zip.js';
 import { makeResolver, noteLinks, renderMd, parseProps, plainText } from './md.js';
 import { cachedGraph, graphSvg, localGraph, layout, bindGraphs, graphZoom, markHits, resetView } from './graph.js';
-import { readZipVault, planVault, applyVault, takeConflict, removeVault, localChanged, MAX_ZIP, ATT_STORE } from './vault.js';
+import { readZipVault, planVault, applyVault, takeConflict, removeVault, localChanged, openable, MAX_ZIP, ATT_STORE } from './vault.js';
 import { idbBlobs } from '../body/photos.js';
 
 let q = '', topic = '', msg = '', imp = null, confirmRemove = false, scrolled = '';
@@ -210,7 +210,7 @@ async function openAtt(ctx, path) {
   let blob = null;
   try { const s = vaultStore(); blob = s && await s.get(path); } catch (e) { blob = null; }
   if (!blob || typeof document === 'undefined') { ctx.toast('Anhang nicht auf diesem Gerät', 'Vault erneut importieren, um ihn zurückzuholen.'); return; }
-  const u = URL.createObjectURL(blob), a = document.createElement('a');
+  const u = URL.createObjectURL(openable(blob)), a = document.createElement('a');
   a.href = u; a.target = '_blank'; a.rel = 'noopener';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(u), 60000);
@@ -303,7 +303,8 @@ export function mount(root, route) {
   if (route && route.view === 'note' && route.h && scrolled !== route.id + route.h) {
     scrolled = route.id + route.h;
     const h = document.getElementById('h-' + route.h);
-    if (h) { h.scrollIntoView({ block: 'start' }); h.classList.add('flash'); }
+    // after the shell's own scroll to the top of a new page
+    if (h) { h.classList.add('flash'); setTimeout(() => { if (h.isConnected) h.scrollIntoView({ block: 'start' }); }, 0); }
   }
   if (imp && imp.phase !== 'open') { const b = document.getElementById('vimp'); if (b && imp.fresh !== false) { b.scrollIntoView({ block: 'nearest' }); imp.fresh = false; } }
 }

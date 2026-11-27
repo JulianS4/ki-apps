@@ -86,7 +86,8 @@ function fieldHtml(ctx, f, v, err) {
   const hint = f.hint ? `<small>${esc(f.hint)}</small>` : '', e = err ? `<span class="err" role="alert">${esc(err)}</span>` : '';
   const id = `f-${f.k}`;
   let input;
-  if (f.t === 'long' || f.t === 'links') input = `<textarea class="tx" id="${id}" data-f="${f.k}" rows="${f.rows || 4}">${esc(v)}</textarea>`;
+  // The HTML parser drops one newline right after <textarea>; the extra one keeps a leading empty line.
+  if (f.t === 'long' || f.t === 'links') input = `<textarea class="tx" id="${id}" data-f="${f.k}" rows="${f.rows || 4}">\n${esc(v)}</textarea>`;
   else if (f.t === 'select') input = `<select class="tx" id="${id}" data-f="${f.k}">${f.opts.map(([o, l]) => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   else if (f.t === 'ref') {
     const items = db.list(ctx, f.ref), known = items.some(i => i.id === v);

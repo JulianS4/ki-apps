@@ -657,16 +657,17 @@ a.back{color:var(--mut);font-weight:600;font-size:15px;margin-top:8px}
 
 /* Wissen: graph, file list, vault import, Markdown, and "Aus deinem Wissen" in every area */
 .kgw{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-.kgt{position:absolute;top:8px;right:8px;z-index:1;display:flex;gap:6px}
-.kgt .btn.sm{background:var(--card);min-width:40px}
+.kgt{display:flex;justify-content:flex-end;gap:6px;padding:8px 8px 0}
+.kgt .btn.sm{background:var(--card);min-width:44px}
 .kg{display:block;width:100%;height:auto;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .kg:active{cursor:grabbing}
 .kg:focus-visible{outline:3px solid var(--acc);outline-offset:-3px}
-.kg .ed line{stroke:light-dark(#8EB69B,#235347);stroke-width:1.4;vector-effect:non-scaling-stroke}
+.kg .ed line{stroke:var(--g5);stroke-opacity:.75;stroke-width:1.4;vector-effect:non-scaling-stroke}
 .kg .gn{cursor:pointer}
 .kg .gn circle{fill:var(--acc);stroke:var(--card);stroke-width:2;vector-effect:non-scaling-stroke}
 .kg .gn text{display:none;fill:var(--ink);font:600 12.5px Archivo,system-ui,sans-serif;text-anchor:middle;paint-order:stroke;stroke:var(--card);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 .kg .gn.lb text,.kg.zl .gn text,.kg .gn.hl text,.kg .gn:focus text{display:block}
+.kg .gn text.ta-s{text-anchor:start}.kg .gn text.ta-e{text-anchor:end}
 .kg .gn:focus{outline:none}.kg .gn:focus circle{stroke:var(--ink);stroke-width:3}
 .kg .gn.cur circle{fill:var(--ink);stroke:var(--acc);stroke-width:3}
 .kg.searching .gn:not(.hit){opacity:.22}.kg.searching .ed line{opacity:.35}
