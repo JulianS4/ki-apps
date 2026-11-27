@@ -44,39 +44,39 @@
 **Files:** `js/areas/cockpit/nav.js`, `js/core/routes.js`, `js/app.js`, `js/areas/cockpit/school.js`, `js/areas/body/view.js`; tests `tests/lifeos-areas.test.js` (new), adapt `tests/lifeos-shell.test.js`, `tests/routes.test.js`.
 - [x] Tests: NAV lists the 12 areas in groups (Planen · Geld & Arbeit · Körper · Kopf & KI) + Arena; end group Import, Einstellungen; phone bar Übersicht, Aufgaben, Kalender, Training + Mehr; `parseRoute('#heute')` → cockpit; `#aufgaben` → projects/tasks; `#kalender` → calendar; `#ziele` → goals; `#finanzen/investments` → finance/invest; `#arbeit` → school; `#gesundheit` → body; navKey marks the right item; titles "Arbeit & Lernen", "Gesundheit".
 - [x] Implement; app.js header: health areas are top-level now (no "‹ Training & Erholung" back link).
-- [ ] Commit.
+- [x] Commit.
 
 ### Task 2: Aufgaben
 **Files:** `schema.js` (new `task`: text, due, done, note), `projects.js` (view `tasks`, tabs), `logic.js` (`allTasks(ctx-free lists, t)`); tests in `tests/lifeos-areas.test.js`.
-- [ ] Tests: free + project + school tasks in one list grouped Überfällig/Heute/Diese Woche/Später/Ohne Datum; tick marks done; done ones collapsed; "Aufgabe hinzufügen" creates a free task; tabs on all three views.
-- [ ] Implement, commit.
+- [x] Tests: free + project + school tasks in one list grouped Überfällig/Heute/Diese Woche/Später/Ohne Datum; tick marks done; done ones collapsed; "Aufgabe hinzufügen" creates a free task; tabs on all three views.
+- [x] Implement, commit.
 
 ### Task 3: Kalender
 **Files:** `js/areas/cockpit/calendar.js` (new area `calendar`), `routines/index.js` header tabs; tests.
-- [ ] Tests: week Mon–Sun with routine blocks per day, training day name, exams, due tasks, subscription charges in that week; prev/next week; today marked; Jetzt/Als Nächstes; tabs Kalender · Routinen on both.
-- [ ] Implement, commit.
+- [x] Tests: week Mon–Sun with routine blocks per day, training day name, exams, due tasks, subscription charges in that week; prev/next week; today marked; Jetzt/Als Nächstes; tabs Kalender · Routinen on both.
+- [x] Implement, commit.
 
 ### Task 4: Ziele & Rückblicke
 **Files:** `js/areas/cockpit/goals.js` (new area `goals`), tests.
-- [ ] Tests: goal cards from notes under `02 Ziele/` (title, first lines, link to note), empty state pointing to import; pillar history (one row per week, average); week review this vs last week: training sessions, Ø morning check, Ø protein, spent, work hours, notes changed – each with its source.
-- [ ] Implement, commit.
+- [x] Tests: goal cards from notes under `02 Ziele/` (title, first lines, link to note), empty state pointing to import; pillar history (one row per week, average); week review this vs last week: training sessions, Ø morning check, Ø protein, spent, work hours, notes changed – each with its source.
+- [x] Implement, commit.
 
 ### Task 5: Investments tab, Gesundheit pulse
 **Files:** `finance.js`, `body/index.js`/`view.js`; tests.
-- [ ] Tests: tab Investments lists depot+tagesgeld accounts with sum and history, the savings categories (kind `sparen`) with plan vs actual this month; body overview shows resting pulse of the last 30 days when present.
-- [ ] Implement, commit.
+- [x] Tests: tab Investments lists depot+tagesgeld accounts with sum and history, the savings categories (kind `sparen`) with plan vs actual this month; body overview shows resting pulse of the last 30 days when present.
+- [x] Implement, commit.
 
 ### Task 6: Übersicht absorbs Training & Erholung
 **Files:** `home.js`, `heute.js` (render removed, summaries stay), `app.js`; port `tests/heute.test.js` to Übersicht tests.
-- [ ] Tests: tiles Ernährung (protein/water rings), Recovery (morning check, sleep h, mobility), Gesundheit (weight → goal); agenda gets snack/dinner/mealprep hints and the deload week; one broken area never blanks the overview.
-- [ ] Implement, commit.
+- [x] Tests: tiles Ernährung (protein/water rings), Recovery (morning check, sleep h, mobility), Gesundheit (weight → goal); agenda gets snack/dinner/mealprep hints and the deload week; one broken area never blanks the overview.
+- [x] Implement, commit.
 
 ### Task 7: Neon look + accent picker
 **Files:** `styles.css` (final token layer), `js/core/theme.js` (new: ACCENTS, applyAccent), `settings.js` (picker), `app.js` (apply on boot), `brain.js`/`graph.js` (colours from CSS vars); tests.
-- [ ] Tests: ACCENTS has lime (default), rot, orange, türkis, lila, pink; picking stores `ui.accent` and sets `data-accent`; unknown value falls back to lime.
-- [ ] Implement, browser check desktop + phone, commit.
+- [x] Tests: ACCENTS has lime (default), rot, orange, türkis, lila, pink; picking stores `ui.accent` and sets `data-accent`; unknown value falls back to lime.
+- [x] Implement, browser check desktop + phone, commit.
 
 ### Task 8: Muskelfigur
 **Files:** `js/areas/training/muscles.js` (new: `weekLoad(plan, sess, monday)`, `muscleSvg(load, side)`), Training page top, Übersicht training tile; tests.
-- [ ] Tests: categories map to muscle groups; load = done sets / planned sets this week per group (0–1); rest day / no data → all dim; figure has front and back with labelled groups (aria); flip button.
-- [ ] Implement, browser check, commit.
+- [x] Tests: categories map to muscle groups; load = done sets / planned sets this week per group (0–1); rest day / no data → all dim; figure has front and back with labelled groups (aria); flip button.
+- [x] Implement, browser check, commit.
