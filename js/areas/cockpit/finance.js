@@ -12,13 +12,16 @@ import { knowledgeBox, kbInput } from './knowledge.js';
 import { lineChart } from '../body/chart.js';
 import { bindChart } from '../training/chart.js';
 
-const TABS = [['overview', '', 'Übersicht'], ['tx', 'buchungen', 'Buchungen'], ['costs', 'ausgaben', 'Ausgaben & Budget'], ['subs', 'abos', 'Abos']];
+const TABS = [['overview', '', 'Übersicht'], ['tx', 'buchungen', 'Buchungen'], ['costs', 'ausgaben', 'Ausgaben & Budget'], ['subs', 'abos', 'Abos'], ['invest', 'investments', 'Investments']];
 const ORIENT = {
   overview: 'Vermögen, Konten und wie sich Einnahmen und Ausgaben entwickeln.',
   tx: 'Alle Buchungen: filtern, eintragen oder aus dem Online-Banking importieren.',
   costs: 'Wofür das Geld weggeht und wie viel vom Monatsbudget übrig ist.',
   subs: 'Laufende Abos mit Kosten pro Monat und Jahr.',
+  invest: 'Depot, Tagesgeld und Sparpläne – was für dich arbeitet.',
 };
+// Depot and savings accounts count as investments.
+const INVEST = ['depot', 'tagesgeld'];
 const CHARTS = ['flow', 'tx', 'costs'];
 let flt = { acc: '', cat: '' }, csv = null, csvMsg = '', CH = null, BARS = {}, budEdit = false;
 const tabs = v => `<nav class="csub" aria-label="Finanzen">${TABS.map(([k, p, l]) => `<a href="#finanzen${p ? '/' + p : ''}"${k === v ? ' class="on" aria-current="page"' : ''}>${esc(l)}</a>`).join('')}</nav>`;
@@ -54,7 +57,7 @@ function overview(ctx, t) {
     ${cut ? `<p class="note">Ab ${dshort(series[0].date)}: erst seitdem hat jedes Konto einen Stand.</p>` : ''}
     <details class="tbld"><summary>Werte als Tabelle</summary><div class="tblw"><table class="tbl"><thead><tr><th>Datum</th><th>Vermögen</th></tr></thead><tbody>${series.map(p => `<tr><td>${dfmt(p.date)}</td><td>${fmtMoney(p.c)}</td></tr>`).join('')}</tbody></table></div></details></section>`;
   }
-  const accRows = acc.length ? `<ul class="crows card-l">${acc.map(a => `<li><div class="nm"><b>${esc(a.name)}</b><small>${esc(label(ACC_TYPES, a.type))}</small>${srcLine(a.src, a.asOf, ctx, { warnDays: 30 })}</div><span class="vr">${money(a.bal, a.cur)}</span>${editFor('account', a, 'Stand ändern')}</li>`).join('')}</ul>`
+  const accRows = acc.length ? `<ul class="crows card-l">${acc.map(a => accRow(ctx, a)).join('')}</ul>`
     : empty('Noch kein Konto. Trag deine Konten mit dem aktuellen Stand ein – das Gesamtvermögen rechnet sich dann von selbst.');
   return `<div class="figs">
     <div class="fig"><span class="k">Gesamtvermögen</span><b>${money(nw.total)}</b><span class="sub">${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'}${nw.oldest ? ` · ältester Stand ${dshort(nw.oldest)}` : ''}${nw.skipped.length ? ` · ohne ${esc(nw.skipped.join(', '))} (andere Währung)` : ''}</span></div>
@@ -139,19 +142,40 @@ function subs(ctx, t) {
     : empty('Noch keine Abos. Trag Dienste ein, die regelmäßig abbuchen – Monats- und Jahressumme rechnen sich dann von selbst. Erkannt wird nichts automatisch.')}</section>`;
 }
 
-const VIEWS = { overview, tx: txView, costs, subs };
+function invest(ctx, t) {
+  const acc = db.list(ctx, 'account'), inv = acc.filter(a => INVEST.includes(a.type)), all = netWorth(acc), nw = netWorth(inv);
+  const share = all.total > 0 ? Math.round(nw.total / all.total * 100) : 0, r = periodRange('monat', t), bud = db.budgets(ctx), tx = db.list(ctx, 'tx');
+  const plans = db.list(ctx, 'cat').filter(c => c.kind === 'sparen').map(c => ({ name: c.name, plan: bud[c.id] || 0, actual: -filterTx(tx, { cat: c.id, range: r }).reduce((s, x) => s + x.amt, 0) })).filter(x => x.plan || x.actual);
+  const series = netWorthSeries(inv.filter(a => a.cur === 'EUR'));
+  let chart = '';
+  if (series.length >= 2) {
+    const c = lineChart({ pts: series.map(p => ({ date: p.date, y: p.c / 100 })), label: 'Verlauf der Investments', unit: '€', fmt: fmtEuro0, step: 1, width: width() });
+    CH = c.ch;
+    chart = `<section class="blk"><div class="bh"><h2>Verlauf</h2><p>aus den Kontoständen</p></div><div class="nwchart">${c.html}</div></section>`;
+  }
+  return `<div class="figs"><div class="fig"><span class="k">Angelegt</span><b>${money(nw.total)}</b><span class="sub">${inv.length} ${inv.length === 1 ? 'Konto' : 'Konten'}${all.total > 0 ? ` · ${share} % deines Vermögens` : ''}</span></div></div>
+  <section class="blk"><div class="bh"><h2>Depot &amp; Tagesgeld</h2><p>Stand = zuletzt eingetragener Kontostand</p></div>${formIf(ctx, 'account')}
+  ${inv.length ? `<ul class="crows card-l">${inv.map(a => accRow(ctx, a)).join('')}</ul>` : empty('Noch kein Depot- oder Tagesgeldkonto. Leg eins unter Übersicht an – Art „Depot / ETF“ oder „Tagesgeld“.')}</section>
+  <section class="blk"><div class="bh"><h2>Sparpläne</h2><p>${MONTHS[+t.slice(5, 7) - 1]}: eingezahlt gegen geplant</p></div>
+  ${plans.length ? `<ul class="crows card-l">${plans.map(x => `<li><div class="nm"><b>${esc(x.name)}</b><small>${fmtMoney(Math.max(0, x.actual))} von ${fmtMoney(x.plan)}${x.plan && x.actual >= x.plan ? ' · ✓' : ''}</small></div></li>`).join('')}</ul>` : empty('Keine Sparkategorie mit Plan. Kategorien der Art „Sparen“ mit Budget erscheinen hier.')}</section>${chart}`;
+}
+const accRow = (ctx, a) => `<li><div class="nm"><b>${esc(a.name)}</b><small>${esc(label(ACC_TYPES, a.type))}</small>${srcLine(a.src, a.asOf, ctx, { warnDays: 30 })}</div><span class="vr">${money(a.bal, a.cur)}</span>${editFor('account', a, 'Stand ändern')}</li>`;
+
+const VIEWS = { overview, tx: txView, costs, subs, invest };
 const ALIAS = { accounts: 'overview', budget: 'costs' };
 const ACTIONS = {
   overview: ctx => addTx(ctx),
   tx: ctx => `${addTx(ctx)}<a class="btn" href="#import">Umsätze importieren</a>`,
   costs: () => '',
+  invest: () => '',
   subs: () => newBtn('sub', 'Abo hinzufügen', null, 'btn pri'),
 };
 export function render(route, ctx) {
   const v = VIEWS[route.view] ? route.view : ALIAS[route.view] || 'overview', t = today(ctx);
   BARS = {};
+  CH = null;
   const acts = ACTIONS[v](ctx);
-  return `${banner(ctx)}${hero('', 'Finanzen', ORIENT[v])}${acts ? `<div class="pact">${acts}</div>` : ''}${tabs(v)}${VIEWS[v](ctx, t)}`;
+  return `${banner(ctx)}${hero('', 'Finanzen &amp; Investments', ORIENT[v])}${acts ? `<div class="pact">${acts}</div>` : ''}${tabs(v)}${VIEWS[v](ctx, t)}`;
 }
 export const redrawOnResize = route => route.view === 'overview' || !route.view;
 export function mount(root) {

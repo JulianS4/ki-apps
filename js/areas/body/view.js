@@ -35,7 +35,8 @@ export function overviewView(v) {
   ].join('');
   return hero(`Ziel ${GOALS.kg} kg · Körperfett ${GOALS.fat.join('–')} %`, 'Gesundheit') + quarterBlock(v.quarter)
     + `<section class="blk"><div class="cards">${cards}</div>
-    <div class="tools" style="margin-top:12px"><a class="btn pri" href="#koerper/messung">Messung eintragen</a></div></section>`;
+    <div class="tools" style="margin-top:12px"><a class="btn pri" href="#koerper/messung">Messung eintragen</a></div></section>`
+    + (v.pulse ? `<section class="blk"><div class="bh"><h2>Ruhepuls</h2><p>letzte 30 Tage</p></div><div class="cards"><a class="card" href="#recovery/woche"><p class="k">Zuletzt</p><b>${v.pulse.last.v} bpm</b><span>${dfmt(v.pulse.last.d)} · Ø 30 Tage ${v.pulse.avg} bpm · ${v.pulse.n} ${v.pulse.n === 1 ? 'Messung' : 'Messungen'}</span></a></div><p class="note">aus dem Morgen-Check in Recovery</p></section>` : '');
 }
 
 function field(f, val) {

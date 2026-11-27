@@ -136,3 +136,34 @@ test('the week review compares this week with the last, each figure with its sou
   assert.match(html, /<tr><th>Arbeitsstunden<\/th><td>1:30 h<\/td>/);
   assert.match(html, /Diese Woche \(Mo 23\.11\.–Fr 27\.11\.\)[\s\S]*Vorwoche/);
 });
+
+import * as finance from '../js/areas/cockpit/finance.js';
+import * as body from '../js/areas/body/index.js';
+
+test('Investments: depot and savings accounts with their sum and share, and the savings plan this month', () => {
+  const ctx = mk();
+  db.upsert(ctx, 'account', { name: 'Giro', type: 'giro', cur: 'EUR', bal: 100000, asOf: '2026-11-20' });
+  db.upsert(ctx, 'account', { name: 'ETF-Depot', type: 'depot', cur: 'EUR', bal: 400000, asOf: '2026-11-20' });
+  db.upsert(ctx, 'account', { name: 'Tagesgeld', type: 'tagesgeld', cur: 'EUR', bal: 500000, asOf: '2026-11-20' });
+  db.upsert(ctx, 'cat', { name: 'ETF-Sparplan', kind: 'sparen' });
+  const etf = db.list(ctx, 'cat').find(c => c.name === 'ETF-Sparplan').id;
+  db.setBudget(ctx, etf, 60000);
+  const giro = db.list(ctx, 'account').find(a => a.name === 'Giro').id;
+  db.upsert(ctx, 'tx', { d: '2026-11-03', amt: -60000, acc: giro, cat: etf, payee: 'Sparplan' });
+  const html = finance.render({ area: 'finance', view: 'invest' }, ctx);
+  assert.match(html, /<h1>Finanzen &amp; Investments<\/h1>/);
+  assert.match(html, /<a href="#finanzen\/investments" class="on" aria-current="page">Investments<\/a>/);
+  assert.match(html, /Angelegt[\s\S]*9\.000,00 €[\s\S]*90 % deines Vermögens/);
+  assert.match(html, /<b>ETF-Depot<\/b>[\s\S]*4\.000,00 €/);
+  assert.doesNotMatch(html.split('Sparpläne')[0], /<b>Giro<\/b>/);
+  assert.match(html, /ETF-Sparplan[\s\S]*600,00 € von 600,00 €/);
+});
+
+test('Gesundheit shows the resting pulse from the morning check of the last 30 days', () => {
+  const ctx = mk(new Date(2026, 10, 27, 9, 0));
+  assert.doesNotMatch(body.render({ area: 'body', view: 'overview' }, ctx), /Ruhepuls/);
+  ctx.store.set('rec.morning', { '2026-11-20': { puls: 58 }, '2026-11-25': { puls: 54 }, '2026-11-26': { puls: 56 }, '2026-09-01': { puls: 80 } });
+  const html = body.render({ area: 'body', view: 'overview' }, ctx);
+  assert.match(html, /<h1>Gesundheit<\/h1>/);
+  assert.match(html, /Ruhepuls[\s\S]*56 bpm[\s\S]*Do 26\.11\.[\s\S]*Ø 30 Tage 56 bpm · 3 Messungen[\s\S]*aus dem Morgen-Check/);
+});

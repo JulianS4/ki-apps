@@ -1,7 +1,7 @@
 // Körper area: measurements with curves, photos with a before/after view and
 // the quarter check. Weight lives in body.weight, which Ernährung reads for
 // the protein target; everything else in body.log, body.quarter, body.photos.
-import { ds, dfmt } from '../../core/dates.js';
+import { ds, dfmt, addDays } from '../../core/dates.js';
 import { esc } from '../../core/html.js';
 import { bindChart } from '../training/chart.js';
 import { FIELDS, QUARTER_ITEMS, GOALS, POSES } from './data.js';
@@ -91,9 +91,15 @@ function save(ctx, route) {
   ctx.go('#koerper/verlauf');
 }
 
+// Resting pulse of the last 30 days, as entered in the morning check (Recovery).
+function pulseOf(ctx) {
+  const t = dayOf(ctx), from = addDays(t, -29), m = ctx.store.get('rec.morning', {}) || {};
+  const pts = Object.entries(m).filter(([d, e]) => d >= from && d <= t && e && Number.isFinite(e.puls)).map(([d, e]) => ({ d, v: e.puls })).sort((a, b) => (a.d < b.d ? -1 : 1));
+  return pts.length ? { last: pts[pts.length - 1], avg: Math.round(pts.reduce((a, p) => a + p.v, 0) / pts.length), n: pts.length } : null;
+}
 function overviewVM(ctx) {
   const { weights, log } = data(ctx), pick = id => last(series(weights, log, id));
-  return { quarter: { q: quarterOf(dayOf(ctx)), ...quarterStatus(quarterOf(dayOf(ctx)), data(ctx)) }, latest: { kg: pick('kg'), fat: pick('fat'), run5k: pick('run5k'), hang: pick('hang') } };
+  return { pulse: pulseOf(ctx), quarter: { q: quarterOf(dayOf(ctx)), ...quarterStatus(quarterOf(dayOf(ctx)), data(ctx)) }, latest: { kg: pick('kg'), fat: pick('fat'), run5k: pick('run5k'), hang: pick('hang') } };
 }
 // One curve per value with at least two entries; a single entry is a line.
 const mainWidth = () => (typeof document !== 'undefined' && document.getElementById('main') && document.getElementById('main').clientWidth) || 600;

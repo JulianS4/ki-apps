@@ -23,7 +23,7 @@ const mk = () => {
 test('every Finanzen tab opens its own page', () => {
   const html = finance.render({ area: 'finance', view: 'overview' }, mk());
   const hrefs = [...html.matchAll(/<nav class="csub"[\s\S]*?<\/nav>/g)][0][0].match(/href="([^"]+)"/g).map(h => h.slice(6, -1));
-  assert.deepEqual(hrefs.map(h => parseRoute(h).view), ['overview', 'tx', 'costs', 'subs']);
+  assert.deepEqual(hrefs.map(h => parseRoute(h).view), ['overview', 'tx', 'costs', 'subs', 'invest']);
 });
 
 test('without an account the first action opens the account form', () => {
