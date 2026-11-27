@@ -68,7 +68,7 @@ export function layout(g, { w = W, h = H } = {}) {
   }
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (let i = 0; i < n; i++) { x0 = Math.min(x0, X[i]); x1 = Math.max(x1, X[i]); y0 = Math.min(y0, Y[i]); y1 = Math.max(y1, Y[i]); }
-  const s = Math.min((w - 2 * PAD) / Math.max(x1 - x0, 1e-9), (h - 2 * PAD) / Math.max(y1 - y0, 1e-9), 60);
+  const s = Math.min((w - 2 * PAD) / Math.max(x1 - x0, 1e-9), (h - 2 * PAD) / Math.max(y1 - y0, 1e-9), 110);
   const ox = (w - (x1 - x0) * s) / 2, oy = (h - (y1 - y0) * s) / 2, r1 = v => Math.round(v * 10) / 10;
   return Array.from({ length: n }, (_, i) => ({ x: r1(ox + (X[i] - x0) * s), y: r1(oy + (Y[i] - y0) * s) }));
 }
@@ -93,9 +93,9 @@ export function localGraph(g, id) {
 const radius = d => Math.min(14, 5 + 2 * Math.sqrt(d)).toFixed(1);
 const short = t => (t.length > 28 ? t.slice(0, 27) + '…' : t);
 const conn = d => (d === 0 ? 'keine Verbindung' : d === 1 ? '1 Verbindung' : `${d} Verbindungen`);
-export function graphSvg(g, pos, { key = 'main', hits = null, focus = '', w = W, h = H, allLabels = false } = {}) {
+export function graphSvg(g, pos, { key = 'main', hits = null, focus = '', w = W, h = H, allLabels = false, labels = true } = {}) {
   const n = g.nodes.length, ids = g.nodes.map((x, i) => i);
-  const named = new Set(allLabels || n <= 30 ? ids : ids.filter(i => g.nodes[i].deg > 0).sort((a, b) => g.nodes[b].deg - g.nodes[a].deg || a - b).slice(0, 15));
+  const named = new Set(!labels ? [] : allLabels || n <= 30 ? ids : ids.filter(i => g.nodes[i].deg > 0).sort((a, b) => g.nodes[b].deg - g.nodes[a].deg || a - b).slice(0, 15));
   const lines = g.links.map(([a, b]) => `<line x1="${pos[a].x}" y1="${pos[a].y}" x2="${pos[b].x}" y2="${pos[b].y}" data-s="${a}" data-t="${b}"/>`).join('');
   const nodes = g.nodes.map((x, i) => {
     const cls = ['gn', named.has(i) && 'lb', hits && hits.has(x.id) && 'hit', x.id === focus && 'cur'].filter(Boolean).join(' '), r = radius(x.deg);

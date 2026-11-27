@@ -27,12 +27,9 @@ test('the overview puts what needs doing first, urgent items marked', () => {
   assert.match(html, /href="#business-log"/);
 });
 
-test('sections open on demand and stay open across redraws', () => {
-  const ctx = mk();
-  assert.doesNotMatch(home.render({ area: 'cockpit' }, ctx), /<details class="dsc" open><summary data-a="dsc" data-k="projects"/);
-  home.onClick(click({ a: 'dsc', k: 'projects' }), { area: 'cockpit' }, ctx);
-  assert.match(home.render({ area: 'cockpit' }, ctx), /<details class="dsc" open><summary data-a="dsc" data-k="projects"/);
-  home.onClick(click({ a: 'dsc', k: 'projects' }), { area: 'cockpit' }, ctx);
+test('details live one tap away: every tile leads to its area', () => {
+  const html = home.render({ area: 'cockpit' }, mk());
+  for (const href of ['#finanzen', '#heute', '#ausbildung', '#projekte', '#business-log', '#agents', '#wissen']) assert.match(html, new RegExp(`class="wgo" href="${href}"`));
 });
 
 test('Business Log: figures, a chart by project with a measure switch, and entries', () => {

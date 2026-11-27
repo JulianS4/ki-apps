@@ -1,5 +1,5 @@
 // Offline cache: network first, cache as fallback. Bump CACHE on every release.
-const CACHE = 'ki-apps-v10';
+const CACHE = 'ki-apps-v11';
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',

@@ -123,3 +123,20 @@ export function bindBars(root, all) {
     });
   });
 }
+
+// A ring gauge: the share as an arc with a glowing end, the value in the middle.
+// The words go into the label, so the ring is never colour or shape alone.
+export function ring(pct, { label = '', value = '', sub = '', small = false } = {}) {
+  const p = Math.max(0, Math.min(100, Number.isFinite(pct) ? pct : 0)), r = 52, c = 2 * Math.PI * r, a = (p / 100) * 2 * Math.PI - Math.PI / 2;
+  const dot = p > 0 ? `<circle class="gd" cx="${(60 + r * Math.cos(a)).toFixed(1)}" cy="${(60 + r * Math.sin(a)).toFixed(1)}" r="5"/>` : '';
+  return `<div class="gauge${small ? ' sm' : ''}" role="img" aria-label="${esc(label)}: ${esc(value)}${sub ? ' ' + esc(sub) : ''}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="gk" cx="60" cy="60" r="59"/><circle class="gt" cx="60" cy="60" r="${r}"/><circle class="gv" cx="60" cy="60" r="${r}" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 60 60)"/>${dot}</svg><div class="gc"><b>${esc(value)}</b>${sub && !small ? `<small>${esc(sub)}</small>` : ''}</div></div>`;
+}
+
+// Pill bars: one rounded bar per period, scaled to the largest; values in the label
+// (or "verdeckt" while amounts are covered) and as a tooltip.
+export function pills(items, { label = '', fmt = v => String(v), hide = false } = {}) {
+  const max = Math.max(0, ...items.map(i => i.v));
+  if (!max) return '<p class="note">Keine Werte in diesem Zeitraum.</p>';
+  const say = i => `${i.long || i.label}: ${hide ? 'verdeckt' : fmt(i.v)}`;
+  return `<div class="pills" role="img" aria-label="${esc(label)} – ${esc(items.map(say).join(', '))}">${items.map(i => `<div class="pl" title="${esc(say(i))}"><span class="pb"><i style="height:${i.v > 0 ? (i.v / max * 100).toFixed(1) + '%' : '0%'}"></i></span><small aria-hidden="true">${esc(i.label)}</small></div>`).join('')}</div>`;
+}
