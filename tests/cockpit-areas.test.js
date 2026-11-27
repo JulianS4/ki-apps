@@ -189,10 +189,10 @@ test('CSV import: columns are recognised, rows go to the chosen account, repeats
   seedFin(ctx);
   const before = db.list(ctx, 'tx').length, r = R.fin('tx');
   finance.csvLoad(ctx, CSV, 'umsaetze.csv');
-  let html = finance.render(r, ctx);
+  let html = finance.csvSection(ctx);
   assert.match(html, /umsaetze\.csv · 2 Zeilen/);
   finance.onClick(click({ a: 'csvgo' }), r, ctx);
-  assert.match(finance.render(r, ctx), /Konto wählen/);
+  assert.match(finance.csvSection(ctx), /Konto wählen/);
   finance.onChange(typed({ a: 'csvacc' }, 'g'), r, ctx);
   finance.onClick(click({ a: 'csvgo' }), r, ctx);
   assert.equal(db.list(ctx, 'tx').length, before + 2);
@@ -202,9 +202,9 @@ test('CSV import: columns are recognised, rows go to the chosen account, repeats
   finance.onChange(typed({ a: 'csvacc' }, 'g'), r, ctx);
   finance.onClick(click({ a: 'csvgo' }), r, ctx);
   assert.equal(db.list(ctx, 'tx').length, before + 2);
-  assert.match(finance.render(r, ctx), /0 neu · 2 schon vorhanden/);
+  assert.match(finance.csvSection(ctx), /0 neu · 2 schon vorhanden/);
   finance.csvLoad(ctx, 'kein csv', 'x.txt');
-  assert.match(finance.render(r, ctx), /Keine Buchungen erkannt/);
+  assert.match(finance.csvSection(ctx), /Keine Buchungen erkannt/);
 });
 
 test('school: department, next exams, average, and a subject page with tasks and notes', () => {
@@ -283,7 +283,8 @@ test('settings: honest integration status, last import, export and a guarded wip
   db.upsert(ctx, 'exam', { subj: 'Mathe', d: '2026-12-03' });
   db.upsert(ctx, 'import', { kind: 'csv', file: 'umsaetze.csv', at: '2026-11-24', n: 12, acc: 'g' });
   const html = integrations.render(R.integ, ctx);
-  assert.equal((html.match(/Nicht eingerichtet/g) || []).length, 2);
+  assert.equal((html.match(/Nicht eingerichtet/g) || []).length, 1);
+  assert.match(html, /Notion[\s\S]*noch nicht eingespielt[\s\S]*Zum Import/);
   assert.match(html, /Notion/);
   assert.match(html, /umsaetze\.csv[\s\S]*24\.11\./);
   assert.match(html, /nicht verbunden/);

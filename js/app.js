@@ -18,6 +18,7 @@ import * as projects from './areas/cockpit/projects.js';
 import * as agents from './areas/cockpit/agents.js';
 import * as notes from './areas/cockpit/notes.js';
 import * as integrations from './areas/cockpit/integrations.js';
+import * as importPage from './areas/cockpit/imports.js';
 import { FAMILY } from './areas/cockpit/ui.js';
 import { navKey, sideNav, bottomNav, moreList } from './areas/cockpit/nav.js';
 
@@ -27,7 +28,7 @@ const $ = s => document.querySelector(s);
 // the app runs on memory and says so, because nothing survives a restart.
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
-const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations };
+const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations, import: importPage };
 const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Körper', arena: 'Arena' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
@@ -107,7 +108,8 @@ addEventListener('hashchange', e => {
   ctx.prevHash = o;
   const next = parseRoute(n), area = AREAS[next.area], left = AREAS[parseRoute(o).area];
   // The area being left hears about it too, so it can stop a running timer.
-  if (left !== area && left.onNavigate) left.onNavigate(next, ctx);
+  // (an address from an older version may name no area at all)
+  if (left && left !== area && left.onNavigate) left.onNavigate(next, ctx);
   if (area.onNavigate) area.onNavigate(next, ctx);
   const fromNav = document.activeElement && document.activeElement.closest && document.activeElement.closest('#side, #bnav, #more');
   render();

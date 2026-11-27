@@ -43,18 +43,18 @@ test('the empty tab says how to start: write a note or import a vault', () => {
   const ctx = mk(), html = notes.render(L, ctx);
   assert.match(html, /<h1>Wissen<\/h1>/);
   assert.match(html, /data-a="fnew" data-s="note"[^>]*>Notiz anlegen</);
-  assert.match(html, /data-a="vopen"[^>]*>Obsidian-Vault importieren</);
+  assert.match(html, /<a class="btn" href="#import">Importieren ›<\/a>/);
   assert.doesNotMatch(html, /<svg class="kg/);
 });
 
 test('import: a preview first that names what comes and what does not, nothing written until confirmed', async () => {
   const ctx = mk();
   notes.onClick(click({ a: 'vopen' }), L, ctx);
-  let html = notes.render(L, ctx);
+  let html = notes.vaultBox(ctx);
   assert.match(html, /<input id="vaultf"[^>]*type="file"[^>]*accept="\.zip,\.md/);
   assert.match(html, /data-a="vpick"[^>]*>ZIP oder Markdown wählen</);
   await pick(ctx, [file('Mein Vault.zip', VAULT())]);
-  html = notes.render(L, ctx);
+  html = notes.vaultBox(ctx);
   assert.match(html, /Vorschau: Vault „Mein Vault“/);
   assert.match(html, /<span>Neu<\/span><b>2<\/b>/);
   assert.match(html, /<span>Anhänge<\/span><b>1<\/b>/);
@@ -65,26 +65,26 @@ test('import: a preview first that names what comes and what does not, nothing w
   assert.match(html, /data-a="vapply"[^>]*>2 Notizen importieren</);
   assert.equal(db.list(ctx, 'note').length, 0);
   notes.onClick(click({ a: 'vcancel' }), L, ctx);
-  assert.doesNotMatch(notes.render(L, ctx), /Vorschau/);
+  assert.doesNotMatch(notes.vaultBox(ctx), /Vorschau: Vault/);
 });
 
 test('import errors are explained: not a ZIP, too big, examples shown', async () => {
   const ctx = mk();
   notes.onClick(click({ a: 'vopen' }), L, ctx);
   await pick(ctx, [file('kaputt.zip', enc('nein'))]);
-  assert.match(notes.render(L, ctx), /role="alert">Keine ZIP-Datei/);
+  assert.match(notes.vaultBox(ctx), /role="alert">Keine ZIP-Datei/);
   await pick(ctx, [{ name: 'riesig.zip', size: 400 * 1024 * 1024, arrayBuffer: async () => { throw new Error('read'); } }]);
-  assert.match(notes.render(L, ctx), /größer als 300 MB/);
+  assert.match(notes.vaultBox(ctx), /größer als 300 MB/);
   db.startDemo(ctx, '2026-11-26');
   notes.onClick(click({ a: 'vopen' }), L, ctx);
-  assert.match(notes.render(L, ctx), /Im Beispielmodus ist kein Import möglich/);
-  assert.doesNotMatch(notes.render(L, ctx), /id="vaultf"/);
+  assert.match(notes.vaultBox(ctx), /Im Beispielmodus ist kein Import möglich/);
+  assert.doesNotMatch(notes.vaultBox(ctx), /id="vaultf"/);
 });
 
 test('after the import: graph, folder list and search work together, and it all survives a reload', async () => {
   const backend = memBackend(), ctx = mk(backend), list = await imported(ctx);
+  assert.match(notes.vaultBox(ctx), /Import fertig: 2 neu, 0 aktualisiert, 0 unverändert · 1 Anhang gespeichert/);
   let html = notes.render(L, ctx);
-  assert.match(html, /Import fertig: 2 neu, 0 aktualisiert, 0 unverändert · 1 Anhang gespeichert/);
   // the network opens as a 3D brain; the flat graph is one switch away
   assert.match(html, /data-a="gview" data-v="3d" aria-pressed="true"/);
   assert.match(html, /<div class="brain" data-brain="main">[\s\S]*aria-label="Wissensnetz in 3D: 2 Notizen, 1 Verbindung/);
@@ -142,10 +142,10 @@ test('importing again with a note changed on both sides: kept, then the vault ve
   edSave(ctx);
   notes.onClick(click({ a: 'vopen' }), L, ctx);
   await pick(ctx, [file('Mein Vault.zip', mkzip([{ name: 'Mein Vault/Projekte/Sensito.md', data: enc('Vault-Fassung') }, { name: 'Mein Vault/Ideen.md', data: enc('Ideen für [[Sensito#Preise|die Preise]] #ideen') }]))]);
-  let html = notes.render(L, ctx);
+  let html = notes.vaultBox(ctx);
   assert.match(html, /1 Notiz hast du in Life OS geändert/);
   await notes.onClick(click({ a: 'vapply' }), L, ctx);
-  html = notes.render(L, ctx);
+  html = notes.vaultBox(ctx);
   assert.equal(db.find(ctx, 'note', sens.id).body, 'Meine Fassung');
   assert.match(html, new RegExp(`data-a="vtake" data-id="${sens.id}"[^>]*>Vault-Fassung übernehmen<`));
   notes.onClick(click({ a: 'vtake', id: sens.id }), L, ctx);

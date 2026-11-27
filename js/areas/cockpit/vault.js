@@ -142,7 +142,7 @@ const ATT_DB = { name: 'ki-apps-vault', store: 'files' };
 export const ATT_STORE = ATT_DB;
 
 // Writes the preview: notes in one go (all or nothing), then the attachments.
-export async function applyVault(ctx, plan, files) {
+export async function applyVault(ctx, plan, files, { record = true } = {}) {
   if (db.isDemo(ctx)) throw new Error(DEMO_NO_IMPORT);
   const today = ds(ctx.now()), byId = new Map(db.list(ctx, 'note').map(n => [n.id, n]));
   for (const n of plan.add) byId.set(n.id, { ...n, created: n.created || today, upd: today });
@@ -164,7 +164,7 @@ export async function applyVault(ctx, plan, files) {
   }
   db.setRaw(ctx, 'vatt', [...index].sort());
   db.setRaw(ctx, 'vault', { name: plan.name, at: today, file: plan.file });
-  db.upsert(ctx, 'import', { kind: 'vault', file: plan.file, at: today, n: plan.add.length + plan.update.length });
+  if (record) db.upsert(ctx, 'import', { kind: 'vault', file: plan.file, at: today, n: plan.add.length + plan.update.length });
   return { added: plan.add.length, updated: plan.update.length, same: plan.same, conflicts: plan.conflicts.length, attWritten, attFailed };
 }
 

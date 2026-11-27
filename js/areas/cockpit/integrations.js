@@ -8,7 +8,7 @@ import { banner, hero, common, target, today, onNavigateCommon, mountCommon, blu
 import { ATT_STORE } from './vault.js';
 import { idbBlobs } from '../body/photos.js';
 
-const KINDS = { csv: 'CSV-Import', json: 'Life-OS-Datei', vault: 'Obsidian-Vault' };
+const KINDS = { csv: 'CSV-Import', json: 'Life-OS-Datei', vault: 'Obsidian-Vault', claude: 'Life-OS-Import (Notion + Obsidian)' };
 
 const DOC = 'https://github.com/JulianS4/ki-apps/blob/main/docs/cockpit-integrationen.md';
 let confirmWipe = false, msg = '';
@@ -28,14 +28,12 @@ function download(name, blob) {
 export function sections(ctx) {
   const imps = db.list(ctx, 'import').sort((a, b) => (a.at < b.at ? 1 : -1)), acc = db.list(ctx, 'account');
   const an = id => (acc.find(a => a.id === id) || { name: '' }).name;
-  const lastCsv = imps.find(i => i.kind === 'csv'), lastJson = imps.find(i => i.kind === 'json'), demo = db.isDemo(ctx);
+  const lastCsv = imps.find(i => i.kind === 'csv'), demo = db.isDemo(ctx), srcs = db.getRaw(ctx, 'sources') || {};
   return `  <section class="blk"><div class="bh"><h2>Integrationen</h2><p>was verbunden ist</p></div><div class="cgrid">
-  <section class="ccard"><div class="ch"><h2>Notion</h2>${status(false, 'Nicht eingerichtet')}</div>
-   <p>Die App liest Notion nicht. Eine echte Verbindung bräuchte einen kleinen eigenen Server, der den Notion-Schlüssel sicher aufbewahrt – im Browser oder im öffentlichen Code darf er nicht stehen, und Notion erlaubt keine direkten Browser-Abrufe.</p>
-   <p class="note">Würde synchronisiert: Konten und Nettovermögen → Finanzen · Business Log → Projekte · Ausbildung → Ausbildung. Nur Seiten, die du der Integration in Notion ausdrücklich freigibst.</p>
-   <p class="note">Bis dahin: Life-OS-Datei (JSON) importieren.${lastJson ? ` Zuletzt: ${esc(lastJson.file)} am ${dfmt(lastJson.at)} (${lastJson.n} Einträge).` : ''}</p>
-   ${demo ? `<p class="note">${DEMO_NO_IMPORT}</p>` : ''}
-   <div class="tools">${demo ? '' : '<label class="btn" for="jsonf">Life-OS-Datei importieren<input id="jsonf" type="file" accept="application/json,.json" hidden></label>'}<a class="btn" href="${DOC}" target="_blank" rel="noopener noreferrer">Wie es ginge ›</a></div></section>
+  <section class="ccard"><div class="ch"><h2>Notion</h2>${status(!!srcs.notion, srcs.notion ? 'per Import-Datei' : 'noch nicht eingespielt')}</div>
+   <p>Die App liest Notion nicht selbst – dafür bräuchte sie einen eigenen Server mit Notion-Schlüssel, und der darf nie im Browser oder im öffentlichen Code stehen. Stattdessen baut Claude aus Notion und Obsidian eine Life-OS-Import-Datei, die du im Import-Tab einspielst.</p>
+   <p class="note">Aus Notion kommen Konten und Kontostände, Budget, Projekte, Business Log, Säulen-Check-in und Textseiten.${srcs.notion ? ` Zuletzt eingespielt: ${dfmt(String(srcs.notion.at).slice(0, 10))}.` : ''}</p>
+   <div class="tools"><a class="btn" href="#import">Zum Import ›</a><a class="btn" href="${DOC}" target="_blank" rel="noopener noreferrer">Mehr dazu ›</a></div></section>
   <section class="ccard"><div class="ch"><h2>Bank</h2>${status(false, 'Nicht eingerichtet')}</div>
    <p>Keine Bank ist verbunden. Die App fragt nie nach Bank-Passwörtern und liest keine Bankseiten aus.</p>
    <p class="note">Eine spätere Verbindung ginge nur über einen zugelassenen Open-Banking-Dienst (PSD2): nur lesen, Freigabe direkt bei deiner Bank, zeitlich begrenzt und jederzeit widerrufbar. Abgerufen würden Kontoname, Kontostand und Umsätze (Datum, Betrag, Empfänger, Verwendungszweck).</p>

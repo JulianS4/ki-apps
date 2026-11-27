@@ -6,7 +6,7 @@ import { SCHEMAS, parseItem, toDraft } from './schema.js';
 import * as db from './db.js';
 import { fmtMoney, daysUntil } from './logic.js';
 
-export const FAMILY = ['cockpit', 'finance', 'school', 'projects', 'agents', 'notes', 'integrations'];
+export const FAMILY = ['cockpit', 'finance', 'school', 'projects', 'agents', 'notes', 'integrations', 'import'];
 
 export const today = ctx => ds(ctx.now());
 export const banner = ctx => (db.isDemo(ctx) ? '<div class="demo" role="note"><b>Beispieldaten</b><span>Finanzen, Ausbildung, Projekte, Business Log, Agents und Wissen zeigen erfundene Einträge. Deine echten Einträge sind unberührt.</span><button class="btn" type="button" data-a="demoend">Beispiele beenden</button></div>' : '');
@@ -20,7 +20,7 @@ export const HIDDEN = '•••• €';
 export const money = (c, cur = 'EUR', mask = false) => (mask && !shown ? HIDDEN : fmtMoney(c, cur));
 export const signed = (c, cur) => (c > 0 ? '+' : '') + fmtMoney(c, cur);
 
-const SRC = { manuell: 'manuell eingetragen', csv: 'CSV-Import', import: 'Datei-Import', beispiel: 'Beispieldaten', vault: 'Obsidian-Vault' };
+const SRC = { manuell: 'manuell eingetragen', csv: 'CSV-Import', import: 'Datei-Import', beispiel: 'Beispieldaten', vault: 'Obsidian-Vault', notion: 'Notion' };
 export const srcName = s => SRC[s] || 'manuell eingetragen';
 // "Quelle · Stand": every figure says where it came from and how old it is.
 export function srcLine(src, stand, ctx, { label = 'Stand', warnDays = 0 } = {}) {
@@ -123,7 +123,13 @@ export const formIf = (ctx, name, opts) => (edIs(name) ? formHtml(ctx, opts) : '
 export function common(t, ctx) {
   const a = t.dataset.a;
   if (a === 'fnew') { let p = {}; try { p = JSON.parse(t.dataset.preset || '{}'); } catch (e) { p = {}; } openEd(ctx, t.dataset.s, null, p, t.dataset.title || ''); }
-  else if (a === 'fedit') { const it = db.find(ctx, t.dataset.s, t.dataset.id); if (!it) return true; openEd(ctx, t.dataset.s, it); }
+  else if (a === 'fedit') {
+    const it = db.find(ctx, t.dataset.s, t.dataset.id);
+    if (!it) return true;
+    // Notion is the source: changes go there and come back with the next import file.
+    if (it.src === 'notion') { ctx.toast('Kommt aus Notion', 'Ändere es dort – die nächste Import-Datei bringt es mit.'); return true; }
+    openEd(ctx, t.dataset.s, it);
+  }
   else if (a === 'fsave') { if (ed.cur && edSave(ctx)) ctx.toast('Gespeichert', ''); }
   else if (a === 'fcancel') closeEd();
   else if (a === 'fdel') {

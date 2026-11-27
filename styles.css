@@ -897,7 +897,8 @@ dialog.more::backdrop{background:rgb(5 31 32/.7);backdrop-filter:blur(4px)}
   .w-projects{grid-column:span 5}
   .w-log{grid-column:span 4}
   .w-agents{grid-column:span 3}
-  .w-wissen{grid-column:span 12}
+  .w-pillars{grid-column:span 6}
+  .w-wissen{grid-column:span 6}
 }
 
 /* ring gauges */
@@ -1004,6 +1005,12 @@ header.top .brand.m{display:inline-flex;align-items:center;gap:10px}
 .brain.mini canvas{pointer-events:none;cursor:pointer}
 .brainlink{display:block;margin:-4px -6px 0;border-radius:16px;background:radial-gradient(circle at 50% 55%,rgb(35 83 71/.4),transparent 70%)}
 .brainlink:focus-visible{outline:2px solid #DAF1DE;outline-offset:2px}
+.prings{display:flex;flex-wrap:wrap;justify-content:space-around;gap:10px 6px}
+.pr{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:72px}
+.pr .gauge{width:78px;height:78px}
+.pr .gauge .gc b{font-size:20px}
+.pr .gauge .gc small{display:none}
+.pr>span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 @media(max-width:640px){.brain{height:clamp(300px,54vh,460px)}.bhud{top:auto;bottom:14px}}
 
 @keyframes hudspin{to{transform:rotate(360deg)}}

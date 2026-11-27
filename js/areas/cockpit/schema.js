@@ -21,9 +21,11 @@ export const SCHEMAS = {
   note: { key: 'notes', title: 'Notiz', fields: [F('title', 'Titel', 'text', { req: 1, full: 1 }), F('topic', 'Bereich', 'select', { opts: TOPICS }), F('tags', 'Tags', 'tags', { hint: 'mit Komma trennen' }), F('projects', 'Projekte', 'refs', { ref: 'project', full: 1 }), F('body', 'Inhalt', 'long', { full: 1, rows: 10, max: 100000, hint: '[[Titel]] verknüpft eine andere Notiz' }),
     // From an Obsidian vault: where the file lives, its front matter as written, aliases, and a fingerprint of what was imported.
     F('path', 'Datei', 'text', { internal: 1, max: 400 }), F('fm', 'Eigenschaften', 'long', { internal: 1 }), F('aliases', 'Aliase', 'tags', { internal: 1 }), F('h', 'Fingerabdruck', 'text', { internal: 1 })] },
-  import: { key: 'imports', title: 'Import', fields: [F('kind', 'Art', 'select', { opts: [['csv', 'CSV'], ['json', 'Life-OS-Datei'], ['vault', 'Obsidian-Vault']] }), F('file', 'Datei', 'text'), F('at', 'Am', 'date', REQ), F('n', 'Einträge', 'int', { min: 0, max: 1e7, def: 0 }), F('acc', 'Konto', 'text')] },
+  // Weekly scores of the five pillars (Körper, Karriere, Business, Fokus, Netzwerk), 0–10, from the Notion check-in.
+  pillar: { key: 'pillars', title: 'Säulen-Check-in', fields: [F('d', 'Datum', 'date', REQ), F('week', 'Woche', 'text'), ...['koerper', 'karriere', 'business', 'fokus', 'netzwerk'].map(k => F(k, k, 'int', { min: 0, max: 10 })), F('note', 'Notiz', 'text', { full: 1 })] },
+  import: { key: 'imports', title: 'Import', fields: [F('kind', 'Art', 'select', { opts: [['csv', 'CSV'], ['json', 'Life-OS-Datei'], ['vault', 'Obsidian-Vault'], ['claude', 'Life-OS-Import']] }), F('file', 'Datei', 'text'), F('at', 'Am', 'date', REQ), F('n', 'Einträge', 'int', { min: 0, max: 1e7, def: 0 }), F('acc', 'Konto', 'text')] },
 };
-export const SOURCES = ['manuell', 'csv', 'import', 'beispiel', 'vault'];
+export const SOURCES = ['manuell', 'csv', 'import', 'beispiel', 'vault', 'notion'];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const MAX = { text: 300, long: 20000 };
 const ID = /^[\w-]{1,64}$/; // ids land in attributes and links

@@ -40,6 +40,7 @@ function cockpitRoute(h) {
   if (h === 'heute') return { area: 'heute' };
   if (h === 'business-log') return { area: 'projects', view: 'log' };
   if (h === 'agents') return { area: 'agents' };
+  if (h === 'import') return { area: 'import' };
   if (h === 'integrationen') return { area: 'settings' };
   if ((s = sub(h, 'finanzen')) !== null) return { area: 'finance', view: FIN_VIEWS[s] || 'overview' };
   if ((s = sub(h, 'ausbildung')) !== null) {

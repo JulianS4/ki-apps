@@ -9,6 +9,7 @@ const P = {
   notes: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
   health: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  import: '<path d="M12 3v11"/><path d="M7.5 9.5L12 14l4.5-4.5"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
 };
 export const icon = k => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${P[k] || ''}</svg>`;
@@ -16,6 +17,7 @@ export const icon = k => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
 export const NAV = [['cockpit', '#uebersicht', 'Übersicht'], ['finance', '#finanzen', 'Finanzen'], ['school', '#ausbildung', 'Ausbildung'], ['projects', '#projekte', 'Projekte'],
   ['log', '#business-log', 'Business Log'], ['agents', '#agents', 'KI-Agents'], ['notes', '#wissen', 'Wissen'], ['health', '#heute', 'Training & Erholung']];
 const SETTINGS = ['settings', '#einstellungen', 'Einstellungen'];
+const IMPORT = ['import', '#import', 'Import'];
 const PHONE = ['cockpit', 'finance', 'school', 'health'];
 const SHORT = { health: 'Training' };
 const HEALTH = ['heute', 'training', 'recovery', 'food', 'routines', 'body', 'arena'];
@@ -29,10 +31,10 @@ export function navKey(route) {
 const cur = (k, key) => (k === key ? ' class="on" aria-current="page"' : '');
 const link = ([k, h, l], key) => `<a href="${h}"${cur(k, key)}>${icon(k)}<span>${l}</span></a>`;
 
-export const sideNav = key => `<a class="brand" href="#uebersicht">Life OS</a><div class="sl">${NAV.map(n => link(n, key)).join('')}</div><div class="sl end">${link(SETTINGS, key)}</div>`;
+export const sideNav = key => `<a class="brand" href="#uebersicht">Life OS</a><div class="sl">${NAV.map(n => link(n, key)).join('')}</div><div class="sl end">${link(IMPORT, key)}${link(SETTINGS, key)}</div>`;
 export function bottomNav(key) {
   const inMore = !PHONE.includes(key);
   return `${NAV.filter(n => PHONE.includes(n[0])).map(([k, h, l]) => `<a href="${h}"${cur(k, key)}>${icon(k)}<span>${SHORT[k] || l}</span></a>`).join('')}
   <button type="button" data-nav="more" aria-haspopup="dialog" aria-expanded="false"${inMore ? ' class="on"' : ''}>${icon('more')}<span>Mehr</span></button>`;
 }
-export const moreList = key => `<h2>Alle Bereiche</h2><ul class="morel">${[...NAV, SETTINGS].map(n => `<li>${link(n, key)}</li>`).join('')}</ul><button class="btn" type="button" data-nav="close">Schließen</button>`;
+export const moreList = key => `<h2>Alle Bereiche</h2><ul class="morel">${[...NAV, IMPORT, SETTINGS].map(n => `<li>${link(n, key)}</li>`).join('')}</ul><button class="btn" type="button" data-nav="close">Schließen</button>`;

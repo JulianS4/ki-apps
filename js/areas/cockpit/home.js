@@ -19,7 +19,7 @@ import { trainingSummary, recoverySummary, bodySummary } from '../heute.js';
 export const inDays = n => (n === 0 ? 'heute' : n === 1 ? 'morgen' : n < 0 ? 'vorbei' : `in ${n} Tagen`);
 export const fmtGrade = g => g.toFixed(Math.round(g * 100) % 10 ? 2 : 1).replace('.', ',');
 const latest = items => items.map(i => i.upd).filter(Boolean).sort().pop() || null;
-const srcOf = items => (items.some(i => i.src === 'beispiel') ? 'beispiel' : items.some(i => i.src === 'csv') ? 'csv' : items.some(i => i.src === 'import') ? 'import' : 'manuell');
+const srcOf = items => ['beispiel', 'notion', 'vault', 'csv', 'import'].find(s => items.some(i => i.src === s)) || 'manuell';
 const safe = fn => { try { return fn(); } catch (e) { return null; } };
 const row = (ic, title, line, href, att = false) => ({ ic, title, line, href, att });
 const pct = (a, b) => (b > 0 ? Math.round(a / b * 100) : 0);
@@ -50,7 +50,7 @@ const agendaHtml = items => `<ul class="agenda">${items.map(x => `<li${x.att ? '
 
 // One tile: title, the way to its area, the measure, and a foot with the source.
 // HUD numbering of the tiles, like the readouts of a cockpit display.
-const NUM = { agenda: '01', money: '02', month: '03', train: '04', school: '05', projects: '06', log: '07', agents: '08', wissen: '09' };
+const NUM = { agenda: '01', money: '02', month: '03', train: '04', school: '05', projects: '06', log: '07', agents: '08', pillars: '09', wissen: '10' };
 const tile = (k, title, href, go, body, foot = '') => `<section class="w w-${k}" data-w="${k}" aria-labelledby="w-${k}"><div class="wh"><h2 id="w-${k}"><span class="wn" aria-hidden="true">${NUM[k] || ''}</span>${title}</h2>${href ? `<a class="wgo" href="${href}">${go} <span aria-hidden="true">›</span></a>` : ''}</div><div class="wb">${body}</div>${foot ? `<div class="wf">${foot}</div>` : ''}</section>`;
 
 // Net worth over time as a soft line; the shape only, no amounts.
@@ -72,8 +72,9 @@ function moneyTile(ctx) {
 
 function monthTile(ctx, t) {
   const r = periodRange('monat', t), cats = db.list(ctx, 'cat'), tx = filterTx(db.list(ctx, 'tx'), { range: r }), m = totals(tx, cats), mon = MONTHS[+t.slice(5, 7) - 1];
-  if (!tx.length) return tile('month', mon, '#finanzen', 'Buchungen', '<p class="note">Noch keine Buchungen in diesem Monat.</p>');
   const rows = budgetRows(db.budgets(ctx), tx, cats, r), plan = rows.reduce((a, x) => a + x.plan, 0), used = rows.reduce((a, x) => a + Math.max(0, x.actual), 0);
+  // a planned budget (e.g. from Notion) is shown before the first booking of the month
+  if (!tx.length) return tile('month', mon, '#finanzen', 'Buchungen', `${plan ? `<div class="wsplit">${ring(0, { label: 'Budget genutzt', value: '0 %', sub: 'vom Budget' })}<div class="kvs"><div><span>Budget</span><b>${money(plan, 'EUR', true)}</b></div></div></div>` : ''}<p class="note">Noch keine Buchungen in diesem Monat.</p>`);
   const g = plan ? ring(pct(used, plan), { label: 'Budget genutzt', value: `${pct(used, plan)} %`, sub: 'vom Budget' })
     : m.inc ? ring(pct(m.exp, m.inc), { label: 'Ausgegeben', value: `${pct(m.exp, m.inc)} %`, sub: 'der Einnahmen' }) : '';
   const body = `<div class="wsplit">${g}<div class="kvs"><div><span>Einnahmen</span><b>${money(m.inc, 'EUR', true)}</b></div><div><span>Ausgaben</span><b>${money(m.exp, 'EUR', true)}</b></div><div><span>Zurückgelegt</span><b>${money(m.save, 'EUR', true)}</b></div></div></div>${csvNote(ctx, tx)}`;
@@ -119,6 +120,19 @@ function agentsTile(ctx) {
   return tile('agents', 'KI-Agents', '#agents', 'Öffnen', body, 'nicht verbunden · Status manuell gepflegt');
 }
 
+// The weekly check-in of the five pillars (from Notion): a ring per pillar, the average, last week for comparison.
+const PILLARS = [['koerper', 'Körper'], ['karriere', 'Karriere'], ['business', 'Business'], ['fokus', 'Fokus'], ['netzwerk', 'Netzwerk']];
+const avgOf = c => { const v = PILLARS.map(([k]) => c[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+const one = v => v.toFixed(1).replace('.', ',');
+function pillarsTile(ctx) {
+  const all = db.list(ctx, 'pillar').sort((a, b) => (a.d < b.d ? -1 : 1)), last = all[all.length - 1], prev = all[all.length - 2];
+  if (!last) return tile('pillars', '5 Säulen', '#import', 'Import', '<p class="note">Noch kein Check-in. Trag sonntags deine fünf Werte in Notion ein – die nächste Import-Datei bringt sie mit.</p>');
+  const avg = avgOf(last), pavg = prev ? avgOf(prev) : null;
+  const rings = PILLARS.filter(([k]) => last[k] != null).map(([k, l]) => `<div class="pr">${ring(last[k] * 10, { label: l, value: String(last[k]), sub: 'von 10' })}<span>${l}</span></div>`).join('');
+  return tile('pillars', '5 Säulen', '#import', 'Import', `<div class="prings">${rings}</div>${avg != null ? `<p class="note">Ø ${one(avg)} von 10${pavg != null ? ` · Vorwoche ${one(pavg)}` : ''}</p>` : ''}${last.note ? `<p class="note">${esc(last.note)}</p>` : ''}`,
+    `${esc(last.week || dfmt(last.d))} · ${srcLine(last.src, last.d, ctx, { label: 'Check-in' })}`);
+}
+
 function wissenTile(ctx) {
   const notes = db.list(ctx, 'note');
   if (!notes.length) return tile('wissen', 'Wissen', '#wissen', 'Öffnen', '<p class="note">Noch keine Notizen – schreib die erste oder importiere deinen Obsidian-Vault.</p>');
@@ -136,7 +150,7 @@ export function render(route, ctx) {
   return `${banner(ctx)}<div class="hero dhead"><div><p class="k">${dateLine}</p><h1>${greet(now.getHours())}</h1><p class="m">${items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.'}</p>
   <p class="hudl"><i aria-hidden="true"></i>System bereit · alle Daten lokal · Stand ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</p></div>
   <button class="btn sm" type="button" data-a="shown" aria-pressed="${amountsShown()}">${amountsShown() ? 'Beträge verbergen' : 'Beträge zeigen'}</button></div>${intro}${formIf(ctx, 'account')}
-  <div class="bento">${tile('agenda', 'Jetzt wichtig', '', '', agendaHtml(items))}${moneyTile(ctx)}${monthTile(ctx, t)}${trainTile(ctx)}${schoolTile(ctx, t)}${projectsTile(ctx, t)}${logTile(ctx, t)}${agentsTile(ctx)}${wissenTile(ctx)}</div>
+  <div class="bento">${tile('agenda', 'Jetzt wichtig', '', '', agendaHtml(items))}${moneyTile(ctx)}${monthTile(ctx, t)}${trainTile(ctx)}${schoolTile(ctx, t)}${projectsTile(ctx, t)}${logTile(ctx, t)}${agentsTile(ctx)}${pillarsTile(ctx)}${wissenTile(ctx)}</div>
   ${formIf(ctx, 'note')}${knowledgeBox(ctx, { id: 'home' })}`;
 }
 export function onClick(e, route, ctx) {

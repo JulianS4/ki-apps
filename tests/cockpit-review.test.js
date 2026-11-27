@@ -55,7 +55,7 @@ test('CSV files with lines above the column names are read from the real header'
   const ctx = mk();
   db.upsert(ctx, 'account', { id: 'g', name: 'Giro', type: 'giro', cur: 'EUR', bal: 1, asOf: '2026-11-26' });
   finance.csvLoad(ctx, ING, 'ing.csv');
-  assert.match(finance.render({ area: 'finance', view: 'tx' }, ctx), /ing\.csv · 1 Zeile\b/);
+  assert.match(finance.csvSection(ctx), /ing\.csv · 1 Zeile\b/);
   finance.onChange(typed({ a: 'csvacc' }, 'g'), { area: 'finance', view: 'tx' }, ctx);
   finance.onClick(click({ a: 'csvgo' }), { area: 'finance', view: 'tx' }, ctx);
   assert.deepEqual(db.list(ctx, 'tx').map(t => [t.d, t.amt, t.payee]), [['2026-11-03', -450, 'Bäcker']]);
@@ -69,7 +69,7 @@ test('a full storage is reported, not announced as a finished import', () => {
   finance.csvLoad(ctx, 'Datum;Betrag\n03.11.2026;-4,50\n', 'a.csv');
   finance.onChange(typed({ a: 'csvacc' }, 'g'), { area: 'finance', view: 'tx' }, ctx);
   finance.onClick(click({ a: 'csvgo' }), { area: 'finance', view: 'tx' }, ctx);
-  const html = finance.render({ area: 'finance', view: 'tx' }, ctx);
+  const html = finance.csvSection(ctx);
   assert.match(html, /Speichern nicht möglich/);
   assert.doesNotMatch(html, /Import fertig/);
   assert.deepEqual(db.list(ctx, 'import'), []);
@@ -89,12 +89,11 @@ test('totals built from CSV imports say when the last import was', () => {
 test('in example mode nothing can be imported', () => {
   const ctx = mk();
   db.startDemo(ctx, '2026-11-26');
-  const fin = finance.render({ area: 'finance', view: 'tx' }, ctx);
+  const fin = finance.csvSection(ctx);
   assert.match(fin, /Im Beispielmodus ist kein Import möglich/);
   assert.doesNotMatch(fin, /id="csvf"/);
   const set = integrations.render({ area: 'integrations' }, ctx);
   assert.doesNotMatch(set, /id="jsonf"/);
-  assert.match(set, /Im Beispielmodus ist kein Import möglich/);
 });
 
 test('ticking a task or switching a filter lets go of the focused control', () => {

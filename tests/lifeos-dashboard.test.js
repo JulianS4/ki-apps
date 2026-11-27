@@ -39,7 +39,7 @@ test('the overview is a dashboard of tiles, each with its title and the way to i
   const html = home.render(R, ctx);
   assert.match(html, /<div class="bento">/);
   const keys = [...html.matchAll(/data-w="(\w+)"/g)].map(m => m[1]);
-  assert.deepEqual(keys, ['agenda', 'money', 'month', 'train', 'school', 'projects', 'log', 'agents', 'wissen']);
+  assert.deepEqual(keys, ['agenda', 'money', 'month', 'train', 'school', 'projects', 'log', 'agents', 'pillars', 'wissen']);
   for (const [k, href] of [['money', '#finanzen'], ['month', '#finanzen'], ['train', '#heute'], ['school', '#ausbildung'], ['projects', '#projekte'], ['log', '#business-log'], ['agents', '#agents'], ['wissen', '#wissen']]) {
     assert.match(widget(html, k), new RegExp(`<a class="wgo" href="${href}"`), k);
   }
@@ -80,4 +80,25 @@ test('an empty Life OS still shows every tile with what to do', () => {
   assert.match(widget(html, 'month'), /Noch keine Buchungen in diesem Monat/);
   assert.match(widget(html, 'wissen'), /Noch keine Notizen/);
   assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test('the five pillars from the Notion check-in: one ring each, the average, and where they come from', () => {
+  const ctx = mk();
+  db.setRaw(ctx, 'pillars', [{ id: 'k46', d: '2026-11-15', week: 'KW 46', koerper: 6, karriere: 7, business: 4, fokus: 5, netzwerk: 6, src: 'notion' }, { id: 'k47', d: '2026-11-22', week: 'KW 47', koerper: 5, karriere: 6, business: 3, fokus: 5, netzwerk: 4, src: 'notion' }]);
+  const w = widget(home.render(R, ctx), 'pillars');
+  for (const [l, v] of [['Körper', 5], ['Karriere', 6], ['Business', 3], ['Fokus', 5], ['Netzwerk', 4]]) assert.match(w, new RegExp(`aria-label="${l}: ${v} von 10`));
+  assert.match(w, /Ø 4,6 von 10 · Vorwoche 5,6/);
+  assert.match(w, /KW 47 · <span class="src">Notion · Check-in 22\.11\./);
+  assert.match(widget(home.render(R, mk()), 'pillars'), /Noch kein Check-in/);
+});
+
+test('a budget from Notion shows before the first booking, and sources say Notion', () => {
+  const ctx = mk();
+  db.setRaw(ctx, 'cats', [{ id: 'nc-essen', name: 'Essen', kind: 'ausgabe', src: 'notion' }]);
+  db.setRaw(ctx, 'budgets', { 'nc-essen': 25000 });
+  db.setRaw(ctx, 'projects', [{ id: 'sensito', name: 'Sensito', status: 'aktiv', goal: 'Content', prog: 0, notes: '', links: [], src: 'notion', upd: '2026-11-27' }]);
+  const html = home.render(R, ctx);
+  assert.match(widget(html, 'month'), /aria-label="Budget genutzt: 0 %/);
+  assert.match(widget(html, 'month'), /Noch keine Buchungen in diesem Monat/);
+  assert.match(widget(html, 'projects'), /Notion · aktualisiert 27\.11\./);
 });

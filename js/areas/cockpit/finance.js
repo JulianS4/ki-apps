@@ -78,6 +78,9 @@ function filters(ctx) {
   <label class="dsel">Kategorie<select data-a="flt" data-k="cat">${opt('', 'Alle', flt.cat)}${cats.map(c => opt(c.id, c.name, flt.cat)).join('')}</select></label></div>`;
 }
 
+// The bank CSV import is shown on the Import page; its state and handlers stay here.
+export const csvActive = () => !!csv;
+export const csvSection = ctx => csvBox(ctx);
 function csvBox(ctx) {
   const msg = csvMsg ? `<p class="note ok" role="status">${esc(csvMsg)}</p>` : '';
   if (db.isDemo(ctx)) return `<section class="blk" id="csv"><div class="bh"><h2>CSV-Import</h2></div><div class="ex"><p class="note">${DEMO_NO_IMPORT}</p></div></section>`;
@@ -105,7 +108,7 @@ function txView(ctx, t) {
     : empty(all.length ? 'Keine Buchungen für diese Auswahl.' : 'Noch keine Buchungen. Trag sie einzeln ein oder importiere eine CSV-Datei aus dem Online-Banking.');
   return `<section class="blk">${periodPicker('tx', t)}${filters(ctx)}
   ${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}${csvNote(ctx, tx)}
-  ${formIf(ctx, 'account')}${formIf(ctx, 'tx')}${list}</section>${csvBox(ctx)}`;
+  ${formIf(ctx, 'account')}${formIf(ctx, 'tx')}${list}</section>`;
 }
 
 function costs(ctx, t) {
@@ -140,7 +143,7 @@ const VIEWS = { overview, tx: txView, costs, subs };
 const ALIAS = { accounts: 'overview', budget: 'costs' };
 const ACTIONS = {
   overview: ctx => addTx(ctx),
-  tx: ctx => `${addTx(ctx)}${db.isDemo(ctx) ? '' : '<button class="btn" type="button" data-a="tocsv">CSV importieren</button>'}`,
+  tx: ctx => `${addTx(ctx)}<a class="btn" href="#import">Umsätze importieren</a>`,
   costs: () => '',
   subs: () => newBtn('sub', 'Abo hinzufügen', null, 'btn pri'),
 };

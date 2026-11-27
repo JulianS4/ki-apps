@@ -81,6 +81,9 @@ function unresolvedHtml(plan) {
   if (!u.length) return '';
   return `<details class="dsc"><summary><span class="tx2"><b>${u.length} ${u.length === 1 ? 'Link ohne Ziel' : 'Links ohne Ziel'}</b><small>zeigen auf Notizen oder Anhänge, die es nicht gibt – in der Notiz als „Notiz anlegen“ bzw. „Anhang fehlt“</small></span></summary><div class="dbody"><ul class="crows">${u.slice(0, 60).map(x => `<li><div class="nm"><b>„${esc(x.from)}“ → [[${esc(x.t)}]]</b></div></li>`).join('')}</ul>${u.length > 60 ? `<p class="note">und ${u.length - 60} weitere</p>` : ''}</div></details>`;
 }
+// The vault ZIP import is shown on the Import page; its state and handlers stay here.
+export const vaultActive = () => !!imp && imp.phase !== 'open';
+export function vaultBox(ctx) { if (!imp) imp = { phase: 'open' }; return importBox(ctx); }
 function importBox(ctx) {
   if (!imp) return '';
   const head = t => `<section class="blk vimp" id="vimp" aria-labelledby="vimph"><div class="bh"><h2 id="vimph">${t}</h2></div><div class="ex">`;
@@ -113,7 +116,7 @@ function vaultSection(ctx) {
   if (!info && !n) return '';
   return `<section class="blk"><div class="bh"><h2>Vault</h2><p>${info ? `„${esc(info.name)}“ · importiert ${dshort(info.at)}` : ''}</p></div><div class="ex">
   <p class="note">${plural(n, 'Notiz', 'Notizen')} und ${plural(atts(ctx).length, 'Anhang', 'Anhänge')} aus dem Vault. Erneut importieren übernimmt Änderungen aus Obsidian; was du hier geändert hast, bleibt.</p>
-  <div class="tools"><button class="btn" type="button" data-a="vopen">Erneut importieren</button><button class="btn red" type="button" data-a="vremove">${confirmRemove ? `Sicher? ${plural(n, 'Notiz', 'Notizen')} und alle Anhänge entfernen` : 'Vault-Notizen entfernen'}</button></div></div></section>`;
+  <div class="tools"><a class="btn" href="#import">Erneut importieren</a><button class="btn red" type="button" data-a="vremove">${confirmRemove ? `Sicher? ${plural(n, 'Notiz', 'Notizen')} und alle Anhänge entfernen` : 'Vault-Notizen entfernen'}</button></div></div></section>`;
 }
 
 function listView(ctx) {
@@ -140,8 +143,8 @@ function listView(ctx) {
   }
   const line = all.length ? `${plural(all.length, 'Notiz', 'Notizen')}${info ? ` · Vault „${esc(info.name)}“ · importiert ${dshort(info.at)}` : ''} · verknüpft mit [[Titel]], durchsuchbar, nutzbar in allen Bereichen.` : 'Deine Notizen als verlinkte Dateien – schreib hier oder importiere deinen Obsidian-Vault.';
   return `${hero('', 'Wissen', line)}
-  <div class="pact">${newBtn('note', 'Notiz anlegen', topic ? { topic } : null, 'btn pri')}<button class="btn" type="button" data-a="vopen">Obsidian-Vault importieren</button>${all.length ? '<button class="btn" type="button" data-a="mdexport">Als Markdown exportieren</button>' : ''}</div>${msg ? `<p class="note ok" role="status">${esc(msg)}</p>` : ''}
-  ${formIf(ctx, 'note')}${importBox(ctx)}
+  <div class="pact">${newBtn('note', 'Notiz anlegen', topic ? { topic } : null, 'btn pri')}<a class="btn" href="#import">Importieren ›</a>${all.length ? '<button class="btn" type="button" data-a="mdexport">Als Markdown exportieren</button>' : ''}</div>${msg ? `<p class="note ok" role="status">${esc(msg)}</p>` : ''}
+  ${formIf(ctx, 'note')}
   ${all.length ? `<section class="blk"><input class="tx search" type="search" data-a="q" value="${esc(q)}" placeholder="Suchen … (#tag für Tags, auch Ordner)" aria-label="Notizen durchsuchen" aria-controls="nres" autocomplete="off">
   ${topics.size > 1 ? seg('ntopic', [['', 'Alle'], ...TOPICS.filter(t => topics.has(t[0]))], topic) : ''}</section>` : empty('Noch keine Notizen. Leg die erste an oder importiere deinen Obsidian-Vault – Notizen, Ordner, Tags und [[Links]] werden übernommen.')}
   ${graph}
