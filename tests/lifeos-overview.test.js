@@ -29,7 +29,7 @@ test('the overview puts what needs doing first, urgent items marked', () => {
 
 test('details live one tap away: every tile leads to its area', () => {
   const html = home.render({ area: 'cockpit' }, mk());
-  for (const href of ['#finanzen', '#heute', '#ausbildung', '#projekte', '#business-log', '#agents', '#wissen']) assert.match(html, new RegExp(`class="wgo" href="${href}"`));
+  for (const href of ['#finanzen', '#training', '#ernaehrung', '#recovery', '#koerper', '#ausbildung', '#projekte', '#business-log', '#agents', '#wissen']) assert.match(html, new RegExp(`class="wgo" href="${href}"`));
 });
 
 test('Business Log: figures, a chart by project with a measure switch, and entries', () => {

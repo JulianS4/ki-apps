@@ -9,7 +9,6 @@ import * as finance from '../js/areas/cockpit/finance.js';
 import * as school from '../js/areas/cockpit/school.js';
 import * as projects from '../js/areas/cockpit/projects.js';
 import * as agents from '../js/areas/cockpit/agents.js';
-import * as heute from '../js/areas/heute.js';
 
 const mk = () => {
   const ctx = { store: createStore(memBackend()), now: () => new Date(2026, 10, 26, 9, 0), rerender() {}, toast() {}, go() {} };
@@ -104,5 +103,4 @@ test('every area uses the shared notes: overview, finances, training, school, pr
   assert.match(box(projects.render({ area: 'projects', view: 'project', id: sensito.id }, ctx)), /Quelle: Sensito Marketing/);
   assert.match(projects.render({ area: 'projects', view: 'log' }, ctx), /Aus deinem Wissen/);
   assert.match(box(agents.render({ area: 'agents' }, ctx)), /Quelle: Sensito Marketing/);
-  assert.match(heute.render({ area: 'heute' }, ctx), /Aus deinem Wissen[\s\S]*data-kb="heute"/);
 });

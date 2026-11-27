@@ -11,7 +11,6 @@ import * as projects from '../js/areas/cockpit/projects.js';
 import * as agents from '../js/areas/cockpit/agents.js';
 import * as notes from '../js/areas/cockpit/notes.js';
 import * as integrations from '../js/areas/cockpit/integrations.js';
-import * as heute from '../js/areas/heute.js';
 
 const mk = () => {
   const ctx = { store: createStore(memBackend()), now: () => new Date(2026, 10, 26, 9, 0), rerender() {}, toast() {}, go(h) { ctx.went = h; } };
@@ -292,15 +291,4 @@ test('settings: honest integration status, last import, export and a guarded wip
   assert.equal(db.list(ctx, 'exam').length, 1);
   integrations.onClick(click({ a: 'wipe' }), R.integ, ctx);
   assert.equal(db.list(ctx, 'exam').length, 0);
-});
-
-test('Training & Erholung shows its own title and never money or Life OS examples', () => {
-  const ctx = mk();
-  db.upsert(ctx, 'account', { name: 'Giro', type: 'giro', cur: 'EUR', bal: 123456, asOf: '2026-11-20' });
-  db.upsert(ctx, 'exam', { subj: 'Mathe', d: '2026-12-03', time: '08:00' });
-  const html = heute.render({ area: 'heute' }, ctx);
-  assert.match(html, /<h1>Training &amp; Erholung<\/h1>/);
-  assert.doesNotMatch(html, /1\.234|€|Mathe/);
-  db.startDemo(ctx, '2026-11-26');
-  assert.doesNotMatch(heute.render({ area: 'heute' }, ctx), /Rechnungswesen|Beispiel-/);
 });

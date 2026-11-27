@@ -39,8 +39,8 @@ test('the overview is a dashboard of tiles, each with its title and the way to i
   const html = home.render(R, ctx);
   assert.match(html, /<div class="bento">/);
   const keys = [...html.matchAll(/data-w="(\w+)"/g)].map(m => m[1]);
-  assert.deepEqual(keys, ['agenda', 'money', 'month', 'train', 'school', 'projects', 'log', 'agents', 'pillars', 'wissen']);
-  for (const [k, href] of [['money', '#finanzen'], ['month', '#finanzen'], ['train', '#heute'], ['school', '#ausbildung'], ['projects', '#projekte'], ['log', '#business-log'], ['agents', '#agents'], ['wissen', '#wissen']]) {
+  assert.deepEqual(keys, ['agenda', 'money', 'month', 'train', 'food', 'recovery', 'health', 'school', 'projects', 'log', 'agents', 'pillars', 'wissen']);
+  for (const [k, href] of [['money', '#finanzen'], ['month', '#finanzen'], ['train', '#training'], ['food', '#ernaehrung'], ['recovery', '#recovery'], ['health', '#koerper'], ['school', '#ausbildung'], ['projects', '#projekte'], ['log', '#business-log'], ['agents', '#agents'], ['wissen', '#wissen']]) {
     assert.match(widget(html, k), new RegExp(`<a class="wgo" href="${href}"`), k);
   }
   assert.doesNotMatch(html, /<details class="dsc"/);

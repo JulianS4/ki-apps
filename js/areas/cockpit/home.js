@@ -14,7 +14,12 @@ import { graphData } from './graph.js';
 import { brainHtml, cachedLayout, bindBrains } from './brain.js';
 import { makeResolver } from './md.js';
 import { icon } from './nav.js';
-import { trainingSummary, recoverySummary, bodySummary } from '../heute.js';
+import { trainingSummary, recoverySummary, bodySummary, foodSummary, routinesSummary } from '../heute.js';
+import { litres } from '../food/view.js';
+import { SUPP_LABELS } from '../food/data.js';
+import { DELOAD_RULES } from '../recovery/data.js';
+import { fmtNum } from '../body/logic.js';
+import { toGoal } from '../body/view.js';
 
 export const inDays = n => (n === 0 ? 'heute' : n === 1 ? 'morgen' : n < 0 ? 'vorbei' : `in ${n} Tagen`);
 export const fmtGrade = g => g.toFixed(Math.round(g * 100) % 10 ? 2 : 1).replace('.', ',');
@@ -24,36 +29,42 @@ const safe = fn => { try { return fn(); } catch (e) { return null; } };
 const row = (ic, title, line, href, att = false) => ({ ic, title, line, href, att });
 const pct = (a, b) => (b > 0 ? Math.round(a / b * 100) : 0);
 
-// What needs doing now, most urgent first; at most six lines.
+// What needs doing now, most urgent first; at most seven lines.
 function agenda(ctx, t) {
   const now = ctx.now(), out = [];
   const rec = safe(() => recoverySummary(ctx)), bd = safe(() => bodySummary(ctx));
   const projs = db.list(ctx, 'project'), pt = db.list(ctx, 'ptask');
-  const due = dueTasks({ tasks: db.list(ctx, 'stask') }, projs.map(p => ({ ...p, tasks: pt.filter(x => x.proj === p.id) })), t, 0);
+  const free = db.list(ctx, 'task').filter(x => !x.done && x.due && x.due <= t).map(x => ({ text: x.text, due: x.due, where: 'Aufgabe', href: '#aufgaben', overdue: x.due < t }));
+  const due = [...dueTasks({ tasks: db.list(ctx, 'stask') }, projs.map(p => ({ ...p, tasks: pt.filter(x => x.proj === p.id) })), t, 0), ...free].sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
   const late = due.filter(x => x.overdue), todayDue = due.filter(x => !x.overdue);
   if (late.length) out.push(row('projects', late.length === 1 ? late[0].text : `${late.length} Aufgaben überfällig`, late.length === 1 ? `${late[0].where} · überfällig seit ${dfmt(late[0].due)}` : late.map(x => x.text).slice(0, 3).join(' · '), late[0].href, true));
   for (const a of db.list(ctx, 'agent').filter(x => x.status === 'fehlgeschlagen')) out.push(row('agents', `${a.name} fehlgeschlagen`, a.issues || 'Status manuell eingetragen', '#agents', true));
   for (const e of nextExams(db.list(ctx, 'exam'), t).filter(x => daysUntil(t, x.d) <= 3)) out.push(row('school', `Klassenarbeit ${e.subj} ${inDays(daysUntil(t, e.d))}`, `${dfmt(e.d)}${e.time ? ' · ' + e.time : ''} · Vorbereitung: ${label(PREP, e.prep)}`, '#ausbildung', daysUntil(t, e.d) <= 1 && e.prep !== 'fertig'));
   if (todayDue.length) out.push(row('projects', todayDue.length === 1 ? todayDue[0].text : `${todayDue.length} Aufgaben heute fällig`, todayDue.length === 1 ? `${todayDue[0].where} · heute fällig` : todayDue.map(x => x.text).slice(0, 3).join(' · '), todayDue[0].href));
-  if (rec && !rec.ampel) out.push(row('health', 'Morgen-Check offen', 'Schlaf, Energie, Muskeln · 30 Sekunden', '#recovery'));
-  else if (rec && rec.ampel && rec.ampel.key !== 'gruen') out.push(row('health', `Morgen-Check: ${rec.ampel.label}`, rec.ampel.advice, '#recovery', true));
-  if (rec && rec.suggest) out.push(row('health', 'Deload vorziehen?', 'Mehrere Anzeichen treffen zu', '#recovery/zyklus', true));
+  if (rec && !rec.ampel) out.push(row('recovery', 'Morgen-Check offen', 'Schlaf, Energie, Muskeln · 30 Sekunden', '#recovery'));
+  else if (rec && rec.ampel && rec.ampel.key !== 'gruen') out.push(row('recovery', `Morgen-Check: ${rec.ampel.label}`, rec.ampel.advice, '#recovery', true));
+  if (rec && rec.cycle && rec.cycle.deload) out.push(row('recovery', `Deload-Woche · RIR ${rec.cycle.main}`, DELOAD_RULES[0], '#recovery/zyklus'));
+  if (rec && rec.suggest) out.push(row('recovery', 'Deload vorziehen?', 'Mehrere Anzeichen treffen zu', '#recovery/zyklus', true));
   const last = ctx.store.get('meta.lastBackup'), age = last ? daysUntil(last, t) : null;
   if (age === null || age > 14) out.push(row('settings', age === null ? 'Noch kein Backup' : `Letztes Backup vor ${age} Tagen`, 'Deine Daten liegen nur auf diesem Gerät', '#einstellungen', true));
   // The overview is only as fresh as the last import file from Claude.
   const ns = (db.getRaw(ctx, 'sources', {}) || {}).notion, nday = ns && /^\d{4}-\d{2}-\d{2}/.test(ns.at || '') ? String(ns.at).slice(0, 10) : null;
   if (nday && daysUntil(nday, t) > 7) out.push(row('import', `Notion-Stand vom ${dshort(nday)}`, 'Sag Claude „Life OS aktualisieren“ und spiel die neue Datei ein', '#import'));
+  const fd = safe(() => foodSummary(ctx));
+  if (fd && fd.snack) out.push(row('food', 'Vor dem Training: Kohlenhydrat-Snack', 'Dein Essen ist über 3 h her', '#ernaehrung'));
+  if (fd && fd.dinner) out.push(row('food', 'Abendessen: 30–40 g Protein + Kohlenhydrate', 'Gerichte ansehen', '#ernaehrung'));
+  if (fd && fd.mealprep) out.push(row('food', 'Heute Mealprep · Einkaufsliste prüfen', 'Abhaken, was fehlt', '#ernaehrung/einkauf'));
   if (bd && bd.quarter && bd.quarter.done < bd.quarter.total) out.push(row('health', `Quartals-Check fällig · ${bd.quarter.done}/${bd.quarter.total}`, 'Messen, Fotos, Tests abhaken', '#koerper'));
   const { now: cur, next } = nowNext(now);
-  if (cur) out.push(row('cockpit', `Jetzt: ${cur.title}`, `bis ${cur.end}`, /^(Morgen|Abend)routine$/.test(cur.title) ? '#routinen/halterung' : '#routinen'));
-  else if (next) out.push(row('cockpit', `Als Nächstes: ${next.title}`, (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start, '#routinen'));
-  return [...out.filter(x => x.att), ...out.filter(x => !x.att)].slice(0, 6);
+  if (cur) out.push(row('calendar', `Jetzt: ${cur.title}`, `bis ${cur.end}`, /^(Morgen|Abend)routine$/.test(cur.title) ? '#routinen/halterung' : '#routinen'));
+  else if (next) out.push(row('calendar', `Als Nächstes: ${next.title}`, (next.day === DAYS[dayIdx(now)] ? '' : DN[next.day] + ' ') + next.start, '#routinen'));
+  return [...out.filter(x => x.att), ...out.filter(x => !x.att)].slice(0, 7);
 }
 const agendaHtml = items => `<ul class="agenda">${items.map(x => `<li${x.att ? ' class="att"' : ''}><a class="rowlink" href="${esc(x.href)}">${icon(x.ic)}<span class="tx2"><b>${esc(x.title)}</b><small>${esc(x.line)}</small></span><span class="chev" aria-hidden="true">›</span></a></li>`).join('') || '<li class="done">Nichts Dringendes. ✓</li>'}</ul>`;
 
 // One tile: title, the way to its area, the measure, and a foot with the source.
 // HUD numbering of the tiles, like the readouts of a cockpit display.
-const NUM = { agenda: '01', money: '02', month: '03', train: '04', school: '05', projects: '06', log: '07', agents: '08', pillars: '09', wissen: '10' };
+const NUM = { agenda: '01', money: '02', month: '03', train: '04', food: '05', recovery: '06', health: '07', school: '08', projects: '09', log: '10', agents: '11', pillars: '12', wissen: '13' };
 const tile = (k, title, href, go, body, foot = '') => `<section class="w w-${k}" data-w="${k}" aria-labelledby="w-${k}"><div class="wh"><h2 id="w-${k}"><span class="wn" aria-hidden="true">${NUM[k] || ''}</span>${title}</h2>${href ? `<a class="wgo" href="${href}">${go} <span aria-hidden="true">›</span></a>` : ''}</div><div class="wb">${body}</div>${foot ? `<div class="wf">${foot}</div>` : ''}</section>`;
 
 // Net worth over time as a soft line; the shape only, no amounts.
@@ -85,12 +96,41 @@ function monthTile(ctx, t) {
 }
 
 function trainTile(ctx) {
-  const tr = safe(() => trainingSummary(ctx.store, ctx.now())), rec = safe(() => recoverySummary(ctx));
-  const rings = [];
-  if (tr) rings.push(tr.type === 'ruhe' ? ring(100, { label: 'Training heute', value: 'Ruhe', sub: 'tag' }) : ring(pct(tr.done, tr.total), { label: 'Sätze heute', value: `${tr.done}/${tr.total}`, sub: 'Sätze' }));
-  if (rec && rec.ampel) rings.push(ring(pct(rec.sum, 15), { label: 'Morgen-Check', value: `${rec.sum}/15`, sub: rec.ampel.label }));
-  const chips = [tr && tr.type !== 'ruhe' ? `<span class="chip">${esc(tr.name)}</span>` : '', rec ? `<span class="chip${rec.ampel ? '' : ' open'}">Morgen-Check ${rec.ampel ? esc(rec.ampel.label) : 'offen'}</span>` : '', rec && rec.mobility ? `<span class="chip${rec.mobility.done ? '' : ' open'}">Mobility ${rec.mobility.done ? '✓' : 'offen'}</span>` : ''].join('');
-  return tile('train', 'Training & Erholung', '#heute', 'Öffnen', `${rings.length ? `<div class="rings">${rings.join('')}</div>` : '<p class="note">Keine Daten.</p>'}<div class="chips">${chips}</div>`, 'aus Training und Recovery auf diesem Gerät');
+  const tr = safe(() => trainingSummary(ctx.store, ctx.now())), rec = safe(() => recoverySummary(ctx)), cy = rec && rec.cycle;
+  if (!tr) return tile('train', 'Training', '#training', 'Öffnen', '<p class="note">Keine Daten.</p>');
+  const rest = tr.type === 'ruhe';
+  const g = rest ? ring(100, { label: 'Training heute', value: 'Ruhe', sub: 'tag' }) : ring(pct(tr.done, tr.total), { label: 'Sätze heute', value: `${tr.done}/${tr.total}`, sub: 'Sätze' });
+  const chips = `<span class="chip">${esc(rest ? 'Ruhetag' : tr.name)}</span>${cy ? `<span class="chip">${cy.deload ? `Deload-Woche · RIR ${cy.main}` : `Woche ${cy.week} · ${esc(cy.goal)} · RIR ${cy.main}`}</span>` : ''}`;
+  return tile('train', 'Training', '#training', 'Öffnen', `<div class="rings">${g}</div><div class="chips">${chips}</div>`, `${rest ? 'Ruhetag' : `${tr.done}/${tr.total} Sätze`} · aus Training auf diesem Gerät`);
+}
+
+function foodTile(ctx) {
+  const f = safe(() => foodSummary(ctx));
+  if (!f) return tile('food', 'Ernährung', '#ernaehrung', 'Öffnen', '<p class="note">Keine Daten.</p>');
+  const rings = ring(f.target ? pct(f.protein, f.target) : 0, { label: 'Protein heute', value: `${f.protein} g`, sub: f.target ? `von ${f.target} g` : 'Ziel fehlt' })
+    + ring(pct(f.water, f.waterGoal), { label: 'Wasser heute', value: `${litres(f.water)} L`, sub: `von ${litres(f.waterGoal)} L` });
+  const p = f.target ? `Protein ${f.protein} / ${f.target} g` : `Protein ${f.protein} g · Ziel fehlt`;
+  const supps = f.due.total && f.due.done >= f.due.total ? 'Supps ✓' : `${SUPP_LABELS[f.due.group]} ${f.due.done}/${f.due.total}`;
+  return tile('food', 'Ernährung', '#ernaehrung', 'Öffnen', `<div class="rings">${rings}</div><p class="note">${p} · Wasser ${litres(f.water)} / ${litres(f.waterGoal)} L · ${esc(supps)}</p>`, 'aus Ernährung auf diesem Gerät');
+}
+
+function recoveryTile(ctx) {
+  const rec = safe(() => recoverySummary(ctx)), rt = safe(() => routinesSummary(ctx));
+  if (!rec) return tile('recovery', 'Recovery', '#recovery', 'Öffnen', '<p class="note">Keine Daten.</p>');
+  const g = rec.ampel ? `<div class="rings">${ring(pct(rec.sum, 15), { label: 'Morgen-Check', value: `${rec.sum}/15`, sub: rec.ampel.label })}</div>` : '';
+  const head = rec.ampel ? `<p class="note">${rec.sum} von 15 · ${esc(rec.ampel.label)}</p>` : '<p class="note">Morgen-Check offen · Schlaf, Energie, Muskeln · 30 Sekunden</p>';
+  const m = rec.mobility, chips = [m ? `<span class="chip${m.done ? '' : ' open'}">Mobility ${esc(m.routine)} · ${esc(m.name)} ${m.done ? '✓ erledigt' : 'offen'}</span>` : '',
+    rt ? `<span class="chip">Morgen ${rt.morgen.done}/${rt.morgen.total}</span><span class="chip">Abend ${rt.abend.done}/${rt.abend.total}</span>` : ''].join('');
+  const deload = rec.cycle && rec.cycle.deload ? `<ul class="rules">${DELOAD_RULES.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  return tile('recovery', 'Recovery', '#recovery', 'Öffnen', `${g}${head}<div class="chips">${chips}</div>${deload}`, 'Morgen-Check, Mobility und Routinen von heute');
+}
+
+function healthTile(ctx) {
+  const b = safe(() => bodySummary(ctx));
+  if (!b) return tile('health', 'Gesundheit', '#koerper', 'Öffnen', '<p class="note">Keine Daten.</p>');
+  const kg = b.kg ? `<b class="big">${fmtNum(b.kg.y)} kg</b><span class="sub">${esc(toGoal(b.kg.y))}</span>` : '<b class="big">–</b><p class="note">Gewicht fehlt · <a href="#koerper/messung">Messung eintragen ›</a></p>';
+  const q = b.quarter;
+  return tile('health', 'Gesundheit', '#koerper', 'Öffnen', `${kg}<p class="note">Quartals-Check ${esc(q.q.slice(5))} · ${q.done}/${q.total}</p>`, b.kg ? `Gewicht vom ${dfmt(b.kg.date)}` : '');
 }
 
 function schoolTile(ctx, t) {
@@ -99,7 +139,7 @@ function schoolTile(ctx, t) {
   const count = n === null ? '' : `<div class="count">${n <= 1 ? `<b>${inDays(n)}</b>` : `<b>${n}</b><span>Tage</span>`}<small>bis ${esc(next[0].subj)}</small></div>`;
   const list = next.length ? `<ul class="mini">${next.map(e => `<li><span class="nm"><b>${esc(e.subj)}</b><small>${dfmt(e.d)}${e.time ? ' · ' + e.time : ''} · ${esc(label(PREP, e.prep))}</small></span><span class="pill${daysUntil(t, e.d) <= 3 ? ' hot' : ''}">${inDays(daysUntil(t, e.d))}</span></li>`).join('')}</ul>` : '<p class="note">Keine Klassenarbeiten eingetragen.</p>';
   const meta = [d ? `Abteilung ${esc(d.name)}` : 'Keine aktuelle Abteilung', avg ? `Schnitt ${fmtGrade(avg)}` : ''].filter(Boolean).join(' · ');
-  return tile('school', 'Ausbildung', '#ausbildung', 'Öffnen', `${count}${list}<p class="note">${meta}</p>`, exams.length ? srcLine(srcOf(exams), latest(exams), ctx, { label: 'aktualisiert' }) : '');
+  return tile('school', 'Arbeit &amp; Lernen', '#ausbildung', 'Öffnen', `${count}${list}<p class="note">${meta}</p>`, exams.length ? srcLine(srcOf(exams), latest(exams), ctx, { label: 'aktualisiert' }) : '');
 }
 
 function projectsTile(ctx, t) {
@@ -153,7 +193,7 @@ export function render(route, ctx) {
   return `${banner(ctx)}<div class="hero dhead"><div><p class="k">${dateLine}</p><h1>${greet(now.getHours())}</h1><p class="m">${items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.'}</p>
   <p class="hudl"><i aria-hidden="true"></i>System bereit · alle Daten lokal · Stand ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</p></div>
   <button class="btn sm" type="button" data-a="shown" aria-pressed="${amountsShown()}">${amountsShown() ? 'Beträge verbergen' : 'Beträge zeigen'}</button></div>${intro}${formIf(ctx, 'account')}
-  <div class="bento">${tile('agenda', 'Jetzt wichtig', '', '', agendaHtml(items))}${moneyTile(ctx)}${monthTile(ctx, t)}${trainTile(ctx)}${schoolTile(ctx, t)}${projectsTile(ctx, t)}${logTile(ctx, t)}${agentsTile(ctx)}${pillarsTile(ctx)}${wissenTile(ctx)}</div>
+  <div class="bento">${tile('agenda', 'Jetzt wichtig', '', '', agendaHtml(items))}${moneyTile(ctx)}${monthTile(ctx, t)}${trainTile(ctx)}${foodTile(ctx)}${recoveryTile(ctx)}${healthTile(ctx)}${schoolTile(ctx, t)}${projectsTile(ctx, t)}${logTile(ctx, t)}${agentsTile(ctx)}${pillarsTile(ctx)}${wissenTile(ctx)}</div>
   ${formIf(ctx, 'note')}${knowledgeBox(ctx, { id: 'home' })}`;
 }
 export function onClick(e, route, ctx) {

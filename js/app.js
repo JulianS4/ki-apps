@@ -2,7 +2,6 @@
 import { createStore, pickBackend } from './core/store.js';
 import { parseRoute } from './core/routes.js';
 import { runMigrations } from './core/migrate.js';
-import * as heute from './areas/heute.js';
 import * as settings from './areas/settings.js';
 import * as training from './areas/training/index.js';
 import * as recovery from './areas/recovery/index.js';
@@ -30,7 +29,7 @@ const $ = s => document.querySelector(s);
 // the app runs on memory and says so, because nothing survives a restart.
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
-const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations, import: importPage, calendar, goals };
+const AREAS = { training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations, import: importPage, calendar, goals };
 const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Gesundheit', arena: 'Arena' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
@@ -74,7 +73,7 @@ function render() {
   if (arenaOnly(ctx.store) && route.area !== 'arena' && route.area !== 'settings') { location.replace('#arena'); return; }
   current = { route, area };
   const key = navKey(route);
-  document.body.classList.toggle('wide', FAMILY.includes(route.area) || route.area === 'settings' || route.area === 'heute');
+  document.body.classList.toggle('wide', FAMILY.includes(route.area) || route.area === 'settings');
   document.body.classList.toggle('solo', arenaOnly(ctx.store));
   $('#side').innerHTML = sideNav(key);
   $('#bnav').innerHTML = bottomNav(key);
