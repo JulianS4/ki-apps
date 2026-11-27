@@ -6,7 +6,7 @@ import { dfmt, dshort } from '../../core/dates.js';
 import * as db from './db.js';
 import { searchNotes, norm } from './logic.js';
 import { TOPICS, label } from './data.js';
-import { banner, hero, empty, newBtn, editBtn, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon, blurActive, today, DEMO_NO_IMPORT } from './ui.js';
+import { banner, hero, empty, newBtn, editFor, seg, formIf, common, target, edInput, openEd, onNavigateCommon, mountCommon, blurActive, today, DEMO_NO_IMPORT } from './ui.js';
 import { zip, notesMarkdown } from './zip.js';
 import { makeResolver, noteLinks, renderMd, parseProps, plainText } from './md.js';
 import { cachedGraph, graphData, graphSvg, localGraph, layout, bindGraphs, graphZoom, markHits, resetView } from './graph.js';
@@ -168,7 +168,7 @@ function noteView(ctx, id) {
   const lg = localGraph(cachedGraph(notes, frame(), r).g, n.id), f = frame(true);
   return `<a class="back" href="#wissen">‹ Wissen</a>${hero(esc(k), esc(n.title), esc(m))}
   ${localChanged(n) ? '<p class="note err">In Life OS geändert – weicht von der Datei im Vault ab. Ein erneuter Import überschreibt das nicht, er fragt.</p>' : ''}
-  <div class="pact">${editBtn('note', n.id, 'Notiz bearbeiten').replace('class="ed"', 'class="btn"')}</div>
+  <div class="pact">${editFor('note', n, 'Notiz bearbeiten', 'btn')}</div>
   ${formIf(ctx, 'note')}
   <section class="blk"><article class="ex nbody">${n.body.trim() ? renderMd(n.body, { resolve: r, from: n.path || '' }) : '<p class="note">Noch kein Inhalt.</p>'}</article>${propsHtml(n)}</section>
   ${n.tags.length || ps.length ? `<section class="blk"><div class="chips">${n.tags.map(t => `<a class="chipb" href="#wissen" data-a="tagq" data-v="${esc(t)}">#${esc(t)}</a>`).join('')}${ps.map(p => `<a class="chipb on" href="#projekte/p-${esc(p.id)}">${esc(p.name)}</a>`).join('')}</div></section>` : ''}

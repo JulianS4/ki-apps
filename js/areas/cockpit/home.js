@@ -5,7 +5,7 @@ import { esc } from '../../core/html.js';
 import { dfmt, dshort, dayIdx, DAYS, DN } from '../../core/dates.js';
 import { nowNext } from '../../core/schedule.js';
 import * as db from './db.js';
-import { netWorth, netWorthSeries, nextExams, currentDept, totals, filterTx, periodRange, logStats, dueTasks, daysUntil, gradeAvg, fmtDur, budgetRows, buckets, inRange, MONTHS } from './logic.js';
+import { netWorth, netWorthSeries, nextExams, currentDept, totals, filterTx, periodRange, logStats, hasProgress, dueTasks, daysUntil, gradeAvg, fmtDur, budgetRows, buckets, inRange, MONTHS } from './logic.js';
 import { PREP, AGENT_STATUS, label } from './data.js';
 import { banner, money, amountsShown, srcLine, common, target, today, onNavigateCommon, mountCommon, csvNote, newBtn, formIf, edInput } from './ui.js';
 import { knowledgeBox, kbInput } from './knowledge.js';
@@ -40,6 +40,9 @@ function agenda(ctx, t) {
   if (rec && rec.suggest) out.push(row('health', 'Deload vorziehen?', 'Mehrere Anzeichen treffen zu', '#recovery/zyklus', true));
   const last = ctx.store.get('meta.lastBackup'), age = last ? daysUntil(last, t) : null;
   if (age === null || age > 14) out.push(row('settings', age === null ? 'Noch kein Backup' : `Letztes Backup vor ${age} Tagen`, 'Deine Daten liegen nur auf diesem Gerät', '#einstellungen', true));
+  // The overview is only as fresh as the last import file from Claude.
+  const ns = (db.getRaw(ctx, 'sources', {}) || {}).notion, nday = ns && /^\d{4}-\d{2}-\d{2}/.test(ns.at || '') ? String(ns.at).slice(0, 10) : null;
+  if (nday && daysUntil(nday, t) > 7) out.push(row('import', `Notion-Stand vom ${dshort(nday)}`, 'Sag Claude „Life OS aktualisieren“ und spiel die neue Datei ein', '#import'));
   if (bd && bd.quarter && bd.quarter.done < bd.quarter.total) out.push(row('health', `Quartals-Check fällig · ${bd.quarter.done}/${bd.quarter.total}`, 'Messen, Fotos, Tests abhaken', '#koerper'));
   const { now: cur, next } = nowNext(now);
   if (cur) out.push(row('cockpit', `Jetzt: ${cur.title}`, `bis ${cur.end}`, /^(Morgen|Abend)routine$/.test(cur.title) ? '#routinen/halterung' : '#routinen'));
@@ -102,7 +105,7 @@ function schoolTile(ctx, t) {
 function projectsTile(ctx, t) {
   const ps = db.list(ctx, 'project').filter(p => p.status === 'aktiv'), pt = db.list(ctx, 'ptask');
   const step = p => { const o = pt.filter(x => x.proj === p.id && !x.done).sort((a, b) => ((a.due || '9') < (b.due || '9') ? -1 : 1))[0]; return o ? `Nächster Schritt: ${o.text}${o.due ? ` (${o.due < t ? 'überfällig' : dfmt(o.due)})` : ''}` : p.goal ? `Ziel: ${p.goal}` : 'Kein nächster Schritt eingetragen'; };
-  const body = ps.length ? `<ul class="plist">${ps.map(p => `<li><a href="#projekte/p-${esc(p.id)}">${ring(p.prog, { label: p.name, value: `${p.prog} %`, sub: 'Fortschritt', small: true })}<span class="tx2"><b>${esc(p.name)}</b><small>${esc(step(p))}</small></span></a></li>`).join('')}</ul>` : '<p class="note">Keine aktiven Projekte.</p>';
+  const body = ps.length ? `<ul class="plist">${ps.map(p => `<li><a href="#projekte/p-${esc(p.id)}">${hasProgress(p) ? ring(p.prog, { label: p.name, value: `${p.prog} %`, sub: 'Fortschritt', small: true }) : '<span class="pdot" aria-hidden="true"></span>'}<span class="tx2"><b>${esc(p.name)}</b><small>${esc(step(p))}</small></span></a></li>`).join('')}</ul>` : '<p class="note">Keine aktiven Projekte.</p>';
   return tile('projects', 'Aktive Projekte', '#projekte', 'Projekte', body, ps.length ? srcLine(srcOf(ps), latest(ps), ctx, { label: 'aktualisiert' }) : '');
 }
 
@@ -126,11 +129,11 @@ const avgOf = c => { const v = PILLARS.map(([k]) => c[k]).filter(x => x != null)
 const one = v => v.toFixed(1).replace('.', ',');
 function pillarsTile(ctx) {
   const all = db.list(ctx, 'pillar').sort((a, b) => (a.d < b.d ? -1 : 1)), last = all[all.length - 1], prev = all[all.length - 2];
-  if (!last) return tile('pillars', '5 Säulen', '#import', 'Import', '<p class="note">Noch kein Check-in. Trag sonntags deine fünf Werte in Notion ein – die nächste Import-Datei bringt sie mit.</p>');
+  if (!last) return tile('pillars', 'Fünf Säulen', '#import', 'Import', '<p class="note">Noch kein Check-in. Trag sonntags deine fünf Werte in Notion ein – die nächste Import-Datei bringt sie mit.</p>');
   const avg = avgOf(last), pavg = prev ? avgOf(prev) : null;
   const rings = PILLARS.filter(([k]) => last[k] != null).map(([k, l]) => `<div class="pr">${ring(last[k] * 10, { label: l, value: String(last[k]), sub: 'von 10' })}<span>${l}</span></div>`).join('');
-  return tile('pillars', '5 Säulen', '#import', 'Import', `<div class="prings">${rings}</div>${avg != null ? `<p class="note">Ø ${one(avg)} von 10${pavg != null ? ` · Vorwoche ${one(pavg)}` : ''}</p>` : ''}${last.note ? `<p class="note">${esc(last.note)}</p>` : ''}`,
-    `${esc(last.week || dfmt(last.d))} · ${srcLine(last.src, last.d, ctx, { label: 'Check-in' })}`);
+  return tile('pillars', 'Fünf Säulen', '#import', 'Import', `<div class="prings">${rings}</div>${avg != null ? `<p class="note">Ø ${one(avg)} von 10${pavg != null ? ` · Vorwoche ${one(pavg)}` : ''}</p>` : ''}${last.note ? `<p class="note">${esc(last.note)}</p>` : ''}`,
+    `${last.week ? esc(last.week) + ' · ' : ''}${srcLine(last.src, last.d, ctx, { label: 'Check-in' })}`);
 }
 
 function wissenTile(ctx) {
@@ -145,7 +148,7 @@ const greet = h => (h < 11 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Aben
 export function render(route, ctx) {
   const t = today(ctx), now = ctx.now(), items = agenda(ctx, t);
   const emptyAll = !db.isDemo(ctx) && !['account', 'tx', 'exam', 'log', 'note', 'agent', 'dept'].some(n => db.list(ctx, n).length);
-  const intro = emptyAll ? `<section class="ccard intro"><b>Life OS ist noch leer.</b><p>Trag Konten, Klassenarbeiten oder Business-Einträge ein – oder sieh dir alles erst mit Beispieldaten an. Deine echten Einträge bleiben davon getrennt.</p><div class="tools"><button class="btn pri" type="button" data-a="demostart">Beispieldaten ansehen</button>${newBtn('account', 'Konto hinzufügen')}</div></section>` : '';
+  const intro = emptyAll ? `<section class="ccard intro"><b>Life OS ist noch leer.</b><p>Sag Claude „Life OS aktualisieren“: Aus Notion und Obsidian entsteht eine Import-Datei, die du unter Import einspielst. Oder sieh dir erst alles mit Beispieldaten an – deine echten Einträge bleiben davon getrennt.</p><div class="tools"><a class="btn pri" href="#import">Datei importieren</a><button class="btn" type="button" data-a="demostart">Beispieldaten ansehen</button></div></section>` : '';
   const dateLine = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return `${banner(ctx)}<div class="hero dhead"><div><p class="k">${dateLine}</p><h1>${greet(now.getHours())}</h1><p class="m">${items.length ? `${items.length} ${items.length === 1 ? 'Punkt steht' : 'Punkte stehen'} an.` : 'Heute ist nichts Dringendes offen.'}</p>
   <p class="hudl"><i aria-hidden="true"></i>System bereit · alle Daten lokal · Stand ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</p></div>

@@ -29,7 +29,7 @@ function sourcesHtml(ctx) {
   const card = (name, x, line) => `<section class="ccard"><div class="ch"><h2>${name}</h2><span class="pill ${x ? 'ok' : 'mute'}">${x ? 'eingespielt' : 'offen'}</span></div>
   <p class="note">${x ? `Stand ${esc(stamp(x.at))}` : 'Noch nicht eingespielt'}</p>${line ? `<p class="src">${esc(line)}</p>` : ''}</section>`;
   return `<section class="blk"><div class="bh"><h2>Quellen</h2><p>so aktuell wie die letzte Datei</p></div><div class="cgrid">
-  ${card('Notion', n, counts || (n ? 'keine Einträge' : 'Konten, Budget, Projekte, Business Log, Säulen-Check-in und Textseiten'))}
+  ${card('Notion', n, counts || (n ? 'keine Einträge' : 'Konten, Budget, Projekte, Business Log und Säulen-Check-in'))}
   ${card('Obsidian', o, o ? `${esc(o.name || 'Vault')} · ${plural(o.notes || 0, 'Notiz', 'Notizen')}` : 'Notizen für Wissen und das 3D-Gehirn')}</div>
   <p class="note">Was nur die App hat – Training, Recovery, Ernährung, Routinen, Körper und Arena – bleibt bei jedem Import unberührt. Einträge aus Notion änderst du in Notion; die nächste Datei bringt sie mit.</p></section>`;
 }

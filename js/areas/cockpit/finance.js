@@ -5,7 +5,7 @@ import { dfmt, dshort } from '../../core/dates.js';
 import * as db from './db.js';
 import { netWorth, netWorthSeries, filterTx, totals, byCategory, budgetRows, periodRange, subTotals, subMonthly, nextBilling, parseCsv, guessMap, findHeader, csvToTx, dedupe, parseMoney, fmtMoney, fmtEuro0, MONTHS, buckets, flowSeries } from './logic.js';
 import { ACC_TYPES, EVERY, SUB_STATUS, label } from './data.js';
-import { banner, hero, money, signed, srcLine, srcName, bars, empty, newBtn, editBtn, formIf, common, target, today, edInput, onNavigateCommon, mountCommon, blurActive, csvNote, DEMO_NO_IMPORT } from './ui.js';
+import { banner, hero, money, signed, srcLine, srcName, bars, empty, newBtn, editBtn, editFor, formIf, common, target, today, edInput, onNavigateCommon, mountCommon, blurActive, csvNote, DEMO_NO_IMPORT } from './ui.js';
 import { barChart, bindBars, periodPicker, rangeOf, chartState, chartClick, chartChange, resetCharts } from './charts.js';
 import { STORAGE_FAILED } from '../../core/backup.js';
 import { knowledgeBox, kbInput } from './knowledge.js';
@@ -54,7 +54,7 @@ function overview(ctx, t) {
     ${cut ? `<p class="note">Ab ${dshort(series[0].date)}: erst seitdem hat jedes Konto einen Stand.</p>` : ''}
     <details class="tbld"><summary>Werte als Tabelle</summary><div class="tblw"><table class="tbl"><thead><tr><th>Datum</th><th>Vermögen</th></tr></thead><tbody>${series.map(p => `<tr><td>${dfmt(p.date)}</td><td>${fmtMoney(p.c)}</td></tr>`).join('')}</tbody></table></div></details></section>`;
   }
-  const accRows = acc.length ? `<ul class="crows card-l">${acc.map(a => `<li><div class="nm"><b>${esc(a.name)}</b><small>${esc(label(ACC_TYPES, a.type))}</small>${srcLine(a.src, a.asOf, ctx, { warnDays: 30 })}</div><span class="vr">${money(a.bal, a.cur)}</span>${editBtn('account', a.id, 'Stand ändern')}</li>`).join('')}</ul>`
+  const accRows = acc.length ? `<ul class="crows card-l">${acc.map(a => `<li><div class="nm"><b>${esc(a.name)}</b><small>${esc(label(ACC_TYPES, a.type))}</small>${srcLine(a.src, a.asOf, ctx, { warnDays: 30 })}</div><span class="vr">${money(a.bal, a.cur)}</span>${editFor('account', a, 'Stand ändern')}</li>`).join('')}</ul>`
     : empty('Noch kein Konto. Trag deine Konten mit dem aktuellen Stand ein – das Gesamtvermögen rechnet sich dann von selbst.');
   return `<div class="figs">
     <div class="fig"><span class="k">Gesamtvermögen</span><b>${money(nw.total)}</b><span class="sub">${acc.length} ${acc.length === 1 ? 'Konto' : 'Konten'}${nw.oldest ? ` · ältester Stand ${dshort(nw.oldest)}` : ''}${nw.skipped.length ? ` · ohne ${esc(nw.skipped.join(', '))} (andere Währung)` : ''}</span></div>
@@ -64,7 +64,7 @@ function overview(ctx, t) {
   ${flowChart(ctx, t)}
   <section class="blk"><div class="bh"><h2>Konten</h2><p>Stand = zuletzt eingetragener Kontostand</p></div>${formIf(ctx, 'account')}${formIf(ctx, 'tx')}
   ${accRows}<div class="tools">${newBtn('account', 'Konto hinzufügen')}</div>
-  <p class="note">Neuen Kontostand eintragen: „Stand ändern“, Betrag und Datum anpassen. Jeder Stand bleibt im Verlauf.</p></section>
+  ${acc.some(a => a.src !== 'notion') || !acc.length ? '<p class="note">Neuen Kontostand eintragen: „Stand ändern“, Betrag und Datum anpassen. Jeder Stand bleibt im Verlauf.</p>' : ''}${acc.some(a => a.src === 'notion') ? '<p class="note">Kontostände aus Notion änderst du in Notion – die nächste Import-Datei bringt sie mit.</p>' : ''}</section>
   ${chart}${formIf(ctx, 'note')}${knowledgeBox(ctx, {
     id: 'fin', about: 'Finanzen', mode: 'any', q: 'finanzen geld budget sparen sparziel konto abo ausgaben einnahmen versicherung steuer vertrag',
     prefer: db.list(ctx, 'note').filter(n => n.topic === 'finanzen').map(n => n.id), preset: { topic: 'finanzen' },
@@ -104,7 +104,7 @@ function txView(ctx, t) {
   const r = rangeOf('tx', t), all = db.list(ctx, 'tx'), cats = db.list(ctx, 'cat'), acc = db.list(ctx, 'account');
   const tx = filterTx(all, { acc: flt.acc, cat: flt.cat, range: r }).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)), m = totals(tx, cats);
   const cn = id => (cats.find(c => c.id === id) || { name: 'Ohne Kategorie' }).name, an = id => (acc.find(a => a.id === id) || { name: 'Konto gelöscht' }).name;
-  const list = tx.length ? `<ul class="crows card-l">${tx.map(x => `<li><div class="nm"><b>${esc(x.payee || x.note || '—')}</b><small>${dfmt(x.d)} · ${esc(cn(x.cat))} · ${esc(an(x.acc))}${x.src !== 'manuell' ? ' · ' + esc(srcName(x.src)) : ''}</small></div><span class="vr${x.amt > 0 ? ' pos' : ''}">${signed(x.amt)}</span>${editBtn('tx', x.id)}</li>`).join('')}</ul>`
+  const list = tx.length ? `<ul class="crows card-l">${tx.map(x => `<li><div class="nm"><b>${esc(x.payee || x.note || '—')}</b><small>${dfmt(x.d)} · ${esc(cn(x.cat))} · ${esc(an(x.acc))}${x.src !== 'manuell' ? ' · ' + esc(srcName(x.src)) : ''}</small></div><span class="vr${x.amt > 0 ? ' pos' : ''}">${signed(x.amt)}</span>${editFor('tx', x)}</li>`).join('')}</ul>`
     : empty(all.length ? 'Keine Buchungen für diese Auswahl.' : 'Noch keine Buchungen. Trag sie einzeln ein oder importiere eine CSV-Datei aus dem Online-Banking.');
   return `<section class="blk">${periodPicker('tx', t)}${filters(ctx)}
   ${kv([['Einnahmen', money(m.inc)], ['Ausgaben', money(m.exp)], ['Zurückgelegt', money(m.save)]])}${csvNote(ctx, tx)}

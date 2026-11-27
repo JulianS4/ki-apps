@@ -1,5 +1,7 @@
 // Offline cache: network first, cache as fallback. Bump CACHE on every release.
-const CACHE = 'ki-apps-v13';
+// Own files skip the browser cache (GitHub Pages lets it keep files for 10 minutes): an
+// update must never mix an old and a new module, or the page stays blank.
+const CACHE = 'ki-apps-v14';
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
@@ -19,7 +21,7 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
@@ -33,7 +35,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url), sdk = url.href.startsWith(SDK);
   if (url.origin !== location.origin && !sdk) return;
   e.respondWith(
-    fetch(e.request)
+    (sdk || e.request.mode === 'navigate' ? fetch(e.request) : fetch(e.request, { cache: 'no-cache' }))
       .then(res => {
         if (res.ok) {
           const copy = res.clone();

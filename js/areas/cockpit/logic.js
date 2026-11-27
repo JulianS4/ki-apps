@@ -183,6 +183,9 @@ export function currentDept(depts, today) {
 }
 
 // Business log.
+// Notion keeps no progress for a project; a 0 there means "not tracked", not "nothing done".
+export const hasProgress = p => p.src !== 'notion' || p.prog > 0;
+
 export function logStats(log, { proj, range } = {}) {
   const r = { inc: 0, exp: 0, profit: 0, min: 0, n: 0 };
   for (const e of log) if ((!proj || e.proj === proj) && inRange(e.d, range)) { r.inc += e.inc; r.exp += e.exp; r.min += e.min; r.n++; }

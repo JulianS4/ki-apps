@@ -1020,3 +1020,10 @@ header.top .brand.m{display:inline-flex;align-items:center;gap:10px}
   .side .brand::before,header.top .brand.m::before,.hudl i,.dhead::after,.gauge .gk,.gauge::after,.stat i{animation:none}
   .dhead::after{display:none}
 }
+
+/* Polish: one brand next to the sidebar; entries from Notion say where they change; projects without progress */
+@media(min-width:900px){header.top .brand.m{display:none}}
+.ed.ro,.crows .ed.ro{cursor:default;color:var(--mut);font-weight:500;font-size:12px;letter-spacing:.02em;display:inline-flex;align-items:center;white-space:nowrap}
+.pact .ed.ro{min-height:40px;padding:0 14px;border:1px dashed var(--edge2);border-radius:999px}
+.pdot{flex:none;width:48px;height:48px;display:grid;place-items:center}
+.pdot::after{content:"";width:10px;height:10px;border-radius:50%;background:#8EB69B;box-shadow:0 0 10px rgb(142 182 155/.6)}

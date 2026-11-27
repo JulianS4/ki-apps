@@ -66,7 +66,8 @@ export function cleanItem(name, raw) {
     if (d !== null) out[f.k] = d;
   }
   out.src = SOURCES.includes(raw.src) ? raw.src : 'manuell';
-  for (const k of ['upd', 'created']) if (typeof raw[k] === 'string') out[k] = raw[k];
+  // nid: the entry's id in Notion, so a renamed entry is still found at the next import
+  for (const k of ['upd', 'created', 'nid']) if (typeof raw[k] === 'string') out[k] = raw[k];
   if (name === 'account') {
     const h = (Array.isArray(raw.hist) ? raw.hist : []).filter(p => isObj(p) && isDay(p.d) && Number.isInteger(p.c)).map(p => ({ d: p.d, c: p.c }));
     out.hist = h.length ? h.sort((a, b) => (a.d < b.d ? -1 : 1)) : [{ d: out.asOf, c: out.bal }];

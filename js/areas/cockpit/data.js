@@ -95,6 +95,10 @@ export function demoData(today) {
       { id: 'bsp-a1', name: 'Beispiel-Agent Recherche', job: 'Sammelt jeden Morgen Nachrichten', status: 'bereit', asOf: d(-1), last: 'gestern 07:00', next: 'morgen 07:00', result: 'Bericht erstellt (Beispiel)', issues: '', runtime: '3 min', cost: 4, src: B },
       { id: 'bsp-a2', name: 'Beispiel-Agent Postfach', job: 'Sortiert E-Mails vor', status: 'fehlgeschlagen', asOf: d(0), last: 'heute 06:30', next: '', result: '', issues: 'Anmeldung abgelaufen (Beispiel)', runtime: '', src: B },
     ],
+    pillars: [
+      { id: 'bsp-k1', d: d(-12), koerper: 6, karriere: 7, business: 5, fokus: 5, netzwerk: 6, src: B },
+      { id: 'bsp-k2', d: d(-5), koerper: 7, karriere: 7, business: 6, fokus: 4, netzwerk: 6, note: 'Beispiel: mehr Fokus-Blöcke einplanen', src: B },
+    ],
     notes: [
       { id: 'bsp-n1', title: 'Einkaufsregeln Reselling (Beispiel)', topic: 'business', tags: ['reselling'], projects: ['reselling'], body: 'Nur kaufen, wenn die Marge passt. Siehe [[Preisliste (Beispiel)]].\nFotos immer bei Tageslicht.', created: d(-30), upd: d(-2), src: B },
       { id: 'bsp-n2', title: 'Preisliste (Beispiel)', topic: 'business', tags: ['reselling', 'preise'], projects: ['reselling'], body: 'Beispielwerte für Einkauf und Verkauf.', created: d(-28), upd: d(-28), src: B },

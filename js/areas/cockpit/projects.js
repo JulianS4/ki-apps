@@ -2,9 +2,9 @@
 import { esc } from '../../core/html.js';
 import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
-import { logStats, periodRange, fmtDur, fmtMoney, fmtEuro0, buckets, logSeries } from './logic.js';
+import { logStats, hasProgress, periodRange, fmtDur, fmtMoney, fmtEuro0, buckets, logSeries } from './logic.js';
 import { PROJ_STATUS, label } from './data.js';
-import { banner, hero, srcLine, pbar, empty, newBtn, editBtn, formIf, common, tick, target, today, edInput, onNavigateCommon, mountCommon, blurActive } from './ui.js';
+import { banner, hero, srcLine, pbar, empty, newBtn, editBtn, editFor, formIf, common, tick, target, today, edInput, onNavigateCommon, mountCommon, blurActive } from './ui.js';
 import { barChart, bindBars, periodPicker, rangeOf, chartState, chartClick, chartChange, resetCharts } from './charts.js';
 import { knowledgeBox, kbInput } from './knowledge.js';
 
@@ -15,7 +15,7 @@ const order = { aktiv: 0, pausiert: 1, idee: 2, abgeschlossen: 3 };
 const pname = (ps, id) => (ps.find(p => p.id === id) || { name: 'Projekt gelöscht' }).name;
 const inRange = (e, r) => e.d >= r.from && e.d <= r.to;
 const width = () => (typeof document !== 'undefined' && document.getElementById('main') ? document.getElementById('main').clientWidth : 600);
-const logRow = (e, ps) => `<li><div class="nm"><b>${esc(e.text)}</b><small>${dfmt(e.d)} · ${esc(pname(ps, e.proj))}${e.min ? ' · ' + fmtDur(e.min) : ''}${e.src !== 'manuell' ? ' · ' + (e.src === 'beispiel' ? 'Beispiel' : 'importiert') : ''}</small></div><span class="vr">${e.inc ? `<span class="pos">+${fmtMoney(e.inc)}</span>` : ''}${e.exp ? `<span>−${fmtMoney(e.exp)}</span>` : ''}</span>${editBtn('log', e.id)}</li>`;
+const logRow = (e, ps) => `<li><div class="nm"><b>${esc(e.text)}</b><small>${dfmt(e.d)} · ${esc(pname(ps, e.proj))}${e.min ? ' · ' + fmtDur(e.min) : ''}${e.src !== 'manuell' ? ' · ' + (e.src === 'beispiel' ? 'Beispiel' : e.src === 'notion' ? 'Notion' : 'importiert') : ''}</small></div><span class="vr">${e.inc ? `<span class="pos">+${fmtMoney(e.inc)}</span>` : ''}${e.exp ? `<span>−${fmtMoney(e.exp)}</span>` : ''}</span>${editFor('log', e)}</li>`;
 function nextStep(p, tasks, t) {
   const o = tasks.filter(x => x.proj === p.id && !x.done).sort((a, b) => ((a.due || '9') < (b.due || '9') ? -1 : 1))[0];
   return o ? `Nächster Schritt: ${o.text}${o.due ? ` (${o.due < t ? 'überfällig' : dfmt(o.due)})` : ''}` : p.goal ? `Ziel: ${p.goal}` : 'Kein nächster Schritt eingetragen';
@@ -27,7 +27,7 @@ function list(ctx, t) {
   <section class="blk">${formIf(ctx, 'project')}<div class="cgrid">${ps.map(p => {
     const m = logStats(log, { proj: p.id, range: r });
     return `<a class="ccard pcard" href="#projekte/p-${esc(p.id)}"><div class="ch"><h2>${esc(p.name)}</h2><span class="pill${p.status === 'aktiv' ? ' hot' : ' mute'}">${esc(label(PROJ_STATUS, p.status))}</span></div>
-    <p class="note">${esc(nextStep(p, tasks, t))}</p>${pbar(p.prog, `Fortschritt ${p.prog} Prozent`)}<p class="note">${p.prog} % · diesen Monat ${fmtDur(m.min)} · Gewinn ${fmtMoney(m.profit)}</p>
+    <p class="note">${esc(nextStep(p, tasks, t))}</p>${hasProgress(p) ? pbar(p.prog, `Fortschritt ${p.prog} Prozent`) : ''}<p class="note">${hasProgress(p) ? `${p.prog} % · ` : ''}diesen Monat ${fmtDur(m.min)} · Gewinn ${fmtMoney(m.profit)}</p>
     ${p.upd ? srcLine(p.src, p.upd, ctx, { label: 'aktualisiert' }) : '<span class="src">noch nicht bearbeitet</span>'}</a>`;
   }).join('')}</div></section>`;
 }
@@ -39,9 +39,9 @@ function project(ctx, t, id) {
   const tasks = db.list(ctx, 'ptask').filter(x => x.proj === id).sort((a, b) => a.done - b.done || ((a.due || '9') < (b.due || '9') ? -1 : 1));
   const notes = db.list(ctx, 'note').filter(n => n.projects.includes(id)), ps = db.list(ctx, 'project');
   return `<a class="back" href="#projekte">‹ Projekte</a>${hero('', esc(p.name), `${esc(label(PROJ_STATUS, p.status))} · ${esc(nextStep(p, tasks, t))}`)}
-  <div class="pact">${newBtn('log', 'Log-Eintrag hinzufügen', { proj: id }, 'btn pri')}${newBtn('ptask', 'Aufgabe hinzufügen', { proj: id })}${editBtn('project', p.id, 'Projekt bearbeiten').replace('class="ed"', 'class="btn"')}</div>
+  <div class="pact">${newBtn('log', 'Log-Eintrag hinzufügen', { proj: id }, 'btn pri')}${newBtn('ptask', 'Aufgabe hinzufügen', { proj: id })}${editFor('project', p, 'Projekt bearbeiten', 'btn')}</div>
   ${formIf(ctx, 'project')}${formIf(ctx, 'log', { hide: ['proj'] })}${formIf(ctx, 'ptask', { hide: ['proj'] })}${formIf(ctx, 'note')}
-  <section class="blk"><div class="bh"><h2>Fortschritt</h2><p>${p.upd ? srcLine(p.src, p.upd, ctx, { label: 'aktualisiert' }) : 'noch nicht bearbeitet'}</p></div><div class="ex">${pbar(p.prog, `Fortschritt ${p.prog} Prozent`)}<p class="note">${p.prog} % geschafft${p.goal ? ' · Ziel: ' + esc(p.goal) : ''}</p></div></section>
+  <section class="blk"><div class="bh"><h2>${hasProgress(p) ? 'Fortschritt' : 'Ziel'}</h2><p>${p.upd ? srcLine(p.src, p.upd, ctx, { label: 'aktualisiert' }) : 'noch nicht bearbeitet'}</p></div><div class="ex">${hasProgress(p) ? `${pbar(p.prog, `Fortschritt ${p.prog} Prozent`)}<p class="note">${p.prog} % geschafft${p.goal ? ' · Ziel: ' + esc(p.goal) : ''}</p>` : `<p>${p.goal ? esc(p.goal) : 'Kein Ziel eingetragen.'}</p><p class="note">Einen Fortschritt in Prozent erfasst Notion nicht.</p>`}</div></section>
   <section class="blk"><div class="bh"><h2>Zahlen</h2><p>aus dem Business Log</p></div>${periodPicker('proj', t)}${stats(logStats(log, { range: r }))}</section>
   <section class="blk"><div class="bh"><h2>Aufgaben</h2><p>${tasks.filter(x => !x.done).length} offen</p></div>
   ${tasks.length ? `<ul class="list">${tasks.map(x => `<li class="li"><input type="checkbox" data-a="tick" data-s="ptask" data-id="${esc(x.id)}"${x.done ? ' checked' : ''} aria-label="${esc(x.text)} erledigt"><span class="t${x.done ? ' done' : ''}">${esc(x.text)}${x.due ? `<small>fällig ${dfmt(x.due)}${!x.done && x.due < t ? ' · überfällig' : ''}</small>` : ''}</span>${editBtn('ptask', x.id)}</li>`).join('')}</ul>` : '<p class="note">Noch keine Aufgaben.</p>'}</section>

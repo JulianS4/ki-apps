@@ -32,7 +32,7 @@ export function sections(ctx) {
   return `  <section class="blk"><div class="bh"><h2>Integrationen</h2><p>was verbunden ist</p></div><div class="cgrid">
   <section class="ccard"><div class="ch"><h2>Notion</h2>${status(!!srcs.notion, srcs.notion ? 'per Import-Datei' : 'noch nicht eingespielt')}</div>
    <p>Die App liest Notion nicht selbst – dafür bräuchte sie einen eigenen Server mit Notion-Schlüssel, und der darf nie im Browser oder im öffentlichen Code stehen. Stattdessen baut Claude aus Notion und Obsidian eine Life-OS-Import-Datei, die du im Import-Tab einspielst.</p>
-   <p class="note">Aus Notion kommen Konten und Kontostände, Budget, Projekte, Business Log, Säulen-Check-in und Textseiten.${srcs.notion ? ` Zuletzt eingespielt: ${dfmt(String(srcs.notion.at).slice(0, 10))}.` : ''}</p>
+   <p class="note">Aus Notion kommen Konten und Kontostände, Budget, Projekte, Business Log und der Säulen-Check-in.${srcs.notion ? ` Zuletzt eingespielt: ${dfmt(String(srcs.notion.at).slice(0, 10))}` : ''}</p>
    <div class="tools"><a class="btn" href="#import">Zum Import ›</a><a class="btn" href="${DOC}" target="_blank" rel="noopener noreferrer">Mehr dazu ›</a></div></section>
   <section class="ccard"><div class="ch"><h2>Bank</h2>${status(false, 'Nicht eingerichtet')}</div>
    <p>Keine Bank ist verbunden. Die App fragt nie nach Bank-Passwörtern und liest keine Bankseiten aus.</p>

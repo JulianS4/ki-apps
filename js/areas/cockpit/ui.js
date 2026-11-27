@@ -41,6 +41,10 @@ export const empty = (text, actions = '') => `<div class="cempty"><p>${text}</p>
 // Actions say what they do: "Konto hinzufügen", never a bare plus.
 export const newBtn = (name, label, preset, cls = 'btn') => `<button class="${cls}" type="button" data-a="fnew" data-s="${name}" data-title="${esc(label)}"${preset ? ` data-preset="${esc(JSON.stringify(preset))}"` : ''}>${esc(label)}</button>`;
 export const editBtn = (name, id, label = 'Bearbeiten') => `<button class="ed" type="button" data-a="fedit" data-s="${name}" data-id="${esc(id)}">${label}</button>`;
+// Entries from Notion are changed in Notion: a quiet hint there instead of a button that would only say so.
+export const editFor = (name, it, label = 'Bearbeiten', cls = 'ed') => (it.src === 'notion'
+  ? '<span class="ed ro" title="Kommt aus Notion – dort ändern, die nächste Import-Datei bringt es mit">in Notion ändern</span>'
+  : editBtn(name, it.id, label).replace('class="ed"', `class="${cls}"`));
 export const seg = (a, opts, cur) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button type="button" data-a="${a}" data-v="${esc(v)}"${v === cur ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"'}>${esc(l)}</button>`).join('')}</div>`;
 export const pbar = (pct, label) => `<div class="pbar cx" role="img" aria-label="${esc(label)}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>`;
 
