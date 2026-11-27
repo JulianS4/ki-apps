@@ -2,7 +2,7 @@
 import { esc } from '../../core/html.js';
 import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
-import { logStats, hasProgress, periodRange, fmtDur, fmtMoney, fmtEuro0, buckets, logSeries } from './logic.js';
+import { logStats, hasProgress, taskGroups, periodRange, fmtDur, fmtMoney, fmtEuro0, buckets, logSeries } from './logic.js';
 import { PROJ_STATUS, label } from './data.js';
 import { banner, hero, srcLine, pbar, empty, newBtn, editBtn, editFor, formIf, common, tick, target, today, edInput, onNavigateCommon, mountCommon, blurActive } from './ui.js';
 import { barChart, bindBars, periodPicker, rangeOf, chartState, chartClick, chartChange, resetCharts } from './charts.js';
@@ -16,6 +16,24 @@ const pname = (ps, id) => (ps.find(p => p.id === id) || { name: 'Projekt gelösc
 const inRange = (e, r) => e.d >= r.from && e.d <= r.to;
 const width = () => (typeof document !== 'undefined' && document.getElementById('main') ? document.getElementById('main').clientWidth : 600);
 const logRow = (e, ps) => `<li><div class="nm"><b>${esc(e.text)}</b><small>${dfmt(e.d)} · ${esc(pname(ps, e.proj))}${e.min ? ' · ' + fmtDur(e.min) : ''}${e.src !== 'manuell' ? ' · ' + (e.src === 'beispiel' ? 'Beispiel' : e.src === 'notion' ? 'Notion' : 'importiert') : ''}</small></div><span class="vr">${e.inc ? `<span class="pos">+${fmtMoney(e.inc)}</span>` : ''}${e.exp ? `<span>−${fmtMoney(e.exp)}</span>` : ''}</span>${editFor('log', e)}</li>`;
+// Aufgaben · Projekte · Business Log: one area, three views.
+const TABS = [['tasks', '#aufgaben', 'Aufgaben'], ['list', '#projekte', 'Projekte'], ['log', '#business-log', 'Business Log']];
+const tabs = v => `<nav class="csub" aria-label="Aufgaben &amp; Projekte">${TABS.map(([k, h, l]) => `<a href="${h}"${k === v ? ' class="on" aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`;
+
+function taskRow(x) {
+  const line = [x.where, x.due ? `fällig ${dfmt(x.due)}` : '', x.overdue ? 'überfällig' : ''].filter(Boolean).join(' · ');
+  return `<li class="li${x.overdue ? ' late' : ''}"><input type="checkbox" data-a="tick" data-s="${x.s}" data-id="${esc(x.id)}"${x.done ? ' checked' : ''} aria-label="${esc(x.text)} erledigt"><span class="t${x.done ? ' done' : ''}">${esc(x.text)}${line ? `<small>${x.href ? `<a href="${esc(x.href)}">${esc(line)}</a>` : esc(line)}</small>` : ''}</span>${x.s === 'task' ? editBtn('task', x.id) : ''}</li>`;
+}
+function tasksView(ctx, t) {
+  const g = taskGroups({ free: db.list(ctx, 'task'), ptasks: db.list(ctx, 'ptask'), stasks: db.list(ctx, 'stask'), projects: db.list(ctx, 'project') }, t);
+  const open = g.groups.reduce((a, x) => a + x.items.length, 0);
+  return `${hero('', 'Aufgaben &amp; Projekte', open ? `${open} offen – aus Projekten, Ausbildung und frei eingetragen.` : 'Alles, was zu tun ist – aus Projekten, Ausbildung und frei eingetragen.')}${tabs('tasks')}
+  <div class="pact">${newBtn('task', 'Aufgabe hinzufügen', null, 'btn pri')}</div>${formIf(ctx, 'task')}
+  ${g.groups.length ? g.groups.map(x => `<section class="blk"><div class="bh"><h2>${x.label}</h2><p>${x.items.length}</p></div><ul class="list">${x.items.map(taskRow).join('')}</ul></section>`).join('')
+    : empty('Keine offenen Aufgaben. Neue kommen aus Projekten, der Ausbildung – oder direkt hier.')}
+  ${g.done.length ? `<details class="blk tdone"><summary>Erledigt · ${g.done.length}</summary><ul class="list">${g.done.slice(0, 30).map(taskRow).join('')}</ul></details>` : ''}`;
+}
+
 function nextStep(p, tasks, t) {
   const o = tasks.filter(x => x.proj === p.id && !x.done).sort((a, b) => ((a.due || '9') < (b.due || '9') ? -1 : 1))[0];
   return o ? `Nächster Schritt: ${o.text}${o.due ? ` (${o.due < t ? 'überfällig' : dfmt(o.due)})` : ''}` : p.goal ? `Ziel: ${p.goal}` : 'Kein nächster Schritt eingetragen';
@@ -23,7 +41,7 @@ function nextStep(p, tasks, t) {
 
 function list(ctx, t) {
   const ps = db.list(ctx, 'project').sort((a, b) => order[a.status] - order[b.status]), log = db.list(ctx, 'log'), tasks = db.list(ctx, 'ptask'), r = periodRange('monat', t);
-  return `${hero('', 'Projekte', 'Status, nächster Schritt und Fortschritt deiner Projekte.')}<div class="pact">${newBtn('project', 'Projekt anlegen', null, 'btn pri')}<a class="btn" href="#business-log">Zum Business Log</a></div>
+  return `${hero('', 'Projekte', 'Status, nächster Schritt und Fortschritt deiner Projekte.')}${tabs('list')}<div class="pact">${newBtn('project', 'Projekt anlegen', null, 'btn pri')}</div>
   <section class="blk">${formIf(ctx, 'project')}<div class="cgrid">${ps.map(p => {
     const m = logStats(log, { proj: p.id, range: r });
     return `<a class="ccard pcard" href="#projekte/p-${esc(p.id)}"><div class="ch"><h2>${esc(p.name)}</h2><span class="pill${p.status === 'aktiv' ? ' hot' : ' mute'}">${esc(label(PROJ_STATUS, p.status))}</span></div>
@@ -68,7 +86,7 @@ function logView(ctx, t) {
   const measSeg = `<div class="seg" role="group" aria-label="Messgröße">${MEASURES.map(([v, l]) => `<button type="button" data-a="meas" data-chart="log" data-v="${v}" aria-pressed="${v === meas[0]}"${v === meas[0] ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`;
   const ids = [...new Set([...ps.filter(p => p.status === 'aktiv').map(p => p.id), ...inR.map(e => e.proj)])];
   const byProj = ids.map(id => ({ id, s: logStats(all, { proj: id, range: r }) }));
-  return `${hero('', 'Business Log', 'Was du für deine Projekte tust – Zeit, Einnahmen und Ausgaben.')}<div class="pact">${newBtn('log', 'Eintrag hinzufügen', lproj ? { proj: lproj } : null, 'btn pri')}</div>
+  return `${hero('', 'Business Log', 'Was du für deine Projekte tust – Zeit, Einnahmen und Ausgaben.')}${tabs('log')}<div class="pact">${newBtn('log', 'Eintrag hinzufügen', lproj ? { proj: lproj } : null, 'btn pri')}</div>
   ${formIf(ctx, 'log')}
   <section class="blk">${periodPicker('log', t)}${stats(logStats(all, { range: r }))}</section>
   <section class="blk"><div class="bh"><h2>Nach Projekt</h2><p>${esc(r.label)}</p></div>${measSeg}${c.html}
@@ -85,7 +103,7 @@ function logView(ctx, t) {
 export function render(route, ctx) {
   const t = today(ctx);
   BARS = {};
-  return banner(ctx) + (route.view === 'project' ? project(ctx, t, route.id) : route.view === 'log' ? logView(ctx, t) : list(ctx, t));
+  return banner(ctx) + (route.view === 'project' ? project(ctx, t, route.id) : route.view === 'log' ? logView(ctx, t) : route.view === 'tasks' ? tasksView(ctx, t) : list(ctx, t));
 }
 export const redrawOnResize = route => route.view === 'log';
 export function onClick(e, route, ctx) {

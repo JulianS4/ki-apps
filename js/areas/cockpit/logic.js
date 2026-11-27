@@ -203,6 +203,23 @@ export function parseDur(v) {
 }
 
 // Open dated tasks from school and projects due within `days` (overdue included).
+// Every task in one list – free ones, project and school tasks – grouped by when they are due.
+export function taskGroups({ free = [], ptasks = [], stasks = [], projects = [] }, today) {
+  const pn = id => (projects.find(p => p.id === id) || { name: 'Projekt gelöscht' }).name;
+  const all = [
+    ...free.map(t => ({ s: 'task', id: t.id, text: t.text, due: t.due || '', done: !!t.done, where: '', href: '' })),
+    ...ptasks.map(t => ({ s: 'ptask', id: t.id, text: t.text, due: t.due || '', done: !!t.done, where: pn(t.proj), href: '#projekte/p-' + t.proj })),
+    ...stasks.map(t => ({ s: 'stask', id: t.id, text: t.text, due: t.due || '', done: !!t.done, where: t.subj, href: '#ausbildung/fach?' + encodeURIComponent(t.subj) })),
+  ];
+  const week = addDaysUtc(today, 7), key = t => t.due || '9';
+  const open = all.filter(t => !t.done).sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.text.localeCompare(b.text)));
+  const G = [['Überfällig', t => t.due && t.due < today], ['Heute', t => t.due === today], ['Nächste 7 Tage', t => t.due > today && t.due <= week], ['Später', t => t.due > week], ['Ohne Datum', t => !t.due]];
+  return {
+    groups: G.map(([label, f], i) => ({ label, items: open.filter(f).map(t => ({ ...t, overdue: i === 0 })) })).filter(g => g.items.length),
+    done: all.filter(t => t.done).sort((a, b) => (key(a) < key(b) ? 1 : -1)),
+  };
+}
+
 export function dueTasks(school, projects, today, days = 7) {
   const end = addDaysUtc(today, days), out = [];
   for (const t of school.tasks || []) if (!t.done && t.due && t.due <= end) out.push({ text: t.text, due: t.due, where: t.subj, href: '#ausbildung', overdue: t.due < today });

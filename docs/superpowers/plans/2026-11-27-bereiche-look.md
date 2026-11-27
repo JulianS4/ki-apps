@@ -42,8 +42,8 @@
 
 ### Task 1: Navigation, routes, titles
 **Files:** `js/areas/cockpit/nav.js`, `js/core/routes.js`, `js/app.js`, `js/areas/cockpit/school.js`, `js/areas/body/view.js`; tests `tests/lifeos-areas.test.js` (new), adapt `tests/lifeos-shell.test.js`, `tests/routes.test.js`.
-- [ ] Tests: NAV lists the 12 areas in groups (Planen · Geld & Arbeit · Körper · Kopf & KI) + Arena; end group Import, Einstellungen; phone bar Übersicht, Aufgaben, Kalender, Training + Mehr; `parseRoute('#heute')` → cockpit; `#aufgaben` → projects/tasks; `#kalender` → calendar; `#ziele` → goals; `#finanzen/investments` → finance/invest; `#arbeit` → school; `#gesundheit` → body; navKey marks the right item; titles "Arbeit & Lernen", "Gesundheit".
-- [ ] Implement; app.js header: health areas are top-level now (no "‹ Training & Erholung" back link).
+- [x] Tests: NAV lists the 12 areas in groups (Planen · Geld & Arbeit · Körper · Kopf & KI) + Arena; end group Import, Einstellungen; phone bar Übersicht, Aufgaben, Kalender, Training + Mehr; `parseRoute('#heute')` → cockpit; `#aufgaben` → projects/tasks; `#kalender` → calendar; `#ziele` → goals; `#finanzen/investments` → finance/invest; `#arbeit` → school; `#gesundheit` → body; navKey marks the right item; titles "Arbeit & Lernen", "Gesundheit".
+- [x] Implement; app.js header: health areas are top-level now (no "‹ Training & Erholung" back link).
 - [ ] Commit.
 
 ### Task 2: Aufgaben
