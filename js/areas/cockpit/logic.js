@@ -282,8 +282,9 @@ export { norm, noteLinks };
 export function searchNotes(notes, q) {
   const s = norm(q).trim();
   if (!s) return notes;
-  if (s.startsWith('#')) return notes.filter(n => n.tags.some(t => norm(t) === s.slice(1)));
-  const terms = s.split(/\s+/), hit = n => terms.every(t => norm(n.title + ' ' + n.body + ' ' + n.tags.join(' ')).includes(t));
+  // #tag also finds nested tags (#mathe → mathe/analysis), like Obsidian
+  if (s.startsWith('#')) return notes.filter(n => n.tags.some(t => norm(t) === s.slice(1) || norm(t).startsWith(s.slice(1) + '/')));
+  const terms = s.split(/\s+/), hit = n => terms.every(t => norm(`${n.title} ${n.body} ${n.tags.join(' ')} ${(n.aliases || []).join(' ')} ${n.path || ''}`).includes(t));
   const inTitle = n => terms.every(t => norm(n.title).includes(t));
   return notes.filter(hit).map((n, i) => [inTitle(n) ? 0 : 1, i, n]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]);
 }

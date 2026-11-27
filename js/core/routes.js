@@ -52,7 +52,12 @@ function cockpitRoute(h) {
     if (s === 'log') return { area: 'projects', view: 'log' };
     return s.startsWith('p-') && s.length > 2 ? { area: 'projects', view: 'project', id: s.slice(2) } : { area: 'projects', view: 'list' };
   }
-  if ((s = sub(h, 'wissen')) !== null) return s.startsWith('n-') && s.length > 2 ? { area: 'notes', view: 'note', id: s.slice(2) } : { area: 'notes', view: 'list' };
+  if ((s = sub(h, 'wissen')) !== null) {
+    // #wissen/n-<id>?h=<heading> opens a note at one of its sections
+    const [p, qs] = s.split('?'), sec = /^h=([\w-]{1,80})$/.exec(qs || '');
+    if (!p.startsWith('n-') || p.length <= 2) return { area: 'notes', view: 'list' };
+    return sec ? { area: 'notes', view: 'note', id: p.slice(2), h: sec[1] } : { area: 'notes', view: 'note', id: p.slice(2) };
+  }
   return null;
 }
 

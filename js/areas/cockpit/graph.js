@@ -109,6 +109,7 @@ const VIEW = new Map();
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function viewOf(key) { if (!VIEW.has(key)) VIEW.set(key, { k: 1, x: 0, y: 0 }); return VIEW.get(key); }
 export const resetViews = () => VIEW.clear();
+export const resetView = key => { VIEW.delete(key); };
 function apply(svg) {
   const v = viewOf(svg.dataset.kg), vp = svg.querySelector('.vp');
   if (vp) vp.setAttribute('transform', `translate(${v.x.toFixed(1)} ${v.y.toFixed(1)}) scale(${v.k.toFixed(3)})`);

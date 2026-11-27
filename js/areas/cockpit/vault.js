@@ -47,7 +47,7 @@ export function vaultFiles(entries, zipName = '') {
     name = top;
     for (const f of files) f.path = f.path.slice(top.length + 1);
   }
-  if (hidden) skipped.push({ path: '.obsidian, .trash …', why: `${hidden} ${hidden === 1 ? 'Datei' : 'Dateien'} aus versteckten Ordnern (Obsidian-Einstellungen, Papierkorb) übersprungen` });
+  if (hidden) skipped.push({ path: '.obsidian, .trash …', n: hidden, why: `${hidden} ${hidden === 1 ? 'Datei' : 'Dateien'} aus versteckten Ordnern (Obsidian-Einstellungen, Papierkorb) übersprungen` });
   return { files, skipped, name: name || 'Vault' };
 }
 

@@ -5,6 +5,10 @@ import { dfmt } from '../../core/dates.js';
 import * as db from './db.js';
 import { zip, notesMarkdown } from './zip.js';
 import { banner, hero, common, target, today, onNavigateCommon, mountCommon, blurActive, DEMO_NO_IMPORT } from './ui.js';
+import { ATT_STORE } from './vault.js';
+import { idbBlobs } from '../body/photos.js';
+
+const KINDS = { csv: 'CSV-Import', json: 'Life-OS-Datei', vault: 'Obsidian-Vault' };
 
 const DOC = 'https://github.com/JulianS4/ki-apps/blob/main/docs/cockpit-integrationen.md';
 let confirmWipe = false, msg = '';
@@ -40,18 +44,18 @@ export function sections(ctx) {
   <section class="ccard"><div class="ch"><h2>KI-Agents</h2>${status(false, 'nicht verbunden')}</div>
    <p>Kein Agent-System angebunden. Status und Läufe trägst du selbst ein, jeweils mit Datum.</p><div class="tools"><a class="btn" href="#agents">Agents ›</a></div></section>
   </div></section>
-  <section class="blk"><div class="bh"><h2>Importe</h2><p>${imps.length}</p></div>${imps.length ? `<ul class="crows card-l">${imps.slice(0, 12).map(i => `<li><div class="nm"><b>${esc(i.file || (i.kind === 'csv' ? 'CSV' : 'Life-OS-Datei'))}</b><small>${i.kind === 'csv' ? 'CSV-Import' : 'Life-OS-Datei'}${an(i.acc) ? ' · ' + esc(an(i.acc)) : ''}</small></div><span class="vr">${i.n} neu<small>${dfmt(i.at)}</small></span></li>`).join('')}</ul>` : '<p class="note">Noch nichts importiert.</p>'}</section>
+  <section class="blk"><div class="bh"><h2>Importe</h2><p>${imps.length}</p></div>${imps.length ? `<ul class="crows card-l">${imps.slice(0, 12).map(i => `<li><div class="nm"><b>${esc(i.file || KINDS[i.kind])}</b><small>${KINDS[i.kind] || 'Import'}${an(i.acc) ? ' · ' + esc(an(i.acc)) : ''}</small></div><span class="vr">${i.n} neu<small>${dfmt(i.at)}</small></span></li>`).join('')}</ul>` : '<p class="note">Noch nichts importiert.</p>'}</section>
   <section class="blk prose"><div class="bh"><h2>Beispieldaten</h2></div><div class="ex">
    <p>${demo ? 'Gerade siehst du Beispieldaten. Alles ist erfunden und liegt getrennt von deinen echten Einträgen.' : 'Zum Ausprobieren: erfundene Konten, Buchungen, Klassenarbeiten, Projekte und Notizen – getrennt von deinen echten Einträgen und überall als „Beispieldaten“ markiert.'}</p>
    <div class="tools">${demo ? '<button class="btn" type="button" data-a="demoend">Beispiele beenden</button>' : '<button class="btn" type="button" data-a="demostart">Beispieldaten ansehen</button>'}</div></div></section>
   <section class="blk prose"><div class="bh"><h2>Datenschutz</h2></div><div class="ex">
    <p>Alle Daten liegen nur auf diesem Gerät, ohne Konto und ohne Cloud. Auf der Übersicht sind Beträge verdeckt, bis du „Beträge zeigen“ tippst.</p>
-   <p class="note">Das Backup oben auf dieser Seite sichert alles mit, außer den Beispieldaten.</p></div></section>
+   <p class="note">Das Backup oben auf dieser Seite sichert alles mit, außer den Beispieldaten und den Bildern und PDFs aus dem Obsidian-Vault – die holt ein erneuter Vault-Import zurück.</p></div></section>
   <section class="blk"><div class="bh"><h2>Export & Löschen</h2><p>${demo ? 'gilt für die Beispieldaten' : 'Finanzen, Ausbildung, Projekte, Agents, Wissen'}</p></div><div class="ex">
    <div class="tools"><button class="btn" type="button" data-a="jexport">Alles als JSON</button><button class="btn" type="button" data-a="mdexport">Notizen als Markdown (ZIP)</button></div>
    <p class="note">Die Markdown-Dateien lassen sich direkt in Obsidian öffnen; [[Links]] bleiben erhalten.</p>
    <div class="tools"><button class="btn red" type="button" data-a="wipe">${confirmWipe ? 'Sicher? Diese Einträge endgültig löschen' : 'Einträge löschen'}</button></div>
-   <p class="note">Löscht Konten, Buchungen, Abos, Ausbildung, Projekte, Log, Agents und Notizen auf diesem Gerät. Training, Recovery und die übrigen Bereiche bleiben.</p>
+   <p class="note">Löscht Konten, Buchungen, Abos, Ausbildung, Projekte, Log, Agents und Notizen (samt Vault-Anhängen) auf diesem Gerät. Training, Recovery und die übrigen Bereiche bleiben.</p>
    ${msg ? `<p class="note ok" role="status">${esc(msg)}</p>` : ''}</div></section>`;
 }
 
@@ -63,7 +67,7 @@ export function onClick(e, route, ctx) {
   const a = t.dataset.a;
   if (a === 'wipe') {
     if (!confirmWipe) confirmWipe = true;
-    else { confirmWipe = false; if (db.isDemo(ctx)) db.endDemo(ctx); else db.wipe(ctx); msg = 'Einträge gelöscht.'; }
+    else { confirmWipe = false; if (db.isDemo(ctx)) db.endDemo(ctx); else { db.wipe(ctx); clearAttachments(); } msg = 'Einträge gelöscht.'; }
   } else if (a === 'jexport') {
     download(`life-os-daten-${today(ctx)}.json`, new Blob([JSON.stringify(db.exportData(ctx, new Date().toISOString()))], { type: 'application/json' }));
     msg = 'Export erstellt.';
@@ -74,6 +78,10 @@ export function onClick(e, route, ctx) {
   } else return;
   blurActive();
   ctx.rerender();
+}
+// Vault pictures and PDFs sit in IndexedDB; deleting the entries takes them too.
+function clearAttachments() {
+  try { const s = idbBlobs(ATT_STORE.name, ATT_STORE.store); if (s) s.clear().catch(() => {}); } catch (e) { /* no IndexedDB */ }
 }
 export function onChange(e, route, ctx) {
   const t = e.target;

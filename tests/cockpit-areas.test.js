@@ -271,7 +271,8 @@ test('notes: links between notes, backlinks, missing links and search', () => {
   assert.match(html, new RegExp(`href="#wissen/n-${b.id}"`));
   assert.match(notes.render({ area: 'notes', view: 'note', id: b.id }, ctx), /Verweise hierher[\s\S]*Einkauf/);
   notes.onInput(typed({ a: 'q' }, 'siehe'), R.notes, ctx);
-  html = notes.render(R.notes, ctx);
+  // the file list narrows to the hits; the graph keeps every note and marks the hits
+  html = notes.render(R.notes, ctx).split('id="nres"')[1];
   assert.match(html, /Einkauf/);
   assert.doesNotMatch(html, />Preise</);
   assert.match(projects.render({ area: 'projects', view: 'project', id: 'reselling' }, ctx), /Einkauf/);
