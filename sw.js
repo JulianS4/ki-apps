@@ -6,7 +6,7 @@ const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'js/app.js', 'js/core/dates.js', 'js/core/store.js', 'js/core/routes.js', 'js/core/schedule.js',
-  'js/core/backup.js', 'js/core/html.js', 'js/areas/heute.js', 'js/areas/settings.js',
+  'js/core/backup.js', 'js/core/html.js', 'js/core/theme.js', 'js/areas/heute.js', 'js/areas/settings.js',
   'js/areas/training/index.js', 'js/areas/training/plan-default.js', 'js/areas/training/logic.js',
   'js/areas/training/view.js', 'js/areas/training/chart.js', 'js/core/migrate.js',
   'js/areas/recovery/data.js', 'js/areas/recovery/logic.js', 'js/areas/recovery/view.js', 'js/areas/recovery/index.js',

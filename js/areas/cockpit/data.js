@@ -103,6 +103,7 @@ export function demoData(today) {
       { id: 'bsp-n1', title: 'Einkaufsregeln Reselling (Beispiel)', topic: 'business', tags: ['reselling'], projects: ['reselling'], body: 'Nur kaufen, wenn die Marge passt. Siehe [[Preisliste (Beispiel)]].\nFotos immer bei Tageslicht.', created: d(-30), upd: d(-2), src: B },
       { id: 'bsp-n2', title: 'Preisliste (Beispiel)', topic: 'business', tags: ['reselling', 'preise'], projects: ['reselling'], body: 'Beispielwerte für Einkauf und Verkauf.', created: d(-28), upd: d(-28), src: B },
       { id: 'bsp-n3', title: 'Ideen für Agents (Beispiel)', topic: 'ki', tags: ['agents'], projects: [], body: 'Ein Agent könnte die [[Preisliste (Beispiel)]] aktuell halten.', created: d(-10), upd: d(-10), src: B },
+      { id: 'bsp-n5', title: 'Ziele 2027 (Beispiel)', topic: 'ohne', tags: ['ziel'], projects: [], body: '# Ziele 2027\n> Ein Ziel pro Säule, jedes messbar.\n\n- Körper: 5 km unter 22 Minuten\n- Business: erster zahlender Kunde', created: d(-20), upd: d(-3), src: B },
       { id: 'bsp-n4', title: 'Lernplan BWL (Beispiel)', topic: 'ausbildung', tags: ['bwl'], projects: [], body: 'Kapitel 3 und 4 wiederholen, dann Übungsaufgaben.', created: d(-6), upd: d(-6), src: B },
     ],
   };

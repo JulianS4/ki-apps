@@ -167,3 +167,28 @@ test('Gesundheit shows the resting pulse from the morning check of the last 30 d
   assert.match(html, /<h1>Gesundheit<\/h1>/);
   assert.match(html, /Ruhepuls[\s\S]*56 bpm[\s\S]*Do 26\.11\.[\s\S]*Ø 30 Tage 56 bpm · 3 Messungen[\s\S]*aus dem Morgen-Check/);
 });
+
+import { ACCENTS, accentOf, setAccent, applyAccent } from '../js/core/theme.js';
+import * as settings from '../js/areas/settings.js';
+
+test('the accent colour: six choices, stored, applied to the page, lime when unknown', () => {
+  assert.deepEqual(ACCENTS.map(a => a[0]), ['lime', 'rot', 'orange', 'tuerkis', 'lila', 'pink']);
+  const ctx = mk(), doc = { documentElement: { dataset: {} } };
+  assert.equal(accentOf(ctx.store), 'lime');
+  assert.equal(setAccent(ctx.store, 'tuerkis', doc), 'tuerkis');
+  assert.equal(ctx.store.get('ui.accent'), 'tuerkis');
+  assert.equal(doc.documentElement.dataset.accent, 'tuerkis');
+  ctx.store.set('ui.accent', 'kaputt');
+  assert.equal(applyAccent(ctx.store, doc), 'lime');
+});
+
+test('Einstellungen offers the accent colours, the current one marked', () => {
+  const ctx = mk();
+  setAccent(ctx.store, 'pink', { documentElement: { dataset: {} } });
+  const html = settings.render({ area: 'settings' }, ctx);
+  assert.match(html, /<h2>Darstellung<\/h2>/);
+  for (const [k, l] of ACCENTS) assert.match(html, new RegExp(`data-a="accent" data-v="${k}"[^>]*aria-label="Akzentfarbe ${l}"`));
+  assert.match(html, /data-v="pink" aria-pressed="true"/);
+  settings.onClick({ target: { closest: () => ({ dataset: { a: 'accent', v: 'orange' } }) } }, { area: 'settings' }, ctx);
+  assert.equal(ctx.store.get('ui.accent'), 'orange');
+});

@@ -9,6 +9,10 @@ import { PLAYERS } from './arena/data.js';
 import { esc } from '../core/html.js';
 import * as integ from './cockpit/integrations.js';
 import { banner } from './cockpit/ui.js';
+import { ACCENTS, accentOf, setAccent } from '../core/theme.js';
+
+// Darstellung: the accent colour, one round swatch per choice.
+const look = ctx => { const cur = accentOf(ctx.store); return `<section class="blk prose"><div class="bh"><h2>Darstellung</h2><p>Akzentfarbe</p></div><div class="ex"><div class="swatches" role="group" aria-label="Akzentfarbe">${ACCENTS.map(([k, l, c]) => `<button type="button" class="sw" data-a="accent" data-v="${k}" aria-pressed="${k === cur}" aria-label="Akzentfarbe ${l}" style="--sw:${c}"><i></i><span>${l}</span></button>`).join('')}</div><p class="note">Färbt Knöpfe, Ringe, Leuchten und die Muskelfigur. Gilt für dieses Gerät.</p></div></section>`; };
 
 const SC_NAME = 'Training loggen';
 
@@ -92,7 +96,7 @@ const INVALID = 'Keine gültige Backup-Datei';
 export function render(route, ctx) {
   const n = Object.keys(ctx.store.get('train.sess', {}) || {}).length, last = ctx.store.get('meta.lastBackup');
   return `${banner(ctx)}<div class="hero" style="grid-template-columns:1fr"><div><h1>Einstellungen</h1><p class="m">${arenaOnly(ctx.store) ? 'Backup, Arena und Einrichtung.' : 'Backup, Daten, Integrationen und Einrichtung – alles an einem Ort.'}</p></div></div>
-  <section class="blk prose"><div class="bh"><h2>Backup</h2><p>${n} Trainingseinheiten · ${last ? 'letztes ' + dfmt(last) : 'noch keins'}</p></div>
+  ${look(ctx)}<section class="blk prose"><div class="bh"><h2>Backup</h2><p>${n} Trainingseinheiten · ${last ? 'letztes ' + dfmt(last) : 'noch keins'}</p></div>
   <div class="ex" style="--c:var(--k-core)"><p>Alles liegt nur auf diesem Gerät, ohne Konto und ohne Cloud. Speicher ab und zu ein Backup, z. B. in die Dateien-App oder iCloud Drive.</p>
   <p class="note">Umzug aus der alten Hybrid-Training-App: dort „Backup speichern“, hier „Backup laden“.</p>${arenaConn(ctx) ? '<p class="note">Das Backup enthält auch deinen Arena-Zugang.</p>' : ''}
   <p class="note"><label class="wph"><input type="checkbox" id="withPhotos"${withPhotos ? ' checked' : ''}> mit Fotos</label> <span id="photoSize"></span></p>
@@ -128,6 +132,7 @@ export function mount(root, route, ctx) {
 // Nothing waits between the tap and the download.
 export function onClick(e, route, ctx) {
   const at = e.target.closest('[data-a]');
+  if (at && at.dataset && at.dataset.a === 'accent') { setAccent(ctx.store, at.dataset.v); if (ctx.rerender) ctx.rerender(); return; }
   if (at && at.dataset && integ.ACTIONS.includes(at.dataset.a)) return integ.onClick(e, route, ctx);
   if (at && at.dataset && at.dataset.a && at.dataset.a !== 'export') return arenaClick(at, ctx);
   const t = e.target.closest('[data-a="export"]');

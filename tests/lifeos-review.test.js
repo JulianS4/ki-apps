@@ -79,5 +79,5 @@ test('the example banner names what is invented', () => {
   const ctx = mk();
   db.startDemo(ctx, '2026-11-26');
   assert.doesNotMatch(banner(ctx), /Alles hier ist erfunden/);
-  assert.match(banner(ctx), /Finanzen, Ausbildung, Projekte, Business Log, Agents und Wissen/);
+  assert.match(banner(ctx), /Finanzen, Arbeit &amp; Lernen, Aufgaben &amp; Projekte, Agents, Säulen und Wissen/);
 });

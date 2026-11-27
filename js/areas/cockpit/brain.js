@@ -3,6 +3,7 @@
 // (layout, projection, picking) are tested; the drawing loop runs only while the
 // canvas is on screen, and stands still for people who ask for reduced motion.
 import { esc } from '../../core/html.js';
+import { accentRgb } from '../../core/theme.js';
 
 // ---- layout: 3D force layout, hubs start in the middle, no randomness ----
 export function layout3d(g) {
@@ -143,7 +144,8 @@ function run(box, cv, key, data) {
   const adj = g.nodes.map(() => new Set());
   for (const [a, b] of g.links) { adj[a].add(b); adj[b].add(a); }
   const top = new Set(g.nodes.map((x, i) => i).filter(i => g.nodes[i].deg > 0).sort((a, b) => g.nodes[b].deg - g.nodes[a].deg).slice(0, mini ? 0 : 10));
-  const SAGE = sprite('rgba(142,182,155,1)'), MINT = sprite('rgba(218,241,222,1)');
+  // the accent colours the network; bright points stay near white
+  const AC = accentRgb(), SAGE = sprite(`rgba(${AC},1)`), MINT = sprite('rgba(242,245,238,1)');
   const sparks = reduce || !g.links.length ? [] : Array.from({ length: Math.min(g.links.length, mini ? 24 : 140) }, (_, i) => ({ e: (i * 7919) % g.links.length, t: (i * 0.137) % 1, sp: 0.00018 + ((i * 31) % 17) / 40000 }));
   let w = 0, h = 0, dpr = 1, P = [], hover = -1, down = null, moved = false, resume = 0, raf = 0, dirty = true, visible = true, stopped = false, last = 0;
   const pts = new Map();
@@ -167,15 +169,15 @@ function run(box, cv, key, data) {
     const c = cam(), R = Math.min(w, h) * 0.36 * st.zoom, cx = w / 2, cy = h / 2;
     // holographic frame: rings and a turning tick ring
     ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(142,182,155,0.10)';
+    ctx.strokeStyle = `rgba(${AC},0.10)`;
     for (const m of [1.18, 1.42]) { ctx.beginPath(); ctx.arc(cx, cy, R * m, 0, Math.PI * 2); ctx.stroke(); }
     if (!mini) {
       const a0 = reduce ? 0 : now * 0.00008;
-      ctx.strokeStyle = 'rgba(142,182,155,0.28)';
+      ctx.strokeStyle = `rgba(${AC},0.28)`;
       ctx.beginPath();
       for (let i = 0; i < 72; i++) { const a = a0 + i * Math.PI / 36, r1 = R * 1.3, r2 = R * (i % 6 ? 1.33 : 1.37); ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); }
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(218,241,222,0.22)';
+      ctx.strokeStyle = 'rgba(242,245,238,0.22)';
       ctx.beginPath(); ctx.arc(cx, cy, R * 1.42, -a0 * 2, -a0 * 2 + 0.9); ctx.stroke();
     }
     P = pos.map(p => project(p, c));
@@ -184,7 +186,7 @@ function run(box, cv, key, data) {
     for (let i = 0; i < g.links.length; i++) {
       const [a, b] = g.links[i], A = P[a], B = P[b], on = lit && lit.has(a) && lit.has(b) && (a === hover || b === hover);
       const depth = clamp(((A.f + B.f) / 2 - 0.72) * 1.6, 0.05, 1);
-      ctx.strokeStyle = on ? 'rgba(218,241,222,0.9)' : `rgba(142,182,155,${((lit || hits ? 0.08 : 0.22) * depth + 0.04).toFixed(3)})`;
+      ctx.strokeStyle = on ? 'rgba(242,245,238,0.9)' : `rgba(${AC},${((lit || hits ? 0.08 : 0.22) * depth + 0.04).toFixed(3)})`;
       ctx.lineWidth = on ? 1.6 : 0.8;
       ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
     }
@@ -212,8 +214,8 @@ function run(box, cv, key, data) {
       for (const i of new Set(named)) {
         const p = P[i], t = g.nodes[i].title, s = t.length > 26 ? t.slice(0, 25) + '…' : t;
         ctx.globalAlpha = i === hover ? 1 : clamp((p.f - 0.7) * 2.2, 0.25, 0.85);
-        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,31,32,0.9)'; ctx.strokeText(s, p.x, p.y - 10 * p.f - 6);
-        ctx.fillStyle = i === hover || (lit && lit.has(i)) ? '#DAF1DE' : '#8EB69B';
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(6,7,6,0.9)'; ctx.strokeText(s, p.x, p.y - 10 * p.f - 6);
+        ctx.fillStyle = i === hover || (lit && lit.has(i)) ? '#F2F5EE' : `rgb(${AC})`;
         ctx.fillText(s, p.x, p.y - 10 * p.f - 6);
       }
       ctx.globalAlpha = 1;

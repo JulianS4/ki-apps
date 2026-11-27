@@ -22,7 +22,7 @@ const tabs = v => `<nav class="csub" aria-label="Aufgaben &amp; Projekte">${TABS
 
 function taskRow(x) {
   const line = [x.where, x.due ? `fällig ${dfmt(x.due)}` : '', x.overdue ? 'überfällig' : ''].filter(Boolean).join(' · ');
-  return `<li class="li${x.overdue ? ' late' : ''}"><input type="checkbox" data-a="tick" data-s="${x.s}" data-id="${esc(x.id)}"${x.done ? ' checked' : ''} aria-label="${esc(x.text)} erledigt"><span class="t${x.done ? ' done' : ''}">${esc(x.text)}${line ? `<small>${x.href ? `<a href="${esc(x.href)}">${esc(line)}</a>` : esc(line)}</small>` : ''}</span>${x.s === 'task' ? editBtn('task', x.id) : ''}</li>`;
+  return `<li class="li${x.overdue ? ' over' : ''}"><input type="checkbox" data-a="tick" data-s="${x.s}" data-id="${esc(x.id)}"${x.done ? ' checked' : ''} aria-label="${esc(x.text)} erledigt"><span class="t${x.done ? ' done' : ''}">${esc(x.text)}${line ? `<small>${x.href ? `<a href="${esc(x.href)}">${esc(line)}</a>` : esc(line)}</small>` : ''}</span>${x.s === 'task' ? editBtn('task', x.id) : ''}</li>`;
 }
 function tasksView(ctx, t) {
   const g = taskGroups({ free: db.list(ctx, 'task'), ptasks: db.list(ctx, 'ptask'), stasks: db.list(ctx, 'stask'), projects: db.list(ctx, 'project') }, t);

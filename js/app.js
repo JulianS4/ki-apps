@@ -1,5 +1,6 @@
 // Life OS shell: routing, navigation, shared context, delegated events, offline cache.
 import { createStore, pickBackend } from './core/store.js';
+import { applyAccent } from './core/theme.js';
 import { parseRoute } from './core/routes.js';
 import { runMigrations } from './core/migrate.js';
 import * as settings from './areas/settings.js';
@@ -132,6 +133,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) rend
 setInterval(() => { if (!document.hidden && current && (current.route.area === 'cockpit' || current.route.area === 'calendar')) render(); }, 60000);
 
 runMigrations(ctx.store);
+applyAccent(ctx.store);
 if (training.init) training.init(ctx);
 if (recovery.init) recovery.init(ctx);
 render();
