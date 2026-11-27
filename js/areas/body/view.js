@@ -33,7 +33,7 @@ export function overviewView(v) {
     v.latest.run5k ? card('5 km', fmtValue('run5k', v.latest.run5k.y), dfmt(v.latest.run5k.date)) : '',
     v.latest.hang ? card('Dead-Hang', fmtValue('hang', v.latest.hang.y), dfmt(v.latest.hang.date)) : '',
   ].join('');
-  return hero(`Ziel ${GOALS.kg} kg · Körperfett ${GOALS.fat.join('–')} %`, 'Körper') + quarterBlock(v.quarter)
+  return hero(`Ziel ${GOALS.kg} kg · Körperfett ${GOALS.fat.join('–')} %`, 'Gesundheit') + quarterBlock(v.quarter)
     + `<section class="blk"><div class="cards">${cards}</div>
     <div class="tools" style="margin-top:12px"><a class="btn pri" href="#koerper/messung">Messung eintragen</a></div></section>`;
 }
@@ -72,14 +72,14 @@ export function historyView(v) {
     return `<li><div class="li"><a class="t bday" href="#koerper/messung?${d.date}"><b>${dfmt(d.date)}</b><small class="note">${esc(d.line)}</small></a>
     <button class="btn${sure ? ' red' : ''}" type="button" data-a="bdel" data-d="${d.date}" aria-label="Messung vom ${dfmt(d.date)} löschen">${sure ? 'Sicher? Nochmal tippen' : '×'}</button></div></li>`;
   }).join('');
-  return hero('Körper', 'Verlauf') + (v.charts || '')
+  return hero('Gesundheit', 'Verlauf') + (v.charts || '')
     + `<section class="blk"><div class="bh"><h2>Messtage</h2><p>${v.days.length}</p></div>
     ${rows ? `<ul class="list">${rows}</ul>` : '<p class="note">Noch keine Messung. <a href="#koerper/messung">Messung eintragen ›</a></p>'}</section>`;
 }
 
 // Photos: new ones per pose, the before/after view, and the list of days.
 export function photosView(v) {
-  if (!v.available) return hero('Körper', 'Fotos') + '<p class="note">Fotos sind auf diesem Gerät nicht verfügbar. Werte, Verlauf und Quartals-Check funktionieren weiter.</p>';
+  if (!v.available) return hero('Gesundheit', 'Fotos') + '<p class="note">Fotos sind auf diesem Gerät nicht verfügbar. Werte, Verlauf und Quartals-Check funktionieren weiter.</p>';
   const year = d => `${dfmt(d)} ${d.slice(0, 4)}`;
   const img = (d, p) => (v.idx[d] && v.idx[d][p] ? `<img data-photo="${d}:${p}" alt="${p} ${dfmt(d)}">` : '<div class="pmiss">kein Foto</div>');
   const slots = POSES.map(p => `<div class="pslot">${v.idx[v.day] && v.idx[v.day][p.id] ? img(v.day, p.id) : '<div class="pmiss">+ Foto</div>'}<span>${p.label}</span>
@@ -98,7 +98,7 @@ export function photosView(v) {
     return `<li><div class="li"><span class="t"><b>${year(d)}</b> <small class="note">${POSES.filter(p => v.idx[d][p.id]).map(p => p.label).join(' · ')}</small></span>
     <button class="btn${sure ? ' red' : ''}" type="button" data-a="pdel" data-d="${d}" aria-label="Fotos vom ${dfmt(d)} löschen">${sure ? 'Sicher? Nochmal tippen' : '×'}</button></div></li>`;
   }).join('');
-  return hero('Körper', 'Fotos') + `<section class="blk"><div class="bh"><h2>Neue Fotos</h2></div><div class="ex">
+  return hero('Gesundheit', 'Fotos') + `<section class="blk"><div class="bh"><h2>Neue Fotos</h2></div><div class="ex">
   <label class="bf" for="pDay">Datum<input id="pDay" class="tx" type="date" data-a="pdate" value="${v.day}" max="${v.today}"></label>
   <div class="pslots">${slots}</div><p class="note">Tippen öffnet Kamera oder Mediathek. Die Fotos bleiben auf diesem Gerät.</p></div></section>
   <section class="blk"><div class="bh"><h2>Vergleich</h2></div>${cmp}</section>

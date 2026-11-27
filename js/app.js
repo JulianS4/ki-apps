@@ -29,7 +29,7 @@ const $ = s => document.querySelector(s);
 const { backend, persistent } = pickBackend(() => window.localStorage);
 
 const AREAS = { heute, training, recovery, food, routines, body, arena, settings, cockpit, finance, school, projects, agents, notes, integrations, import: importPage };
-const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Körper', arena: 'Arena' };
+const TITLES = { training: 'Training', recovery: 'Recovery', food: 'Ernährung', routines: 'Routinen', body: 'Gesundheit', arena: 'Arena' };
 let toastT = null, current = null, needs = false, rzT = null;
 const pos = {};
 
@@ -51,13 +51,13 @@ const ctx = {
   reloadAll: () => Object.values(AREAS).forEach(a => a.reload && a.reload(ctx)),
 };
 
-// The top bar: the app name on phones, or the way back from a Training &
-// Erholung page; an area may add its own tabs on the right.
+// The top bar: the app name on phones, or the name of a body/health area;
+// an area may add its own tabs on the right.
 function header(route, area) {
   const solo = arenaOnly(ctx.store);
   const left = route.area === 'arena' && solo ? '<span class="brand">Arena</span>'
     : route.area === 'settings' && solo ? '<a class="home" href="#arena" aria-label="Zurück zur Arena">‹</a><span class="brand">Einstellungen</span>'
-    : TITLES[route.area] ? `<a class="home" href="#heute" aria-label="Zurück zu Training &amp; Erholung">‹</a><span class="brand">${TITLES[route.area]}</span>`
+    : TITLES[route.area] ? `<span class="brand">${TITLES[route.area]}</span>`
       : '<a class="brand m" href="#uebersicht">Life OS</a>';
   const right = area.header ? area.header(route, ctx) : '';
   return `<div class="lead">${left}</div>${right}`;
@@ -128,7 +128,7 @@ addEventListener('resize', () => {
 // Home-screen apps resume without reloading: redraw so "Heute" and the
 // training day follow the clock instead of showing this morning's state.
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
-setInterval(() => { if (!document.hidden && current && (current.route.area === 'heute' || current.route.area === 'cockpit')) render(); }, 60000);
+setInterval(() => { if (!document.hidden && current && (current.route.area === 'cockpit' || current.route.area === 'calendar')) render(); }, 60000);
 
 runMigrations(ctx.store);
 if (training.init) training.init(ctx);

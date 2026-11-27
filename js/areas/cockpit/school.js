@@ -21,7 +21,7 @@ function overview(ctx, t) {
   const tasks = db.list(ctx, 'stask'), open = tasks.filter(x => !x.done).sort((a, b) => ((a.due || '9') < (b.due || '9') ? -1 : 1)), avg = gradeAvg(exams);
   const rest = exams.filter(e => !next.includes(e)).sort((a, b) => (a.d < b.d ? 1 : -1));
   const subjects = [...new Set([...exams.map(e => e.subj), ...tasks.map(x => x.subj)])].sort((a, b) => a.localeCompare(b, 'de'));
-  return `${hero('', 'Ausbildung', cur ? `Aktuelle Abteilung: <b>${esc(cur.name)}</b> · seit ${dfmt(cur.from)}${cur.to ? ` · bis ${dfmt(cur.to)}` : ''}` : 'Keine aktuelle Abteilung eingetragen.')}
+  return `${hero('', 'Arbeit &amp; Lernen', cur ? `Aktuelle Abteilung: <b>${esc(cur.name)}</b> · seit ${dfmt(cur.from)}${cur.to ? ` · bis ${dfmt(cur.to)}` : ''}` : 'Keine aktuelle Abteilung eingetragen.')}
   <div class="pact">${newBtn('exam', 'Klassenarbeit hinzufügen', null, 'btn pri')}${newBtn('stask', 'Aufgabe hinzufügen')}${newBtn('dept', 'Abteilung hinzufügen')}</div>
   ${formIf(ctx, 'exam')}${formIf(ctx, 'stask')}${formIf(ctx, 'dept')}${formIf(ctx, 'note')}
   <section class="blk hl"><div class="bh"><h2>Nächste Klassenarbeiten</h2><p>${next.length ? srcLine(next[0].src, next.map(e => e.upd).filter(Boolean).sort().pop(), ctx, { label: 'aktualisiert' }) : ''}</p></div>
@@ -45,7 +45,7 @@ function schoolBox(ctx, { id, subj, about, q }) {
 function subject(ctx, t, subj) {
   const n = norm(subj), exams = db.list(ctx, 'exam').filter(e => norm(e.subj) === n).sort((a, b) => (a.d < b.d ? -1 : 1));
   const tasks = db.list(ctx, 'stask').filter(x => norm(x.subj) === n), notes = db.list(ctx, 'note').filter(x => x.tags.some(g => norm(g) === tagOf(subj)));
-  return `<a class="back" href="#ausbildung">‹ Ausbildung</a>${hero('Fach', esc(subj), 'Klassenarbeiten, Aufgaben und Lernnotizen zu diesem Fach.')}
+  return `<a class="back" href="#ausbildung">‹ Arbeit &amp; Lernen</a>${hero('Fach', esc(subj), 'Klassenarbeiten, Aufgaben und Lernnotizen zu diesem Fach.')}
   <div class="pact">${newBtn('exam', 'Klassenarbeit hinzufügen', { subj }, 'btn pri')}${newBtn('stask', 'Aufgabe hinzufügen', { subj })}${newBtn('note', 'Lernnotiz anlegen', { topic: 'ausbildung', tags: tagOf(subj) })}</div>
   ${formIf(ctx, 'exam')}${formIf(ctx, 'stask')}${formIf(ctx, 'note')}
   <section class="blk"><div class="bh"><h2>Klassenarbeiten</h2></div>${exams.length ? `<ul class="crows card-l">${exams.map(e => examRow(e, t, e.d >= t)).join('')}</ul>` : '<p class="note">Keine Klassenarbeiten in diesem Fach.</p>'}</section>

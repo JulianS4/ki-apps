@@ -32,12 +32,17 @@ function bodyRoute(sub) {
 }
 
 // Cockpit: one area per section, sub-pages as views.
-const FIN_VIEWS = { konten: 'accounts', buchungen: 'tx', ausgaben: 'costs', kosten: 'costs', budget: 'budget', abos: 'subs' };
+const FIN_VIEWS = { investments: 'invest', konten: 'accounts', buchungen: 'tx', ausgaben: 'costs', kosten: 'costs', budget: 'budget', abos: 'subs' };
 function sub(h, base) { return h === base ? '' : h.startsWith(base + '/') ? h.slice(base.length + 1) : null; }
 function cockpitRoute(h) {
   let s;
   if (h === 'cockpit' || h === 'uebersicht' || h === '') return { area: 'cockpit' };
-  if (h === 'heute') return { area: 'heute' };
+  // The former "Training & Erholung" page lives on in the overview.
+  if (h === 'heute') return { area: 'cockpit' };
+  if (h === 'aufgaben') return { area: 'projects', view: 'tasks' };
+  if (h === 'ziele') return { area: 'goals' };
+  if ((s = sub(h, 'kalender')) !== null) return { area: 'calendar', week: /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null };
+  if (h === 'arbeit') return { area: 'school', view: 'overview' };
   if (h === 'business-log') return { area: 'projects', view: 'log' };
   if (h === 'agents') return { area: 'agents' };
   if (h === 'import') return { area: 'import' };
@@ -71,6 +76,7 @@ export function parseRoute(hash) {
   if (h === 'routinen' || h.startsWith('routinen/')) return { area: 'routines', view: ROUT_VIEWS[h.slice('routinen/'.length)] || 'today' };
   if (h === 'arena' || h.startsWith('arena/')) return arenaRoute(h.slice('arena/'.length));
   if (h === 'koerper' || h.startsWith('koerper/')) return bodyRoute(h.slice('koerper/'.length));
+  if (h === 'gesundheit' || h.startsWith('gesundheit/')) return bodyRoute(h.slice('gesundheit/'.length));
   if (h === 'ernaehrung' || h.startsWith('ernaehrung/')) return { area: 'food', view: FOOD_VIEWS[h.slice('ernaehrung/'.length)] || 'today' };
   if (h === 'training' || h.startsWith('training/')) return trainingRoute(h.slice('training/'.length));
   if (DAYS.includes(h) || h === 'verlauf' || (h.startsWith('x-') && h.length > 2)) return trainingRoute(h);

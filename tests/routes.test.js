@@ -5,7 +5,7 @@ import { parseRoute } from '../js/core/routes.js';
 const cases = [
   ['', { area: 'cockpit' }],
   ['#', { area: 'cockpit' }],
-  ['#heute', { area: 'heute' }],
+  ['#heute', { area: 'cockpit' }],
   ['#training', { area: 'training', view: 'day', day: null }],
   ['#training/mo', { area: 'training', view: 'day', day: 'mo' }],
   ['#training/verlauf', { area: 'training', view: 'hist' }],

@@ -6,7 +6,7 @@ import { SCHEMAS, parseItem, toDraft } from './schema.js';
 import * as db from './db.js';
 import { fmtMoney, daysUntil } from './logic.js';
 
-export const FAMILY = ['cockpit', 'finance', 'school', 'projects', 'agents', 'notes', 'integrations', 'import'];
+export const FAMILY = ['cockpit', 'finance', 'school', 'projects', 'agents', 'notes', 'integrations', 'import', 'calendar', 'goals'];
 
 export const today = ctx => ds(ctx.now());
 export const banner = ctx => (db.isDemo(ctx) ? '<div class="demo" role="note"><b>Beispieldaten</b><span>Finanzen, Ausbildung, Projekte, Business Log, Agents und Wissen zeigen erfundene Einträge. Deine echten Einträge sind unberührt.</span><button class="btn" type="button" data-a="demoend">Beispiele beenden</button></div>' : '');
